@@ -10,7 +10,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "ws": "^8.18.0"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@openuidev/lang-core": "^0.2.7",
+    "ws": "^8.18.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

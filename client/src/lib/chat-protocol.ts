@@ -15,7 +15,27 @@ export type ServerEvent =
   | ChatDeltaEvent
   | ChatToolEvent
   | ChatResponseEvent
-  | ChatErrorEvent;
+  | ChatErrorEvent
+  | UiStartEvent
+  | UiDeltaEvent
+  | UiSpecEvent;
+
+/** The model began a ui tool call. */
+export interface UiStartEvent {
+  type: "ui:start";
+}
+
+/** Decoded OpenUI Lang text extracted from the streaming tool-call tokens. */
+export interface UiDeltaEvent {
+  type: "ui:delta";
+  text: string;
+}
+
+/** The complete, authoritative spec from the finished tool call. */
+export interface UiSpecEvent {
+  type: "ui:spec";
+  spec: string;
+}
 
 export interface ChatStatusEvent {
   type: "chat:status";

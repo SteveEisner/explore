@@ -3,8 +3,14 @@
 ## Project docs
 
 - `docs/proposal.md` — project vision and phases
-- `docs/tasks.md` — phase-by-phase task breakdown
+- `docs/ARCHITECTURE.md` — system design; `docs/decisions.md` — decision log
+- `docs/tasks.md` — phase roadmap
+- `TASKS.md` (root) — live task tracker by component area (description, self-claimed owner, status)
 - `docs/worklog-*.md` — dated worklog files
+
+## Task tracking
+
+Before starting work, claim the task in `TASKS.md` (set Owner to your name, status to `in progress`). Update status as it changes (`todo` · `in progress` · `blocked` · `done`). Add newly discovered tasks to the appropriate component-area section.
 
 ## Worklog
 
@@ -12,7 +18,13 @@ Whenever a milestone is reached — a task from `docs/tasks.md` completed, a pha
 
 Each entry should include:
 
-- A `## <date> — <milestone title>` heading (newest entries at the top, below the file intro)
+- A `## YYYY-MM-DD HH:MM — <milestone title>` heading (newest entries at the top, below the file intro). Use the actual current time — run `date "+%Y-%m-%d %H:%M"` rather than guessing.
 - 1–3 sentences describing what was done and, if relevant, what's next
 
-Keep entries short and factual — this is a log, not documentation. Also check off the corresponding task in `docs/tasks.md` when applicable.
+Keep entries short and factual — this is a log, not documentation. Also update the corresponding task status in `TASKS.md` when applicable.
+
+## Breaks and the two-hour limit
+
+When the user declares a break (e.g., "taking a break", "stopping for now", "done for today"), immediately append a timestamped worklog entry titled `## YYYY-MM-DD HH:MM — Break` noting that work stopped, with a one-sentence summary of where things stand and the natural next step for resuming.
+
+The user is holding themselves to a **two-hour work limit** per session (initial policy). Use the worklog timestamps to track session length: if roughly two hours have passed since the session's first entry (or since the last break entry) and the user hasn't stopped, gently point it out.

@@ -3,6 +3,7 @@ import { EventEmitter } from "node:events";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { Readable, Writable } from "node:stream";
+import { buildUiSystemPrompt } from "./ui-library.js";
 
 /**
  * One NDJSON event emitted by `claude --output-format stream-json`.
@@ -91,6 +92,14 @@ export class ClaudeSession extends EventEmitter {
       "stream-json",
       "--include-partial-messages",
       "--verbose",
+      // The `ui` tool: an MCP server the CLI spawns, plus the OpenUI Lang
+      // system prompt teaching the model the component library.
+      "--mcp-config",
+      this.writeMcpConfig(),
+      "--allowedTools",
+      "mcp__ui__ui",
+      "--append-system-prompt",
+      buildUiSystemPrompt(),
     ];
     const resuming = this.sessionId !== null;
     if (this.sessionId) {
@@ -165,6 +174,27 @@ export class ClaudeSession extends EventEmitter {
     } catch (err) {
       this.emit("stderr", `failed to persist session id: ${String(err)}`);
     }
+  }
+
+  /**
+   * Write the MCP config the CLI loads at spawn. The ui-mcp server runs from
+   * compiled dist/ in production; under tsx (this file ends in .ts) it runs
+   * the TypeScript source via the workspace's tsx binary.
+   */
+  private writeMcpConfig(): string {
+    const isDev = import.meta.url.endsWith(".ts");
+    const here = import.meta.dirname;
+    const uiServer = isDev
+      ? {
+          command: path.resolve(here, "../../node_modules/.bin/tsx"),
+          args: [path.join(here, "ui-mcp.ts")],
+        }
+      : { command: process.execPath, args: [path.join(here, "ui-mcp.js")] };
+
+    const configPath = path.join(path.dirname(this.sessionFile), "mcp.json");
+    mkdirSync(path.dirname(configPath), { recursive: true });
+    writeFileSync(configPath, JSON.stringify({ mcpServers: { ui: uiServer } }));
+    return configPath;
   }
 
   private loadPersistedSessionId(): string | null {

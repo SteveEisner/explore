@@ -2,14 +2,18 @@
 
 Derived from the phases in [proposal.md](proposal.md). Each phase ends with something usable, so later phases can be reordered or cut without stranding work.
 
+> **Note:** this file is the phase *roadmap*. Day-to-day task tracking (owners, statuses) lives in the root-level [TASKS.md](../TASKS.md), organized by component area.
+
 ## Phase 1 — Artifact creation via tool use
 
 Goal: an LLM can create an artifact through tool use, and you can see it rendered.
 
 - [ ] Choose the stack and scaffold the web app (artifact host + minimal UI shell)
-- [ ] Define the wiki convention: a plain file directory the LLM reads as its knowledge source
-- [ ] Define the artifact format (e.g., a self-contained HTML/JS page) and where artifacts are stored
-- [ ] Expose an artifact tool to the LLM (create/update an artifact by writing a file), wired to Claude Code as the intelligence layer
+- [ ] Define the wiki convention: a plain file directory the LLM reads as its knowledge source (Markdown by convention, not required)
+- [ ] Expose the wiki via backend APIs: list files, chunked line reads, create, rename, and `str_replace`-style edit (see decisions.md D1)
+- [ ] Evaluate and integrate OpenUI as the artifact medium (see decisions.md D2): library setup, rendering pipeline, on-disk representation
+- [ ] Define the initial component vocabulary for exploration apps (plus the raw-HTML escape hatch and its sandboxing)
+- [ ] Expose an artifact tool to the LLM (create/update an artifact in the OpenUI representation), wired to Claude Code as the intelligence layer
 - [ ] Render the artifact in the web app, refreshing when it changes
 - [ ] End-to-end smoke test: point it at a sample wiki (e.g., a small doc bundle), ask for an explanation app, see it render
 
@@ -28,16 +32,19 @@ Goal: a chat pane lets you steer the LLM, and the artifact updates in response.
 Goal: feedback channels richer than typed text.
 
 - [ ] Point-and-comment: click/select a region of the artifact and attach feedback to it
-- [ ] Screenshot round-trip: send the rendered artifact (or a selection) back to the LLM so it sees what you see
-- [ ] Decide on further modes and prototype the highest-value one (e.g., voice input, drawing/annotation overlay)
-- [ ] Represent multimodal feedback in the LLM conversation (tool results / image content blocks)
+- [ ] Drawing/annotation overlay: draw on the rendered artifact (circle, sketch, markup) as feedback
+- [ ] Screenshot round-trip: send the rendered artifact (or a marked-up selection) back to the LLM so it sees what you see
+- [ ] Voice agent: spoken conversation about the content or the application (start with one direction and expand)
+- [ ] Design-conversation memory: persist the design-conversation history (LLM memory or a dedicated component) so refinement is cumulative
+- [ ] Represent multimodal feedback in the LLM conversation (tool results / image content blocks / transcripts)
+- [ ] Keep text chat working as the universal fallback for every mode
 
 ## Phase 4 — Interactive data exploration
 
 Goal: artifacts stop being static pages and become exploration tools.
 
 - [ ] Give artifacts a runtime API to query the wiki (fetch files/data on demand rather than baking everything in)
-- [ ] Build guidance for the LLM: patterns and components for interactive elements (filters, drill-downs, timelines, diagrams, quizzes)
+- [ ] Grow the component vocabulary with interactive exploration elements (filters, drill-downs, timelines, diagrams, quizzes) — escape-hatch usage from earlier phases points at the gaps
 - [ ] Let interactions in the artifact flow back to the LLM as context ("user keeps drilling into X — explain it deeper")
 - [ ] Validate against at least two motivating examples (e.g., PR review and SEV investigation) and note what guidance was missing
 

@@ -1,4 +1,5 @@
 import * as React from "react";
+import { mergeStatements } from "@openuidev/react-lang";
 import type { ServerEvent } from "@/lib/chat-protocol";
 
 /**
@@ -14,12 +15,23 @@ export type ChatItem =
   | { kind: "result"; id: string; text: string; isError: boolean }
   | { kind: "error"; id: string; text: string };
 
+/**
+ * The main-panel UI, assembled from streamed ui:* events. `program` is the
+ * merged OpenUI Lang source: committed statements from finished ui calls,
+ * plus (while streaming) the partial patch the model is currently writing.
+ */
+export interface UiState {
+  program: string | null;
+  streaming: boolean;
+}
+
 export interface ChatState {
   items: ChatItem[];
   connected: boolean;
   /** True from send until the back end publishes chat:response/chat:error. */
   busy: boolean;
   sessionId: string | null;
+  ui: UiState;
   send: (text: string) => void;
 }
 
@@ -99,6 +111,26 @@ function reduceEvent(items: ChatItem[], event: ServerEvent): ChatItem[] {
 
     case "chat:error":
       return [...items, { kind: "error", id: newId(), text: event.message }];
+
+    // ui:* events drive the main panel, not the chat transcript.
+    case "ui:start":
+    case "ui:delta":
+    case "ui:spec":
+      return items;
+  }
+}
+
+/**
+ * Merge an edit-mode patch into the committed program. While the patch is
+ * still streaming it can be syntactically incomplete, so fall back to plain
+ * concatenation (the streaming parser discards invalid trailing lines).
+ */
+function safeMerge(base: string, patch: string): string {
+  if (!base) return patch;
+  try {
+    return mergeStatements(base, patch);
+  } catch {
+    return `${base}\n${patch}`;
   }
 }
 
@@ -132,6 +164,11 @@ export function useChat(): ChatState {
   const [connected, setConnected] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [sessionId, setSessionId] = React.useState<string | null>(null);
+  const [uiParts, setUiParts] = React.useState({
+    base: "", // merged program from completed ui calls
+    patch: "", // spec text of the in-flight ui call, growing token by token
+    streaming: false,
+  });
   const socketRef = React.useRef<WebSocket | null>(null);
 
   React.useEffect(() => {
@@ -161,6 +198,18 @@ export function useChat(): ChatState {
         if (event.type === "chat:response" || event.type === "chat:error") {
           setBusy(false);
         }
+        if (event.type === "ui:start") {
+          setUiParts((p) => ({ ...p, patch: "", streaming: true }));
+        } else if (event.type === "ui:delta") {
+          setUiParts((p) => ({ ...p, patch: p.patch + event.text }));
+        } else if (event.type === "ui:spec") {
+          // Authoritative full spec — commit it into the merged program.
+          setUiParts((p) => ({
+            base: safeMerge(p.base, event.spec),
+            patch: "",
+            streaming: false,
+          }));
+        }
         setItems((prev) => reduceEvent(prev, event));
       };
       socket.onclose = () => {
@@ -186,5 +235,11 @@ export function useChat(): ChatState {
     setBusy(true);
   }, []);
 
-  return { items, connected, busy, sessionId, send };
+  const ui = React.useMemo<UiState>(() => {
+    const { base, patch, streaming } = uiParts;
+    const program = streaming && patch ? safeMerge(base, patch) : base;
+    return { program: program || null, streaming };
+  }, [uiParts]);
+
+  return { items, connected, busy, sessionId, ui, send };
 }

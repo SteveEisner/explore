@@ -31,6 +31,24 @@ user/assistant turns, marker text for status, tool activity, results, and
 errors. The floating **Test** button in the main panel sends a test chat
 message to kick everything off.
 
+### The `ui` tool (OpenUI)
+
+The LLM can construct the main panel's UI:
+
+- `server/src/ui-mcp.ts` is an MCP server giving the CLI a `ui` tool whose
+  `spec` argument is an [OpenUI Lang](https://openui.com/docs/openui-lang)
+  program; `server/src/ui-library.ts` generates the system prompt from the
+  component schemas (edit mode enabled).
+- The back end watches the streaming tool-call tokens and forwards the
+  decoded spec as `ui:start` / `ui:delta` / `ui:spec` events, so the panel
+  renders incrementally while the model is still writing.
+- The front end merges edit-mode patches with `mergeStatements` and renders
+  with the OpenUI `<Renderer>`. Components (client renderers in
+  `client/src/lib/openui.tsx`, schema mirror in `server/src/ui-library.ts`):
+  - `Content(html)` — raw HTML block
+  - `Stack(children)` — full-width vertical stack, edge to edge
+  - `Tabs(tabs: [{label, content}])` — tab row on top, panels below
+
 ## Development
 
 ```sh

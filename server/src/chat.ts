@@ -1,6 +1,10 @@
 import type { WebSocket } from "ws";
 import type { ClaudeSession, ClaudeStreamEvent } from "./claude.js";
+import { extractSpecSoFar } from "./partial-json.js";
 import type { ClientMessage, ServerEvent } from "./protocol.js";
+
+/** The `ui` MCP tool as the model sees it (mcp__<server>__<tool>). */
+const UI_TOOL_NAME = "mcp__ui__ui";
 
 /**
  * Chat service: bridges websocket clients and the Claude CLI session.
@@ -12,6 +16,11 @@ import type { ClientMessage, ServerEvent } from "./protocol.js";
 export class ChatService {
   private readonly clients = new Set<WebSocket>();
   private wasResumed = false;
+  /**
+   * In-flight ui tool calls, keyed by content-block index: raw accumulated
+   * JSON of the tool input, and how much decoded spec was already forwarded.
+   */
+  private readonly uiBlocks = new Map<number, { raw: string; sent: number }>();
 
   constructor(private readonly claude: ClaudeSession) {
     claude.on("event", (event: ClaudeStreamEvent) =>
@@ -113,7 +122,12 @@ export class ChatService {
 
       case "stream_event": {
         const streamed = event.event as
-          | { type?: string; delta?: { type?: string; text?: string } }
+          | {
+              type?: string;
+              index?: number;
+              content_block?: { type?: string; name?: string };
+              delta?: { type?: string; text?: string; partial_json?: string };
+            }
           | undefined;
         if (
           streamed?.type === "content_block_delta" &&
@@ -121,6 +135,41 @@ export class ChatService {
           streamed.delta.text
         ) {
           this.broadcast({ type: "chat:delta", text: streamed.delta.text });
+          return;
+        }
+
+        // Follow ui tool calls token by token so the front end can render
+        // the panel incrementally while the model writes the spec.
+        if (
+          streamed?.type === "content_block_start" &&
+          streamed.content_block?.type === "tool_use" &&
+          streamed.content_block.name === UI_TOOL_NAME &&
+          streamed.index !== undefined
+        ) {
+          this.uiBlocks.set(streamed.index, { raw: "", sent: 0 });
+          this.broadcast({ type: "ui:start" });
+          return;
+        }
+        if (
+          streamed?.type === "content_block_delta" &&
+          streamed.delta?.type === "input_json_delta" &&
+          streamed.index !== undefined
+        ) {
+          const block = this.uiBlocks.get(streamed.index);
+          if (!block) return;
+          block.raw += streamed.delta.partial_json ?? "";
+          const spec = extractSpecSoFar(block.raw);
+          if (spec.length > block.sent) {
+            this.broadcast({ type: "ui:delta", text: spec.slice(block.sent) });
+            block.sent = spec.length;
+          }
+          return;
+        }
+        if (
+          streamed?.type === "content_block_stop" &&
+          streamed.index !== undefined
+        ) {
+          this.uiBlocks.delete(streamed.index);
         }
         return;
       }
@@ -137,6 +186,12 @@ export class ChatService {
               text: block.text,
             });
           } else if (block.type === "tool_use") {
+            // The finished tool call carries the authoritative full spec —
+            // it supersedes whatever was assembled from streamed deltas.
+            const input = block.input as { spec?: string } | undefined;
+            if (block.name === UI_TOOL_NAME && typeof input?.spec === "string") {
+              this.broadcast({ type: "ui:spec", spec: input.spec });
+            }
             this.broadcast({
               type: "chat:tool",
               phase: "use",

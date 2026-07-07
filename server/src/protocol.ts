@@ -22,7 +22,32 @@ export type ServerEvent =
   | ChatDeltaEvent
   | ChatToolEvent
   | ChatResponseEvent
-  | ChatErrorEvent;
+  | ChatErrorEvent
+  | UiStartEvent
+  | UiDeltaEvent
+  | UiSpecEvent;
+
+/**
+ * ui:* events — the LLM's `ui` tool call, streamed to the front end so the
+ * main panel renders incrementally while the model writes the spec.
+ */
+
+/** The model began a ui tool call. */
+export interface UiStartEvent {
+  type: "ui:start";
+}
+
+/** Decoded OpenUI Lang text extracted from the streaming tool-call tokens. */
+export interface UiDeltaEvent {
+  type: "ui:delta";
+  text: string;
+}
+
+/** The complete, authoritative spec from the finished tool call. */
+export interface UiSpecEvent {
+  type: "ui:spec";
+  spec: string;
+}
 
 /** Lifecycle/status updates: connecting, session started/resumed, thinking… */
 export interface ChatStatusEvent {

@@ -1,77 +1,92 @@
 import { createLibrary, defineComponent, Renderer } from "@openuidev/react-lang";
 import { z } from "zod";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import {
+  Tabs as TabsRoot,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 
 /**
- * OpenUI (openui.com) generative-UI library: the set of components the LLM
- * is allowed to emit as OpenUI Lang, each backed by our shadcn primitives.
- * `openuiLibrary.prompt()` produces the system prompt that teaches the model
- * the language; <GenerativeView> renders streamed model output.
+ * OpenUI (openui.com) generative-UI library rendered into the main panel.
+ * The LLM sends OpenUI Lang programs through its `ui` tool; the back end
+ * streams the tool tokens to us and <GenerativeView> renders incrementally.
+ *
+ * Names and prop shapes MUST stay in sync with the schema-only mirror the
+ * back end uses for prompt generation (server/src/ui-library.ts).
+ *
+ * Layout contract: components are edge-to-edge — no built-in outer padding.
  */
 
-const Text = defineComponent({
-  name: "Text",
-  description: "A paragraph of body text",
+const Content = defineComponent({
+  name: "Content",
+  description:
+    "A block of raw HTML rendered directly into the page. Use well-formed HTML.",
   props: z.object({
-    content: z.string().describe("The text to display"),
+    html: z.string().describe("Raw HTML markup to display"),
   }),
   component: ({ props }) => (
-    <p className="text-sm leading-relaxed">{props.content}</p>
+    <div
+      className="w-full min-w-0 [&_a]:underline"
+      // The whole point of Content is trusted LLM-authored markup.
+      dangerouslySetInnerHTML={{ __html: props.html }}
+    />
   ),
 });
 
-const Tag = defineComponent({
-  name: "Tag",
-  description: "A small status badge",
+const Tabs = defineComponent({
+  name: "Tabs",
+  description:
+    "A tabbed view: a row of tab triggers on top, one visible panel below.",
   props: z.object({
-    label: z.string().describe("Badge text"),
-    tone: z
-      .enum(["default", "secondary", "destructive", "outline"])
-      .optional()
-      .describe("Visual tone"),
-  }),
-  component: ({ props }) => (
-    <Badge variant={props.tone ?? "secondary"}>{props.label}</Badge>
-  ),
-});
-
-const Action = defineComponent({
-  name: "Action",
-  description: "A button the user can press",
-  props: z.object({
-    label: z.string().describe("Button text"),
-    actionId: z.string().describe("Identifier reported when pressed"),
-  }),
-  component: ({ props }) => <Button size="sm">{props.label}</Button>,
-});
-
-const Panel = defineComponent({
-  name: "Panel",
-  description: "A titled content panel containing other components",
-  props: z.object({
-    title: z.string().describe("Panel heading"),
-    children: z
-      .array(z.union([Text.ref, Tag.ref, Action.ref]))
-      .optional()
-      .describe("Panel body content"),
+    tabs: z
+      .array(
+        z.object({
+          label: z.string().describe("Tab trigger text"),
+          content: z
+            .array(Content.ref)
+            .describe("Components shown when this tab is active"),
+        })
+      )
+      .describe("The tabs, in display order"),
   }),
   component: ({ props, renderNode }) => (
-    <section className="rounded-lg border bg-card p-6 shadow-sm">
-      <h2 className="mb-2 text-lg font-semibold">{props.title}</h2>
-      <Separator className="mb-4" />
-      <div className="flex flex-col gap-3 text-sm text-card-foreground">
-        {props.children?.map((child, i) => (
-          <div key={i}>{renderNode(child)}</div>
+    <TabsRoot defaultValue={0} className="w-full gap-0">
+      <TabsList variant="line" className="w-full border-b p-0">
+        {props.tabs.map((tab, i) => (
+          <TabsTrigger key={i} value={i}>
+            {tab.label}
+          </TabsTrigger>
         ))}
-      </div>
-    </section>
+      </TabsList>
+      {props.tabs.map((tab, i) => (
+        <TabsContent key={i} value={i} className="w-full">
+          {renderNode(tab.content)}
+        </TabsContent>
+      ))}
+    </TabsRoot>
+  ),
+});
+
+const Stack = defineComponent({
+  name: "Stack",
+  description:
+    "Fills the width of its container and stacks its children vertically, edge to edge.",
+  props: z.object({
+    children: z
+      .array(z.union([Content.ref, Tabs.ref]))
+      .describe("Components stacked top to bottom"),
+  }),
+  component: ({ props, renderNode }) => (
+    <div className="flex w-full min-w-0 flex-col">
+      {renderNode(props.children)}
+    </div>
   ),
 });
 
 export const openuiLibrary = createLibrary({
-  components: [Panel, Text, Tag, Action],
+  components: [Stack, Content, Tabs],
+  root: "Stack",
 });
 
 export function GenerativeView({

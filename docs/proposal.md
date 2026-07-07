@@ -32,6 +32,33 @@ LLMs like Claude already approximate this with Artifacts. This project builds a 
 - **Multi-modal feedback** — richer channels than text for steering the explanation
 - **Progressive refinement** — the explanation app improves through iteration
 
+## Design Principles
+
+### Constrained generation
+
+The LLM's artifact output becomes more reliable when it is constrained. Rather than letting it invent anything out of arbitrary HTML — with varying results — we give it a **vocabulary for building an exploration app**: a set of pre-created components it composes, instead of a blank page it improvises on.
+
+### Balance power with discipline
+
+Raw HTML generation is powerful but inconsistent; pre-created components are disciplined but limiting. The artifact system balances the two: the component vocabulary is the default path, with raw generation available where the vocabulary falls short. Where the vocabulary proves insufficient in practice, that's a signal to grow the vocabulary.
+
+### The author is the learner
+
+The application is part authoring, part exploration/learning — and these are the same person. The author is the intended learner. When the generated application doesn't help the author learn, they don't file a bug — they ask the LLM to **refine or re-do** it. This tight loop is what makes progressive refinement work: the person best positioned to judge the explanation is the one steering it.
+
+### OpenUI as the artifact medium (experiment)
+
+[OpenUI](https://www.openui.com/) — the open standard for generative UI — is a promising way to serve the artifact HTML and, more importantly, to make it **quickly and easily editable** compared to raw HTML edits. Its component library is exactly the "vocabulary contract" described above, and its line-oriented format suits incremental LLM edits. In this sense the project is also **an experiment in defining an HTML-editing protocol**: how should an LLM efficiently and reliably revise a live UI in response to feedback?
+
+## Multi-Modal Interfaces
+
+The feedback channel between author and LLM should be higher-bandwidth than typed text. Planned modes:
+
+- **Draw on the interface** — sketch, circle, and annotate directly on the rendered artifact to show the LLM what you mean instead of describing it.
+- **Voice agent** — speak with an agent about either *the content* (the material being learned) or *the application* (how the explanation app should change). The same channel serves learning and authoring.
+- **Design-conversation memory** — use the LLM's memory, or enhance it with a dedicated component, so the authoring tools carry a history of the design conversation: what was tried, what the author asked for, what worked. Refinement builds on that record instead of restarting from scratch.
+- **Text chat** — always available as the fallback mode.
+
 ## Approach: Don't Reinvent the Wheel
 
 Reuse existing infrastructure for the commodity parts:

@@ -1,0 +1,35 @@
+# Decisions
+
+Architecture and design decisions, newest first. Referenced from [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## D2. Artifact medium: OpenUI component vocabulary (experimental)
+
+**Date:** 2026-07-07
+**Decision:** Artifacts are built from a constrained **component vocabulary** rather than free-form HTML, expressed via [OpenUI](https://www.openui.com/) — a component library (schemas + React renderers) that generates the system prompt telling the LLM what it may emit, with a line-oriented, streaming-friendly output language. A raw-HTML escape hatch remains for gaps in the vocabulary.
+
+**Why:**
+
+- **Constrained generation** makes LLM output more reliable: composing known components beats improvising arbitrary HTML, which produces varying results.
+- **Editability is the crux.** The refine/re-do loop is the core of the product; OpenUI's structured, line-oriented representation should make revisions far cheaper and more reliable than raw edits to an HTML blob. This is deliberately an *experiment in defining an HTML-editing protocol* — evaluating how an LLM should revise a live UI in response to feedback.
+- The library-as-contract model matches our "guidance" thesis: growing the vocabulary *is* improving generation guidance.
+- Token efficiency (OpenUI claims up to ~67% vs. JSON-based approaches) and progressive rendering are nice side benefits.
+
+**Status: experimental.** If OpenUI proves awkward in Phase 1, the fallback is the same principle (constrained vocabulary + structured edits) on a homegrown or alternative representation.
+
+**Revisit if:** the vocabulary constantly needs the escape hatch (vocabulary too weak), or the OpenUI runtime fights the artifact runtime-API needs in Phase 4.
+
+## D1. Wiki edit API format: exact search/replace (`str_replace`)
+
+**Date:** 2026-07-07
+**Decision:** The wiki edit endpoint accepts edits as exact search/replace pairs — `old_string` (must match file content exactly and, by default, uniquely) and `new_string`, with an optional `replace_all` flag. Whole-file writes remain available via the create endpoint for new/small files. No unified diffs, no line-number-based patching.
+
+**Why:** Research on agent editing formats consistently favors exact string matching:
+
+- Benchmarks across editing strategies find search/replace has the highest solve rate — a 23–27 percentage-point improvement over alternative formats — and note it is "very natural for LLMs to produce" ([DEV benchmark of 5 file-editing strategies](https://dev.to/ceaksan/i-benchmarked-5-file-editing-strategies-for-ai-coding-agents-heres-what-actually-works-1855)).
+- A source-code taxonomy of coding-agent architectures found the ecosystem has *converged* on `str_replace`-style editors — used by SWE-agent, OpenHands, Claude Code, and Anthropic's official text-editor tool — precisely because exact string matching is more reliable than line-number or unified-diff patching for LLM output ([Inside the Scaffold, arXiv](https://arxiv.org/pdf/2604.03515)).
+- Aider's extensive editing benchmarks established that models are "terrible at working accurately with source code line numbers" (frequently off-by-one or worse), and its design principles call for formats that are familiar, simple, and free of "brittle specifiers like line numbers or line counts" ([aider edit formats](https://aider.chat/docs/more/edit-formats.html), [aider unified-diffs writeup](https://aider.chat/docs/unified-diffs.html)). Aider's own udiff variant had to strip line-number semantics to work.
+- Our intelligence layer is Claude Code, and Claude models are heavily post-trained on the `str_replace` tool shape — using the same shape means the model operates in its most-practiced format.
+
+**Failure mode to handle:** the known weakness of `str_replace` is that a single wrong character (whitespace, quotes) makes the match fail. The API should fail loudly with a clear error (not silently no-op), distinguish "no match" from "multiple matches," and keep chunked reads cheap so the agent can re-read and retry.
+
+**Revisit if:** files become very large and edits highly repetitive (bulk transformations might warrant a structured patch format), or the intelligence layer changes to a model family with different training.
