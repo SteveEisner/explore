@@ -1,4 +1,6 @@
 import * as React from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   AlertCircleIcon,
   CheckIcon,
@@ -7,6 +9,7 @@ import {
   SendIcon,
   WrenchIcon,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
@@ -97,6 +100,20 @@ export function ChatSidebar({ chat }: { chat: ChatState }) {
   );
 }
 
+/** Chat message text, rendered as GitHub-flavored markdown. */
+function Markdown({ text, invert }: { text: string; invert?: boolean }) {
+  return (
+    <div
+      className={cn(
+        "prose prose-sm max-w-none break-words",
+        invert && "prose-invert"
+      )}
+    >
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+    </div>
+  );
+}
+
 function ChatRow({ item }: { item: ChatItem }) {
   switch (item.kind) {
     case "user":
@@ -104,7 +121,9 @@ function ChatRow({ item }: { item: ChatItem }) {
         <Message align="end">
           <MessageContent>
             <Bubble align="end">
-              <BubbleContent>{item.text}</BubbleContent>
+              <BubbleContent>
+                <Markdown text={item.text} invert />
+              </BubbleContent>
             </Bubble>
           </MessageContent>
         </Message>
@@ -115,8 +134,8 @@ function ChatRow({ item }: { item: ChatItem }) {
         <Message>
           <MessageContent>
             <Bubble variant="muted">
-              <BubbleContent className="whitespace-pre-wrap">
-                {item.text}
+              <BubbleContent>
+                <Markdown text={item.text} />
                 {item.streaming && <span className="shimmer"> ▍</span>}
               </BubbleContent>
             </Bubble>
