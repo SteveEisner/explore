@@ -165,6 +165,57 @@ function safeMerge(base: string, patch: string): string {
   }
 }
 
+/**
+ * Split a still-streaming patch into its finished statements and the
+ * incomplete tail. A statement is finished once a newline appears at bracket
+ * depth 0 outside a string; everything after the last such boundary is tail
+ * (even if it happens to parse) because more tokens may still arrive.
+ * Bracket/quote rules mirror the language's statement splitter
+ * (no escape handling inside strings).
+ */
+export function splitStreamingPatch(patch: string): {
+  complete: string;
+  tail: string;
+} {
+  let depth = 0;
+  let inStr: string | false = false;
+  let boundary = 0; // index just past the last depth-0 newline
+  for (let i = 0; i < patch.length; i++) {
+    const c = patch[i];
+    if (inStr) {
+      if (c === inStr) inStr = false;
+      continue;
+    }
+    if (c === '"' || c === "'") inStr = c;
+    else if (c === "(" || c === "[" || c === "{") depth++;
+    else if (c === ")" || c === "]" || c === "}") depth = Math.max(0, depth - 1);
+    else if (c === "\n" && depth === 0) boundary = i + 1;
+  }
+  return {
+    complete: patch.slice(0, boundary).trim(),
+    tail: patch.slice(boundary).trim(),
+  };
+}
+
+/**
+ * Merge a *partial* edit patch for live rendering. Merging the raw partial
+ * text corrupts the program: the truncated last statement replaces a valid
+ * one mid-program and its unbalanced bracket/quote swallows every statement
+ * after it, blanking the panel until the finished spec arrives. Instead,
+ * merge only the finished statements — each section updates the moment its
+ * statement completes — and append the unfinished tail at the end, where the
+ * streaming parser is built to tolerate it: a redefinition of an existing
+ * statement is ignored there (first definition wins, so the old content
+ * stays visible until the edit is complete), while a brand-new statement
+ * renders progressively as it streams.
+ */
+export function mergeStreamingPatch(base: string, patch: string): string {
+  if (!base) return patch;
+  const { complete, tail } = splitStreamingPatch(patch);
+  const merged = complete ? safeMerge(base, complete) : base;
+  return tail ? `${merged}\n${tail}` : merged;
+}
+
 function statusText(
   status: string,
   sessionId?: string,
@@ -277,7 +328,7 @@ export function useChat(): ChatState {
 
   const ui = React.useMemo<UiState>(() => {
     const { base, patch, streaming } = uiParts;
-    const program = streaming && patch ? safeMerge(base, patch) : base;
+    const program = streaming && patch ? mergeStreamingPatch(base, patch) : base;
     return { program: program || null, streaming };
   }, [uiParts]);
 
