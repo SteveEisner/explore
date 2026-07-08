@@ -64,7 +64,7 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Task | Phase | Owner | Status |
 |---|---|---|---|
 | Wiki API test suite: `tests/` harness spawns the real server against a temp wiki; covers /docs retrieval (content, MIME, 404s, traversal), artifact:save creation/edits (normalization, overwrite protection, hostile-name rejection), wiki:changed hot-reload (debounce, dotfiles, save→notify), and wiki-MCP list_files — `npm test` | bar | Worker 2 | done |
-| List endpoint: enumerate wiki files with paths + basic metadata | 1 | — | todo |
+| List endpoint: enumerate wiki files with paths + basic metadata | 1 | Worker 1 | in progress |
 | Read endpoint: chunked line reads (offset + limit), never whole-doc | 1 | — | todo |
 | Create endpoint: new file with given content | 1 | — | todo |
 | Rename endpoint: rename/move within the wiki | 1 | — | todo |
@@ -89,6 +89,14 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Grow the vocabulary with interactive exploration elements (filters, drill-downs, timelines, diagrams, quizzes), guided by escape-hatch usage | 4 | — | todo |
 
 ## Intelligence & generation guidance (Claude Code)
+
+**Story: the LLM as a clear explainer.** Teach the LLM to present information with clarity — an explainer (not a pedantic know-it-all) who gently introduces a concept to a newcomer and answers a domain expert at full depth. Source doctrine synthesized from the four clarity skills.
+
+| Task | Journey | Owner | Status |
+|---|---|---|---|
+| Synthesize the clarity doctrine for teaching: audience calibration, orient-then-detail, dependency-order context, smallest useful model, layered depth, boundaries, checkable claims, anti-pedantry — [docs/explaining-with-clarity.md](docs/explaining-with-clarity.md) | J1/J2 | Worker 2 | done |
+| Distill the doctrine into the system prompt ("# Explaining" in server/prompts/system-prompt.md, ~25 lines, tied to context levels and the state tool) and verify it lands in the assembled session prompt | J1/J2 | Worker 2 | done |
+| Validate the explainer live: one Q&A at newcomer level and one at expert level over the same wiki topic (eval-harness scenario or scripted session); check calibration, no re-explaining, layered artifact depth | J2 | — | todo |
 
 | Task | Phase | Owner | Status |
 |---|---|---|---|
@@ -121,7 +129,7 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Support artifact updates mid-conversation without losing view state where possible | 2 | — | todo |
 | Chat header cleanup: drop the session id and connected badge from the chat pane | 5 | Worker 2 | done |
 | Markdown viewer upgrades: rehype-sanitize, rehype-slug, highlight.js, mermaid diagrams | 5 | Worker 2 | done |
-| Home is a folder view, not README.md: excerpt of README.md at top with a &lt;more&gt; link that opens the full README, then a hierarchical list of the wiki's folders, markdown files, and .oui files, each linked to open the doc/OUI (subsumes the phase-6 "wiki browser" stretch task) | 5 | — | todo |
+| Home is a folder view, not README.md: excerpt of README.md at top with a &lt;more&gt; link that opens the full README, then a hierarchical list of the wiki's folders, markdown files, and .oui files, each linked to open the doc/OUI (subsumes the phase-6 "wiki browser" stretch task) | 5 | Worker 1 | in progress |
 | Usability pass on the core loop: open wiki → generate → chat → refine | 5 | — | todo |
 | Visual design pass on the app shell (layout, theming, dark mode) | 5 | — | todo |
 
