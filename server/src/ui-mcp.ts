@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import WebSocket from "ws";
 import { z } from "zod";
 
 /**
@@ -40,5 +42,92 @@ server.registerTool(
     };
   }
 );
+
+server.registerTool(
+  "state",
+  {
+    description:
+      "Inspect what the user currently sees in the app: the open document " +
+      "(or authoring-mode program), any text selection in the main panel, " +
+      "pointer position, scroll position, viewport, and panel states. Set " +
+      "`screenshot: true` to also receive a screenshot of the main window. " +
+      "Call this whenever you need context about what the user is looking " +
+      "at or referring to.",
+    inputSchema: {
+      screenshot: z
+        .boolean()
+        .optional()
+        .describe("Also capture a screenshot of the main window"),
+    },
+  },
+  async ({ screenshot }) => {
+    const reply = await requestFrontEndState(screenshot === true);
+    if (reply.error) {
+      return {
+        content: [
+          { type: "text", text: `front-end state unavailable: ${reply.error}` },
+        ],
+        isError: true,
+      };
+    }
+    const content: Array<
+      | { type: "text"; text: string }
+      | { type: "image"; data: string; mimeType: string }
+    > = [{ type: "text", text: JSON.stringify(reply.state, null, 1) }];
+    const image = parseDataUrl(reply.screenshot);
+    if (image) {
+      content.push({ type: "image", data: image.data, mimeType: image.mimeType });
+    }
+    return { content };
+  }
+);
+
+/**
+ * Ask the back end (over its websocket, the only API surface) to fetch the
+ * browser's current state. One short-lived connection per request.
+ */
+function requestFrontEndState(screenshot: boolean): Promise<{
+  state?: unknown;
+  screenshot?: string;
+  error?: string;
+}> {
+  const port = process.env.PORT ?? "3001";
+  const id = randomUUID();
+  return new Promise((resolve) => {
+    const ws = new WebSocket(`ws://localhost:${port}/ws`);
+    const finish = (result: {
+      state?: unknown;
+      screenshot?: string;
+      error?: string;
+    }) => {
+      clearTimeout(timer);
+      ws.close();
+      resolve(result);
+    };
+    const timer = setTimeout(
+      () => finish({ error: "timed out waiting for the front end" }),
+      15_000
+    );
+    ws.on("open", () =>
+      ws.send(JSON.stringify({ type: "state:request", id, screenshot }))
+    );
+    ws.on("message", (raw) => {
+      try {
+        const event = JSON.parse(raw.toString());
+        if (event.type === "state:response" && event.id === id) finish(event);
+      } catch {
+        // ignore unrelated traffic (status broadcasts etc.)
+      }
+    });
+    ws.on("error", (err) => finish({ error: String(err) }));
+  });
+}
+
+function parseDataUrl(
+  url: string | undefined
+): { mimeType: string; data: string } | null {
+  const match = url?.match(/^data:(image\/[\w.+-]+);base64,(.+)$/);
+  return match ? { mimeType: match[1], data: match[2] } : null;
+}
 
 await server.connect(new StdioServerTransport());

@@ -22,6 +22,11 @@ export class ChatService {
    * JSON of the tool input, and how much decoded spec was already forwarded.
    */
   private readonly uiBlocks = new Map<number, { raw: string; sent: number }>();
+  /** In-flight state:request ids → the client awaiting the response. */
+  private readonly pendingState = new Map<
+    string,
+    { requester: WebSocket; timer: NodeJS.Timeout }
+  >();
 
   constructor(
     private readonly claude: ClaudeSession,
@@ -104,9 +109,32 @@ export class ChatService {
       return;
     }
 
-    this.logger.log("client", message as unknown as Record<string, unknown>);
+    // Screenshot data URLs are large; log their size, not their content.
+    const loggable =
+      message.type === "state:response" && message.screenshot
+        ? { ...message, screenshot: `<data url, ${message.screenshot.length} chars>` }
+        : message;
+    this.logger.log("client", loggable as unknown as Record<string, unknown>);
 
     switch (message.type) {
+      case "state:request": {
+        this.onStateRequest(ws, message.id, message.screenshot === true);
+        return;
+      }
+      case "state:response": {
+        const pending = this.pendingState.get(message.id);
+        if (!pending) return; // late or duplicate answer
+        clearTimeout(pending.timer);
+        this.pendingState.delete(message.id);
+        this.sendTo(pending.requester, {
+          type: "state:response",
+          id: message.id,
+          state: message.state,
+          screenshot: message.screenshot,
+          error: message.error,
+        });
+        return;
+      }
       case "chat": {
         const text = message.text?.trim();
         if (!text) {
@@ -134,6 +162,40 @@ export class ChatService {
           message: `unknown message type: ${(message as { type?: string }).type}`,
         });
     }
+  }
+
+  /**
+   * Forward a state request to browser clients (everyone but the requester);
+   * the first matching state:response wins. Times out after 10s so the MCP
+   * tool never hangs.
+   */
+  private onStateRequest(
+    requester: WebSocket,
+    id: string,
+    screenshot: boolean
+  ): void {
+    const browsers = [...this.clients].filter(
+      (c) => c !== requester && c.readyState === c.OPEN
+    );
+    if (browsers.length === 0) {
+      this.sendTo(requester, {
+        type: "state:response",
+        id,
+        error: "no front-end client is connected",
+      });
+      return;
+    }
+    const timer = setTimeout(() => {
+      this.pendingState.delete(id);
+      this.sendTo(requester, {
+        type: "state:response",
+        id,
+        error: "front end did not respond within 10s",
+      });
+    }, 10_000);
+    this.pendingState.set(id, { requester, timer });
+    const payload = JSON.stringify({ type: "state:request", id, screenshot });
+    for (const browser of browsers) browser.send(payload);
   }
 
   /** Translate one raw Claude CLI stream event into chat:* events. */

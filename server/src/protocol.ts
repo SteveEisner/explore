@@ -8,7 +8,34 @@
  */
 
 /** Messages the front end sends to the back end. */
-export type ClientMessage = ChatCommand | LogCommand;
+export type ClientMessage =
+  | ChatCommand
+  | LogCommand
+  | StateRequestCommand
+  | StateResponseCommand;
+
+/**
+ * Front-end state inspection. The LLM's `state` MCP tool connects to the
+ * websocket and sends state:request; the back end forwards it to browser
+ * clients, and the first state:response with a matching id is routed back
+ * to the requester.
+ */
+export interface StateRequestCommand {
+  type: "state:request";
+  id: string;
+  /** Also capture a screenshot of the main window (PNG data URL). */
+  screenshot?: boolean;
+}
+
+export interface StateResponseCommand {
+  type: "state:response";
+  id: string;
+  /** Structured snapshot of what the user is looking at. */
+  state?: unknown;
+  /** PNG data URL of the main window, when requested. */
+  screenshot?: string;
+  error?: string;
+}
 
 export interface ChatCommand {
   type: "chat";
@@ -40,7 +67,25 @@ export type ServerEvent =
   | ChatErrorEvent
   | UiStartEvent
   | UiDeltaEvent
-  | UiSpecEvent;
+  | UiSpecEvent
+  | StateRequestEvent
+  | StateResponseEvent;
+
+/** state:request forwarded to browser clients (shape mirrors the command). */
+export interface StateRequestEvent {
+  type: "state:request";
+  id: string;
+  screenshot?: boolean;
+}
+
+/** state:response routed back to the requesting client. */
+export interface StateResponseEvent {
+  type: "state:response";
+  id: string;
+  state?: unknown;
+  screenshot?: string;
+  error?: string;
+}
 
 /**
  * ui:* events — the LLM's `ui` tool call, streamed to the front end so the

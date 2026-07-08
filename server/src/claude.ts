@@ -118,8 +118,17 @@ export class ClaudeSession extends EventEmitter {
     // MCP tools the model may call without prompting. Everything else an MCP
     // server exposes (e.g. the vault's petri-net `workflow` tool) still needs
     // permission, which --print mode auto-denies.
-    const allowedTools = ["mcp__ui__ui"];
+    const allowedTools = ["mcp__ui__ui", "mcp__ui__state"];
     let systemPrompt = buildUiSystemPrompt();
+    systemPrompt +=
+      "\n\n# The state tool\n" +
+      "Call the `state` tool (mcp__ui__state) to see what the user is " +
+      "currently looking at: the open document and its type, scroll " +
+      "position (including which markdown source line is at the top of " +
+      "the screen), any text selection (with source line range), pointer " +
+      "position, panel states, and viewport size. Pass screenshot: true " +
+      "to also receive an image of the main window. Use it before " +
+      "answering questions about 'this', 'here', or what's on screen.";
     if (this.wikiDir) {
       allowedTools.push(
         "mcp__vault__vault",
