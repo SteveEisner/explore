@@ -3,6 +3,7 @@ import { createLibrary, defineComponent, Renderer } from "@openuidev/react-lang"
 import { z } from "zod";
 import { frontendLog } from "@/lib/frontend-log";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 /**
  * Active context level for context-aware rendering (decisions.md D3 will move
@@ -143,22 +144,23 @@ const Gallery = defineComponent({
       <div className="grid w-full min-w-0 grid-cols-[240px_minmax(0,1fr)] gap-4">
         <nav className="flex flex-col gap-1">
           {props.items.map((it, i) => (
-            <button
+            <Button
               key={i}
               type="button"
+              variant={i === selected ? "secondary" : "ghost"}
               onClick={() => setSelected(i)}
               className={cn(
-                "rounded-md border px-3 py-2 text-left text-sm transition-colors",
-                i === selected
-                  ? "border-primary bg-accent"
-                  : "border-transparent hover:bg-accent/50"
+                "h-auto flex-col items-start gap-0 border px-3 py-2 text-left",
+                i === selected ? "border-primary" : "border-transparent"
               )}
             >
               <b className="block">{it.label}</b>
               {it.description && (
-                <small className="text-muted-foreground">{it.description}</small>
+                <small className="font-normal text-muted-foreground">
+                  {it.description}
+                </small>
               )}
-            </button>
+            </Button>
           ))}
         </nav>
         <div className="min-w-0">

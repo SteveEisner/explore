@@ -5,11 +5,6 @@ import { MainToolbar } from "@/components/main-toolbar";
 import { useChat } from "@/hooks/use-chat";
 import { GenerativeView } from "@/lib/openui";
 
-const TEST_MESSAGE =
-  "Use the ui tool to build a small demo in the main panel: a Stack with a " +
-  "Content heading, then a Tabs component with two or three tabs of HTML " +
-  "content. Afterwards, confirm briefly in chat.";
-
 /**
  * What the main viewing area shows: a file from the wiki (url null = the
  * empty in-memory OUI document the app starts on), or authoring mode where
@@ -24,13 +19,9 @@ export default function App() {
   return (
     <div className="flex h-screen bg-background text-foreground">
       <main className="flex min-w-0 flex-1 flex-col">
-        <MainToolbar
-          view={view}
-          onView={setView}
-          onTest={() => chat.send(TEST_MESSAGE)}
-          disabled={!chat.connected}
-        />
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <MainToolbar view={view} onView={setView} />
+        {/* Document content is selectable; the surrounding chrome is not. */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-none select-text">
           {view.kind === "authoring" ? (
             <GenerativeView
               response={chat.ui.program}

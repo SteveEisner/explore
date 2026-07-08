@@ -191,10 +191,18 @@
     @apply border-border outline-ring/50;
     }
   body {
-    @apply bg-background text-foreground;
+    /* App-like chrome: interface elements aren't selectable/draggable and
+       scrolling doesn't rubber-band; content opts back in below. */
+    @apply bg-background text-foreground select-none;
     letter-spacing: var(--tracking-normal);
     }
   html {
     @apply font-sans;
+    }
+  html, body {
+    overscroll-behavior: none;
+    }
+  .prose, pre, code, input, textarea {
+    @apply select-text;
     }
 }

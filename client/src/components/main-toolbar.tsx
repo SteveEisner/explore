@@ -1,13 +1,11 @@
 import {
   FileCodeIcon,
   FileTextIcon,
-  FlaskConicalIcon,
   HomeIcon,
   PencilIcon,
   SparklesIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import type { MainView } from "@/App";
 
 const HOME_URL = "/docs/README.md";
@@ -20,13 +18,9 @@ const HOME_URL = "/docs/README.md";
 export function MainToolbar({
   view,
   onView,
-  onTest,
-  disabled,
 }: {
   view: MainView;
   onView: (view: MainView) => void;
-  onTest: () => void;
-  disabled?: boolean;
 }) {
   return (
     <div className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-3">
@@ -40,12 +34,6 @@ export function MainToolbar({
       </Button>
 
       <ViewTitle view={view} />
-
-      <Button size="sm" variant="outline" onClick={onTest} disabled={disabled}>
-        <FlaskConicalIcon /> Test
-      </Button>
-
-      <Separator orientation="vertical" className="mx-1 !h-6" />
 
       <Button
         size="icon-sm"
@@ -77,7 +65,9 @@ function ViewTitle({ view }: { view: MainView }) {
       <face.icon className="size-4 shrink-0 text-muted-foreground" />
       <span
         className={
-          face.muted ? "truncate text-muted-foreground" : "truncate font-medium"
+          face.muted
+            ? "truncate text-muted-foreground select-text"
+            : "truncate font-medium select-text"
         }
       >
         {face.name}
