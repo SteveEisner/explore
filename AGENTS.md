@@ -4,9 +4,7 @@
 
 - `docs/proposal.md` — project vision and phases
 - `docs/ARCHITECTURE.md` — system design; `docs/decisions.md` — decision log
-- `docs/tasks.md` — phase roadmap
-- `TASKS.md` (root) — live task tracker by component area (description, self-claimed owner, status)
-- `docs/TODO.md` — holding bin for ideas and loose ends not yet real tasks; promote entries to TASKS.md when work starts
+- `TASKS.md` (root) — the single task list: live tracker by component area (description, self-claimed owner, status), plus the phase roadmap and the idea holding bin at the bottom; promote holding-bin entries to tracker rows when work starts
 - `docs/worklog-*.md` — dated worklog files
 
 ## Task tracking
@@ -27,7 +25,7 @@ Whenever you edit code, apply the **code-clarity** and **comment-clarity** skill
 
 ## Worklog
 
-Whenever a milestone is reached — a task from `docs/tasks.md` completed, a phase finished, a significant architectural decision made, or a notable bug fixed — append a short entry to the current worklog file in `docs/` (named `worklog-YYYY-MM-DD.md`, using today's date; create it if it doesn't exist).
+Whenever a milestone is reached — a task from `TASKS.md` completed, a phase finished, a significant architectural decision made, or a notable bug fixed — append a short entry to the current worklog file in `docs/` (named `worklog-YYYY-MM-DD.md`, using today's date; create it if it doesn't exist).
 
 Each entry should include:
 

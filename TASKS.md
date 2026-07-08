@@ -1,6 +1,6 @@
 # Tasks
 
-The live task tracker, organized by component area (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)). The phase roadmap lives in [docs/tasks.md](docs/tasks.md); phase numbers here refer to it.
+The single task list: live tracker organized by component area (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)), plus the phase roadmap and the idea holding bin at the bottom. Phase numbers in the tables refer to the [Phases](#phases-roadmap) section.
 
 **How to use:** claim a task by putting your name in Owner. Statuses: `todo` · `in progress` · `blocked` · `done`. When a task reaches `done`, log it in the worklog (see AGENTS.md).
 
@@ -40,6 +40,7 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Type the JSONL logger's message parameter so chat.ts can drop its `as unknown as Record<string, unknown>` double casts | server | from the Cleaner's review |
 | Align TypeScript versions across workspaces (client `~6.0.2` vs server `^5.8.0`) | build | from the Cleaner's review |
 | Delete or rewrite the leftover Vite-template `client/README.md` | docs | from the Cleaner's review |
+| Backticks in Markdown aren't rendering as inline code (noticed 2026-07-07) | client | from the TODO holding bin |
 | Horizontal window pan still possible: scrollIntoView/focus on elements in the clipped chat aside (or right-edge toolbar controls) scrolls `html` sideways despite the overflow-hidden shell — pin `html`/`body` overflow or use `overflow: clip` | client | from Worker 2's save/reopen verification (seen under browser automation) |
 
 ## Crunch tracks (non-interactive; run unattended once the isolated instance exists)
@@ -94,7 +95,7 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Decide how to drive Claude Code (Agent SDK vs. CLI) and how sessions map to explorations | 1 | — | todo |
 | Expose the artifact tool to the LLM: create/update artifacts in the OpenUI representation | 1 | — | todo |
 | Initial generation guidance: system-prompt material and artifact patterns for good explanation apps | 1 | — | todo |
-| Tune the LLM's personality and role awareness: it's an exploration guide / co-author embedded in this app — not a generic coding assistant. It should know what the app is, the panes it's living in, its tools, and its role in each journey (explainer in J1, discussion partner in J2, fast editor in J3). Overlaps the wake-up-prompt audit (docs/TODO.md) — fold that in or sequence after it | 5 | — | todo |
+| Tune the LLM's personality and role awareness: it's an exploration guide / co-author embedded in this app — not a generic coding assistant. It should know what the app is, the panes it's living in, its tools, and its role in each journey (explainer in J1, discussion partner in J2, fast editor in J3). Overlaps the wake-up-prompt audit (see Ideas below) — fold that in or sequence after it | 5 | — | todo |
 | The `ui` tool must be able to edit ANY .oui file in the wiki, not just the one in the "new artifact" pane (needed for J4 reopen-and-continue-editing) | 4 | — | todo |
 | Feed artifact interaction signals back to the LLM as context ("user keeps drilling into X") | 4 | — | todo |
 | Improve default artifact quality via refined guidance (templates, design prompts) | 5 | — | todo |
@@ -152,3 +153,23 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Validate against two motivating examples (e.g., PR review, SEV investigation); note missing guidance | 4 | — | todo |
 | Dogfood on a real task; log friction and fix top items | 5 | — | todo |
 | Record architecture decisions in docs/decisions.md as they're made | — | — | in progress |
+
+## Phases (roadmap)
+
+The phase numbers used in the tables above, derived from [docs/proposal.md](docs/proposal.md). Each phase ends with something usable, so later phases can be reordered or cut without stranding work. (Formerly docs/tasks.md; its per-phase checklists live on as the rows above.)
+
+1. **Artifact creation via tool use** — an LLM can create an artifact through tool use, and you can see it rendered
+2. **Feedback chat** — a chat pane lets you steer the LLM, and the artifact updates in response
+3. **Multimodal operations** — feedback channels richer than typed text (point-and-comment, drawing, screenshots, voice)
+4. **Interactive data exploration** — artifacts stop being static pages and become exploration tools
+5. **Look and feel** — the app feels good enough to use daily
+6. **Wiki ingestion (stretch)** — getting information *into* the wiki is easy
+
+## Ideas (holding bin)
+
+Loose ends and ideas that aren't yet tasks — allowed to be messy. When one becomes real work, turn it into a row in a section above (claim it) and delete it here. (Formerly docs/TODO.md.)
+
+- **Rendering polish: whitespace, colors, styling.** The artifact rendering still isn't great whitespace-wise, and we need a real answer for colors and styling beyond the current per-artifact CSS (relates to D4 hooks, the deferred page-theming/style-isolation question, and the sandboxing task).
+- **Audit the LLM's wake-up context.** Read the full startup context end to end — ui-library prompt + CLI defaults + MCP tool descriptions — and trim and tune (the invocation report and the prompt-removal/prompt-diet rows above chip at this; this is the umbrella).
+- **Update the architecture diagram with Mermaid?** Idea: redo/refresh the architecture diagram as a Mermaid diagram (still a question mark, not committed).
+- **Folders / separate information spaces.** Everything currently serves from one flat `docs/` — which is also the project's own documentation. Need some notion of folders or per-exploration spaces so bundles stay separate (the architecture's original "one directory per exploration topic" idea; also keeps project docs from mixing into the user's wiki content).

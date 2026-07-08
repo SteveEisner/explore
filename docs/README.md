@@ -9,7 +9,6 @@ the app's main panel via the toolbar.
 - [ARCHITECTURE.md](/docs/ARCHITECTURE.md) — system design: client, server,
   websocket protocol, the Claude CLI session, and the OpenUI `ui` tool
 - [decisions.md](/docs/decisions.md) — running log of design decisions
-- [tasks.md](/docs/tasks.md) — work tracking
 - [worklog-2026-07-07.md](/docs/worklog-2026-07-07.md) — day-by-day notes
 - [pr-502764-review.oui](/docs/pr-502764-review.oui) — sample OpenUI document: an
   interactive PR walkthrough rendered by the main-panel viewer
