@@ -1,6 +1,7 @@
 import type * as React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { rehypeSourceLines } from "@/lib/source-lines";
 import { cn } from "@/lib/utils";
 
 /** GitHub-flavored markdown with prose styling; invert for dark surfaces. */
@@ -29,6 +30,7 @@ export function Markdown({
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeSourceLines]}
         components={
           onLinkClick && {
             a: ({ href, children, ...props }) => (
