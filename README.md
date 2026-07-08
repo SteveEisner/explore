@@ -65,3 +65,13 @@ npm start          # serves the front end + websocket on :3001
 
 Requires the `claude` CLI on PATH. The active session id is persisted in
 `server/data/claude-session.json`; delete it to start a fresh session.
+
+## Observability
+
+Every event that reaches the back end is appended to
+`/tmp/explore-events.jsonl` (override with `EVENTS_LOG`), one JSON object
+per line: `{ ts, source, ...event }`. Sources: `client` (websocket
+messages), `claude` (raw CLI stream events), `server` (connections,
+spawn/exit, stderr), and `frontend` — the browser queues its own entries
+(ws lifecycle, sends, uncaught errors; see `client/src/lib/frontend-log.ts`)
+and ships them over the same websocket as `{type: "log"}` messages.

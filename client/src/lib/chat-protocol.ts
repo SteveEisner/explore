@@ -3,11 +3,25 @@
  * The front end sends commands; the back end publishes "chat:*" events.
  */
 
-export type ClientMessage = {
+export type ClientMessage = ChatCommand | LogCommand;
+
+export interface ChatCommand {
   type: "chat";
   id?: string;
   text: string;
-};
+}
+
+/** Browser-side observability entries, appended to the back end's JSONL log. */
+export interface LogCommand {
+  type: "log";
+  entries: FrontendLogEntry[];
+}
+
+export interface FrontendLogEntry {
+  ts: number;
+  type: string;
+  data?: unknown;
+}
 
 export type ServerEvent =
   | ChatStatusEvent

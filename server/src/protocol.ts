@@ -8,12 +8,27 @@
  */
 
 /** Messages the front end sends to the back end. */
-export type ClientMessage = {
+export type ClientMessage = ChatCommand | LogCommand;
+
+export interface ChatCommand {
   type: "chat";
   /** Client-generated id echoed back on related events. */
   id?: string;
   text: string;
-};
+}
+
+/** Browser-side observability entries, appended to the back end's JSONL log. */
+export interface LogCommand {
+  type: "log";
+  entries: FrontendLogEntry[];
+}
+
+export interface FrontendLogEntry {
+  /** Client clock, ms since epoch (the server adds its own timestamp too). */
+  ts: number;
+  type: string;
+  data?: unknown;
+}
 
 /** Events the back end publishes to the front end. */
 export type ServerEvent =

@@ -1,6 +1,11 @@
 import * as React from "react";
 import { mergeStatements } from "@openuidev/react-lang";
 import type { ServerEvent } from "@/lib/chat-protocol";
+import {
+  attachLogSocket,
+  frontendLog,
+  installErrorLogging,
+} from "@/lib/frontend-log";
 
 /**
  * Everything in the event stream is expressed as a chat item so the sidebar
@@ -175,6 +180,7 @@ export function useChat(): ChatState {
     let disposed = false;
     let retryDelay = 500;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    installErrorLogging();
 
     function connect() {
       const scheme = location.protocol === "https:" ? "wss" : "ws";
@@ -184,6 +190,8 @@ export function useChat(): ChatState {
       socket.onopen = () => {
         retryDelay = 500;
         setConnected(true);
+        attachLogSocket(socket);
+        frontendLog("ws:open");
       };
       socket.onmessage = (raw) => {
         let event: ServerEvent;
@@ -214,6 +222,8 @@ export function useChat(): ChatState {
       };
       socket.onclose = () => {
         setConnected(false);
+        attachLogSocket(null);
+        frontendLog("ws:close", { willRetry: !disposed });
         if (disposed) return;
         retryTimer = setTimeout(connect, retryDelay);
         retryDelay = Math.min(retryDelay * 2, 10_000);
@@ -231,6 +241,7 @@ export function useChat(): ChatState {
   const send = React.useCallback((text: string) => {
     const socket = socketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
+    frontendLog("chat:send", { length: text.length });
     socket.send(JSON.stringify({ type: "chat", id: newId(), text }));
     setBusy(true);
   }, []);

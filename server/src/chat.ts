@@ -1,5 +1,6 @@
 import type { WebSocket } from "ws";
 import type { ClaudeSession, ClaudeStreamEvent } from "./claude.js";
+import type { JsonlLogger } from "./logger.js";
 import { extractSpecSoFar } from "./partial-json.js";
 import type { ClientMessage, ServerEvent } from "./protocol.js";
 
@@ -22,12 +23,17 @@ export class ChatService {
    */
   private readonly uiBlocks = new Map<number, { raw: string; sent: number }>();
 
-  constructor(private readonly claude: ClaudeSession) {
-    claude.on("event", (event: ClaudeStreamEvent) =>
-      this.onClaudeEvent(event)
-    );
+  constructor(
+    private readonly claude: ClaudeSession,
+    private readonly logger: JsonlLogger
+  ) {
+    claude.on("event", (event: ClaudeStreamEvent) => {
+      this.logger.log("claude", event);
+      this.onClaudeEvent(event);
+    });
     claude.on("started", ({ resumed }: { resumed: boolean }) => {
       this.wasResumed = resumed;
+      this.logger.log("server", { type: "claude:started", resumed });
       this.broadcast({
         type: "chat:status",
         status: "starting",
@@ -36,25 +42,35 @@ export class ChatService {
           : "starting a new session",
       });
     });
-    claude.on("exit", (code: number | null) =>
+    claude.on("exit", (code: number | null) => {
+      this.logger.log("server", { type: "claude:exit", code });
       this.broadcast({
         type: "chat:status",
         status: "exited",
         detail: `claude exited (code ${code ?? "unknown"})`,
-      })
-    );
-    claude.on("error", (err: Error) =>
-      this.broadcast({ type: "chat:error", message: err.message })
-    );
+      });
+    });
+    claude.on("error", (err: Error) => {
+      this.logger.log("server", { type: "claude:error", message: err.message });
+      this.broadcast({ type: "chat:error", message: err.message });
+    });
     claude.on("stderr", (text: string) => {
       // stderr is noisy; surface it to server logs only.
+      this.logger.log("server", { type: "claude:stderr", text });
       console.error("[claude]", text.trimEnd());
     });
   }
 
   addClient(ws: WebSocket): void {
     this.clients.add(ws);
-    ws.on("close", () => this.clients.delete(ws));
+    this.logger.log("server", { type: "ws:connect", clients: this.clients.size });
+    ws.on("close", () => {
+      this.clients.delete(ws);
+      this.logger.log("server", {
+        type: "ws:disconnect",
+        clients: this.clients.size,
+      });
+    });
     ws.on("message", (raw) => this.onClientMessage(ws, raw.toString()));
     this.sendTo(ws, {
       type: "chat:status",
@@ -71,9 +87,24 @@ export class ChatService {
     try {
       message = JSON.parse(raw) as ClientMessage;
     } catch {
+      this.logger.log("server", { type: "ws:bad-message", raw: raw.slice(0, 500) });
       this.sendTo(ws, { type: "chat:error", message: "invalid JSON message" });
       return;
     }
+
+    // Frontend log batches are recorded entry by entry, not echoed back.
+    if (message.type === "log") {
+      for (const entry of message.entries ?? []) {
+        this.logger.log("frontend", {
+          type: entry.type,
+          clientTs: entry.ts,
+          data: entry.data,
+        });
+      }
+      return;
+    }
+
+    this.logger.log("client", message as unknown as Record<string, unknown>);
 
     switch (message.type) {
       case "chat": {

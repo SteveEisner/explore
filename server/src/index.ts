@@ -3,6 +3,7 @@ import path from "node:path";
 import { WebSocketServer } from "ws";
 import { ChatService } from "./chat.js";
 import { ClaudeSession } from "./claude.js";
+import { JsonlLogger } from "./logger.js";
 import { createStaticHandler } from "./static.js";
 
 const PORT = Number(process.env.PORT ?? 3001);
@@ -20,13 +21,17 @@ const claude = new ClaudeSession({
   cwd: path.resolve(import.meta.dirname, "../.."),
   dataDir: path.resolve(import.meta.dirname, "../data"),
 });
-const chat = new ChatService(claude);
+// Observability: every event reaching the back end, one JSON object per line.
+const logger = new JsonlLogger();
+const chat = new ChatService(claude, logger);
 
 const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
 wss.on("connection", (ws) => chat.addClient(ws));
 
 httpServer.listen(PORT, () => {
+  logger.log("server", { type: "server:listen", port: PORT });
   console.log(`serving front end + websocket on http://localhost:${PORT}`);
+  console.log(`event log: ${logger.file}`);
   if (claude.sessionId) {
     console.log(`will resume claude session ${claude.sessionId} on first chat`);
   }
