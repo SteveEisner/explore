@@ -24,10 +24,11 @@ const httpServer = createServer((req, res) => {
 });
 
 // Back-end services — no public API; all communication is async over the
-// websocket. The Claude session runs the CLI against the repo root so the
-// assistant operates on this project.
+// websocket. The Claude session runs the CLI inside the gitignored sandbox/
+// directory: the model can only touch files there (and in temp dirs); all
+// other capabilities go through its MCP tools.
 const claude = new ClaudeSession({
-  cwd: path.resolve(import.meta.dirname, "../.."),
+  cwd: path.resolve(import.meta.dirname, "../../sandbox"),
   dataDir: path.resolve(import.meta.dirname, "../data"),
 });
 // Observability: every event reaching the back end, one JSON object per line.

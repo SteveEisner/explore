@@ -1,6 +1,7 @@
 import { spawn, type ChildProcessByStdio } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import type { Readable, Writable } from "node:stream";
 import { buildUiSystemPrompt } from "./ui-library.js";
@@ -18,7 +19,11 @@ export interface ClaudeStreamEvent {
 }
 
 export interface ClaudeSessionOptions {
-  /** Working directory the CLI runs in. */
+  /**
+   * Working directory the CLI runs in. This is also the model's file-access
+   * sandbox: it can read/write here (and in temp dirs) but nowhere else, so
+   * point it at a throwaway directory, not the repo.
+   */
   cwd?: string;
   /** Where the session id is persisted so restarts can reconnect. */
   dataDir?: string;
@@ -63,17 +68,35 @@ export class ClaudeSession extends EventEmitter {
     return this.proc !== null;
   }
 
-  /** Send one user turn; starts (or resumes) the CLI if it isn't running. */
-  send(text: string): { resumed: boolean; started: boolean } {
+  /**
+   * Send one user turn, optionally with an image content block (base64);
+   * starts (or resumes) the CLI if it isn't running.
+   */
+  send(
+    text: string,
+    image?: { mediaType: string; data: string }
+  ): { resumed: boolean; started: boolean } {
     let started = false;
     let resumed = false;
     if (!this.proc) {
       resumed = this.start();
       started = true;
     }
+    const content: Array<Record<string, unknown>> = [];
+    if (image) {
+      content.push({
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: image.mediaType,
+          data: image.data,
+        },
+      });
+    }
+    if (text) content.push({ type: "text", text });
     const line = JSON.stringify({
       type: "user",
-      message: { role: "user", content: [{ type: "text", text }] },
+      message: { role: "user", content },
     });
     this.proc!.stdin.write(line + "\n");
     return { resumed, started };
@@ -100,11 +123,41 @@ export class ClaudeSession extends EventEmitter {
       "mcp__ui__ui",
       "--append-system-prompt",
       buildUiSystemPrompt(),
+      // Sandbox: the model gets file tools only, scoped to the working
+      // directory (the gitignored sandbox/ dir) plus temp dirs. Everything
+      // else must go through the MCP servers configured above.
+      // - `--tools` removes Bash, WebFetch, WebSearch, Task, etc. entirely.
+      // - `--setting-sources ""` ignores user/project settings, so no outside
+      //   allow rules, hooks, or extra MCP servers leak in.
+      // - `--strict-mcp-config` limits MCP servers to our --mcp-config file.
+      // - In --print mode permission prompts auto-deny, so file access
+      //   outside the working directories is refused; `acceptEdits` only
+      //   auto-approves writes inside them.
+      "--tools",
+      "Read,Write,Edit,Glob,Grep",
+      "--setting-sources",
+      "",
+      "--strict-mcp-config",
+      "--permission-mode",
+      "acceptEdits",
+      "--add-dir",
+      "/tmp",
+      "/private/tmp",
+      tmpdir(),
+      // Belt and braces should a tool slip back into the set.
+      "--disallowedTools",
+      "Bash",
+      "WebFetch",
+      "WebSearch",
+      "Task",
     ];
     const resuming = this.sessionId !== null;
     if (this.sessionId) {
       args.push("--resume", this.sessionId);
     }
+
+    // The sandbox working directory is gitignored, so it may not exist yet.
+    mkdirSync(this.cwd, { recursive: true });
 
     const proc = spawn(this.command, args, {
       cwd: this.cwd,
@@ -169,7 +222,11 @@ export class ClaudeSession extends EventEmitter {
       mkdirSync(path.dirname(this.sessionFile), { recursive: true });
       writeFileSync(
         this.sessionFile,
-        JSON.stringify({ sessionId, updatedAt: new Date().toISOString() })
+        JSON.stringify({
+          sessionId,
+          cwd: this.cwd,
+          updatedAt: new Date().toISOString(),
+        })
       );
     } catch (err) {
       this.emit("stderr", `failed to persist session id: ${String(err)}`);
@@ -197,10 +254,15 @@ export class ClaudeSession extends EventEmitter {
     return configPath;
   }
 
+  /**
+   * The CLI stores sessions per working directory, so a session id is only
+   * resumable from the cwd it was created in; ignore ids recorded elsewhere.
+   */
   private loadPersistedSessionId(): string | null {
     try {
       if (!existsSync(this.sessionFile)) return null;
       const parsed = JSON.parse(readFileSync(this.sessionFile, "utf8"));
+      if (parsed.cwd !== this.cwd) return null;
       return typeof parsed.sessionId === "string" ? parsed.sessionId : null;
     } catch {
       return null;
