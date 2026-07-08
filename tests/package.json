@@ -1,0 +1,4 @@
+{
+  "//": "Not a workspace — only marks tests/ as ESM so import.meta works under tsc and tsx.",
+  "type": "module"
+}
