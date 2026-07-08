@@ -1,0 +1,4 @@
+interface:
+  display_name: "Test Clarity Guidelines [SteveE]"
+  short_description: "Apply test clarity guidelines"
+  default_prompt: "Use $test-clarity to write or review tests for clear behavior proof, setup/performance/validation phases, low boilerplate, and faithful test doubles."

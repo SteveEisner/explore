@@ -1,0 +1,4 @@
+interface:
+  display_name: "Comment Clarity Guidelines [SteveE]"
+  short_description: "Apply comment clarity guidelines"
+  default_prompt: "Use $comment-clarity to apply or review intentional comments and docstrings that act as local specs for correctness."

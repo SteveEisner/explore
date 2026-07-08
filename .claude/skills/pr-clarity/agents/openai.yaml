@@ -1,0 +1,4 @@
+interface:
+  display_name: "PR Clarity Guidelines [SteveE]"
+  short_description: "Apply PR clarity guidelines"
+  default_prompt: "Use $pr-clarity to create or update a pull request with a reviewable description, context boundary, proof story, targeted comments, risks, and tests."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code Clarity Guidelines [SteveE]"
+  short_description: "Apply code clarity guidelines"
+  default_prompt: "Use $code-clarity to apply or review code structure for low reasoning cost, explicit state, visible intent, and comprehensible control flow."
