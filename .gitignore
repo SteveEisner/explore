@@ -8,3 +8,7 @@ server/data/
 .obsidian/
 /sandbox/
 docs/.markdown_vault_mcp/
+eval/results/
+eval/wiki/.markdown_vault_mcp/
+/sandbox-side/
+server/data-side/

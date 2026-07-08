@@ -286,6 +286,10 @@ function statusText(
       return `Session started${model ? ` (${model})` : ""}`;
     case "session-resumed":
       return `Session resumed${sessionId ? ` (${sessionId.slice(0, 8)}…)` : ""}`;
+    case "warming":
+      return "Warming up the session…";
+    case "ready":
+      return "Session ready";
     case "exited":
       return "Claude Code exited";
     default:

@@ -23,6 +23,10 @@ export default defineConfig({
       '/docs': {
         target: 'http://localhost:3001',
       },
+      // Back-end JSON endpoints (e.g. /api/wiki/files for the Home view).
+      '/api': {
+        target: 'http://localhost:3001',
+      },
     },
   },
 })
