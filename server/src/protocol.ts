@@ -42,6 +42,8 @@ export interface ChatCommand {
   /** Client-generated id echoed back on related events. */
   id?: string;
   text: string;
+  /** Optional image attachment (e.g. a screenshot) as a base64 data URL. */
+  image?: string;
 }
 
 /** Browser-side observability entries, appended to the back end's JSONL log. */
@@ -130,6 +132,8 @@ export interface ChatMessageEvent {
   id?: string;
   role: "user" | "assistant";
   text: string;
+  /** Data-URL image attached to a user turn (echoed to all clients). */
+  image?: string;
 }
 
 /** Incremental streamed text from the assistant's in-progress turn. */

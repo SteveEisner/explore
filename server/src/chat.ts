@@ -109,10 +109,19 @@ export class ChatService {
       return;
     }
 
-    // Screenshot data URLs are large; log their size, not their content.
+    // Data URLs are megabytes of base64; log their size, not their content.
     const loggable =
-      message.type === "state:response" && message.screenshot
-        ? { ...message, screenshot: `<data url, ${message.screenshot.length} chars>` }
+      (message.type === "chat" && message.image) ||
+      (message.type === "state:response" && message.screenshot)
+        ? {
+            ...message,
+            ...("image" in message && message.image
+              ? { image: `<data url, ${message.image.length} chars>` }
+              : {}),
+            ...("screenshot" in message && message.screenshot
+              ? { screenshot: `<data url, ${message.screenshot.length} chars>` }
+              : {}),
+          }
         : message;
     this.logger.log("client", loggable as unknown as Record<string, unknown>);
 
@@ -136,8 +145,16 @@ export class ChatService {
         return;
       }
       case "chat": {
-        const text = message.text?.trim();
-        if (!text) {
+        const text = message.text?.trim() ?? "";
+        const image = parseImageDataUrl(message.image);
+        if (message.image && !image) {
+          this.sendTo(ws, {
+            type: "chat:error",
+            message: "image must be a base64 image/* data URL",
+          });
+          return;
+        }
+        if (!text && !image) {
           this.sendTo(ws, { type: "chat:error", message: "empty chat text" });
           return;
         }
@@ -147,9 +164,10 @@ export class ChatService {
           id: message.id,
           role: "user",
           text,
+          image: message.image,
         });
         try {
-          this.claude.send(text);
+          this.claude.send(text, image ?? undefined);
           this.broadcast({ type: "chat:status", status: "thinking" });
         } catch (err) {
           this.broadcast({ type: "chat:error", message: String(err) });
@@ -343,6 +361,15 @@ export class ChatService {
   private sendTo(ws: WebSocket, event: ServerEvent): void {
     if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(event));
   }
+}
+
+/** Split a data URL into the media type + base64 payload the API expects. */
+function parseImageDataUrl(
+  url: string | undefined
+): { mediaType: string; data: string } | null {
+  if (!url) return null;
+  const match = /^data:(image\/[\w.+-]+);base64,(.+)$/.exec(url);
+  return match ? { mediaType: match[1], data: match[2] } : null;
 }
 
 function summarizeToolInput(input: unknown): string | undefined {
