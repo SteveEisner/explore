@@ -37,7 +37,10 @@ export default function App() {
               isStreaming={chat.ui.streaming}
             />
           ) : (
-            <FileViewer url={view.url} />
+            <FileViewer
+              url={view.url}
+              onNavigate={(url) => setView({ kind: "doc", url })}
+            />
           )}
         </div>
       </main>

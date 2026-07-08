@@ -6,17 +6,26 @@ import { GenerativeView } from "@/lib/openui";
 
 /**
  * Renders content served directly as files from the back end (the wiki at
- * /docs). Rendering is chosen by extension: .oui files go through the OpenUI
- * renderer, .md through markdown, anything else as preformatted text.
+ * /docs). Markdown always renders through ReactMarkdown (by extension or
+ * text/markdown content type), .oui files through the OpenUI renderer,
+ * anything else as preformatted text.
  *
  * `url === null` means the empty, in-memory OUI document the app starts on.
+ * Same-origin links inside rendered markdown load into the panel via
+ * `onNavigate`; external links keep default browser behavior.
  */
-export function FileViewer({ url }: { url: string | null }) {
+export function FileViewer({
+  url,
+  onNavigate,
+}: {
+  url: string | null;
+  onNavigate: (url: string) => void;
+}) {
   const [state, setState] = React.useState<
     | { status: "empty" }
     | { status: "loading" }
     | { status: "error"; message: string }
-    | { status: "ready"; text: string }
+    | { status: "ready"; text: string; contentType: string }
   >({ status: "empty" });
 
   React.useEffect(() => {
@@ -30,10 +39,13 @@ export function FileViewer({ url }: { url: string | null }) {
     fetch(url)
       .then(async (res) => {
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-        return res.text();
+        return {
+          text: await res.text(),
+          contentType: res.headers.get("content-type") ?? "",
+        };
       })
-      .then((text) => {
-        if (!stale) setState({ status: "ready", text });
+      .then(({ text, contentType }) => {
+        if (!stale) setState({ status: "ready", text, contentType });
       })
       .catch((err: Error) => {
         frontendLog("doc:error", { url, message: err.message });
@@ -43,6 +55,17 @@ export function FileViewer({ url }: { url: string | null }) {
       stale = true;
     };
   }, [url]);
+
+  const handleLink = React.useCallback(
+    (href: string, event: React.MouseEvent) => {
+      const base = new URL(url ?? "/", location.origin);
+      const target = new URL(href, base);
+      if (target.origin !== location.origin) return; // external: browser handles
+      event.preventDefault();
+      onNavigate(target.pathname);
+    },
+    [url, onNavigate]
+  );
 
   switch (state.status) {
     case "empty":
@@ -69,17 +92,23 @@ export function FileViewer({ url }: { url: string | null }) {
           {state.message}
         </p>
       );
-    case "ready":
-      return <FileContent url={url!} text={state.text} />;
+    case "ready": {
+      const { text, contentType } = state;
+      if (url!.endsWith(".oui")) {
+        return <GenerativeView response={text} />;
+      }
+      if (isMarkdown(url!, contentType)) {
+        return <Markdown text={text} className="p-6" onLinkClick={handleLink} />;
+      }
+      return <pre className="overflow-x-auto p-6 text-sm">{text}</pre>;
+    }
   }
 }
 
-function FileContent({ url, text }: { url: string; text: string }) {
-  if (url.endsWith(".oui")) {
-    return <GenerativeView response={text} />;
-  }
-  if (url.endsWith(".md") || url.endsWith(".markdown")) {
-    return <Markdown text={text} className="p-6" />;
-  }
-  return <pre className="overflow-x-auto p-6 text-sm">{text}</pre>;
+function isMarkdown(url: string, contentType: string): boolean {
+  return (
+    url.endsWith(".md") ||
+    url.endsWith(".markdown") ||
+    contentType.includes("text/markdown")
+  );
 }
