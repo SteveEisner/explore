@@ -12,7 +12,6 @@ import type { MainView } from "@/App";
 /** Wiki files loadable from the toolbar (served by the back end at /docs). */
 const DOCS = [
   { label: "README.md", url: "/docs/README.md", icon: FileTextIcon },
-  { label: "PR.oui", url: "/docs/PR.oui", icon: FileCodeIcon },
   { label: "pr-review.oui", url: "/docs/pr-review.oui", icon: FileCodeIcon },
 ];
 
