@@ -19,13 +19,15 @@ The live task tracker, organized by component area (see [docs/ARCHITECTURE.md](d
 | Clean-clone quickstart: README setup, env/API-key handling, seed wiki, verify from fresh checkout. Note: vault semantic search has a one-time cost on first run (local embedding model download + initial indexing) — warm it during setup, don't let it land mid-demo | J0 | — | todo |
 | Test that vault search actually works (search / global_search / semantic_search over the wiki): never exercised; verify results are sane and the semantic index builds | bar | — | todo |
 | Investigate exactly what the LLM receives at invocation — full report: docs/llm-invocation-report.md (base-prompt verbatim capture via logging proxy folded into the perf-instrumentation task) | bar | Claude | done |
-| Prompt removal: kill the OpenUI default rule "When asked about data, generate realistic/plausible data" — replace with "all facts/data in artifacts must come from wiki content; never invent data" (check `uiLibrary.prompt()` options for suppressing default Important Rules; otherwise counter-rule) | J1 | — | todo |
-| Prompt removal: kill the OpenUI default component-suggestion rule ("tables for comparisons, charts for trends, forms for input") — it names components our vocabulary doesn't have; replace with guidance naming our actual six | J1 | — | todo |
-| Prompt removal: eliminate the vault `workflow` tool from the model's context (config option on markdown-vault-mcp if it exists, else a wrapper/filter; last resort: an explicit "never call workflow" line) | bar | — | todo |
-| Prompt diet: dedupe system-prompt sections vs. tool descriptions — "# The state tool" / set_state / wiki sections repeat much of the MCP descriptions verbatim; state each fact once (probably in the tool description) and keep the system prompt for cross-tool policy | bar | — | todo |
-| Add a role/identity opener to the appended prompt (counters base-prompt coding-assistant identity; overlaps the personality task under Intelligence) | J1/J2 | — | todo |
+| Prompt removal: kill the OpenUI default rule "When asked about data, generate realistic/plausible data" — replace with "all facts/data in artifacts must come from wiki content; never invent data" (check `uiLibrary.prompt()` options for suppressing default Important Rules; otherwise counter-rule) | J1 | Worker 1 | in progress |
+| Prompt removal: kill the OpenUI default component-suggestion rule ("tables for comparisons, charts for trends, forms for input") — it names components our vocabulary doesn't have; replace with guidance naming our actual six | J1 | Worker 1 | in progress |
+| Prompt removal: eliminate the vault `workflow` tool from the model's context (config option on markdown-vault-mcp if it exists, else a wrapper/filter; last resort: an explicit "never call workflow" line) | bar | Worker 1 | in progress |
+| Prompt diet: dedupe system-prompt sections vs. tool descriptions — "# The state tool" / set_state / wiki sections repeat much of the MCP descriptions verbatim; state each fact once (probably in the tool description) and keep the system prompt for cross-tool policy | bar | Worker 1 | in progress |
+| Add a role/identity opener to the appended prompt (counters base-prompt coding-assistant identity; overlaps the personality task under Intelligence) | J1/J2 | Worker 1 | in progress |
 | Model selection for server calls: parameterize the CLI model (`--model`) — env/config default plus per-session override from the app (groundwork for the cost eval: cheap model for edits, bigger for generation) | bar | The Optimizer | in progress |
-| Test harness: typecheck+lint one command; protocol + prompt-builder unit tests; scripted chat-turn integration test; benchmark .oui as rendering fixture | bar | — | todo |
+| Enforce lint: fix the oxlint errors (rules-of-hooks in openui.tsx), add lint to the server workspace and root scripts, pre-commit hook runs typecheck+lint | bar | Cleaner | done |
+| Client TypeScript strict mode: turn on `strict` in client tsconfigs (server already has it) and fix the fallout | bar | Cleaner | done |
+| Test harness: typecheck+lint one command; protocol + prompt-builder unit tests; scripted chat-turn integration test; benchmark .oui as rendering fixture | bar | Worker 2 | in progress |
 | **Isolated side instance (gates all crunch tracks):** full app runs from a git worktree with its own server — parameterize ports, wiki path, sandbox dir, session file, JSONL log; one-command launch | J0/bar | The Optimizer | in progress |
 
 ## Blitz backlog (small fixes banked for a 5+ agent blitz)
@@ -35,7 +37,9 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Task | Area | Notes |
 |---|---|---|
 | Dedupe highlight.js: client pins ^11, root deduped to v10 via react-syntax-highlighter | client | from Worker 2's markdown work |
-| Silence oxlint rules-of-hooks false positives in openui.tsx: name the `component:` render functions (e.g. `function GalleryComponent`) so the linter sees them as components | client | from Worker 1's state-store work |
+| Type the JSONL logger's message parameter so chat.ts can drop its `as unknown as Record<string, unknown>` double casts | server | from the Cleaner's review |
+| Align TypeScript versions across workspaces (client `~6.0.2` vs server `^5.8.0`) | build | from the Cleaner's review |
+| Delete or rewrite the leftover Vite-template `client/README.md` | docs | from the Cleaner's review |
 | Horizontal window pan still possible: scrollIntoView/focus on elements in the clipped chat aside (or right-edge toolbar controls) scrolls `html` sideways despite the overflow-hidden shell — pin `html`/`body` overflow or use `overflow: clip` | client | from Worker 2's save/reopen verification (seen under browser automation) |
 
 ## Crunch tracks (non-interactive; run unattended once the isolated instance exists)
@@ -58,6 +62,7 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 
 | Task | Phase | Owner | Status |
 |---|---|---|---|
+| Wiki API test suite: `tests/` harness spawns the real server against a temp wiki; covers /docs retrieval (content, MIME, 404s, traversal), artifact:save creation/edits (normalization, overwrite protection, hostile-name rejection), wiki:changed hot-reload (debounce, dotfiles, save→notify), and wiki-MCP list_files — `npm test` | bar | Worker 2 | done |
 | List endpoint: enumerate wiki files with paths + basic metadata | 1 | — | todo |
 | Read endpoint: chunked line reads (offset + limit), never whole-doc | 1 | — | todo |
 | Create endpoint: new file with given content | 1 | — | todo |
@@ -75,7 +80,7 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Generalize Comparison: unstyled default, gap/border/dividers/className options, optional labels | 1 | Claude | done |
 | Apply D4 to Gallery/Aside/Tabs: de-chrome, hook classes, layout props; teach D4 in generation guidance | 1 | Claude | done |
 | Context-aware rendering: `context` prop on every component, gated against an app-level context level | 1 | Claude | done |
-| Raw-HTML escape hatch sandboxing model (Content renders unsandboxed today) | 1 | — | todo |
+| Sandbox the artifact viewer/editor so rendered content can't do anything dangerous: Content injects LLM-authored HTML via dangerouslySetInnerHTML with no sanitization (the markdown path uses rehype-sanitize), so a prompt injection in wiki content could become script execution — sanitize or isolate (iframe/CSP). Explicitly **not high priority** right now (2026-07-07) | 1 | — | todo |
 | Hierarchical KV state store for component state, host-readable/writable (decisions.md D3); Tabs/Gallery selection wired via `stateKey` (default `artifact/<type>/<statementId>`) — landed with the state-parity task | 4 | Worker 1 | done |
 | State-key manifest (D3 second half): artifacts declare their state keys up front (initial value + human-readable description) so the store doubles as documentation the LLM can read | 4 | — | todo |
 | Context/audience switcher component with context-variant text (from pr-review.html analysis) | 4 | — | todo |
