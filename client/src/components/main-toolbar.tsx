@@ -8,7 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import type { MainView } from "@/App";
 
-const HOME_URL = "/docs/README.md";
+export const HOME_URL = "/docs/README.md";
 
 /**
  * Toolbar across the top of the main viewing area, shaped like a filename
