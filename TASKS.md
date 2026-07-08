@@ -44,10 +44,7 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 
 | Task | Area | Notes |
 |---|---|---|
-| Remove the unused `@openuidev/react-ui` client dependency: zero imports, and not a dep/peer of `@openuidev/react-lang` (which only needs lang-core + react + zod). Removing it also kills its `react-syntax-highlighter` → `highlight.js@10` subtree, resolving the old highlight.js-dedupe item (client keeps its own ^11) | client | from the Cleaner's dependency audit; supersedes Worker 2's dedupe item |
-| Declare root-script tooling at the root: `test` uses `tsx` and `typecheck` uses `tsc`, but root package.json declares neither — they resolve only via hoisted *server* devDeps and break if server's deps change. Add `tsx` + `typescript` to root devDependencies | build | from the Cleaner's dependency audit |
 | Untrack the vault-generated `docs/meta/` (contract.md/overview.md say `generated_by: mcp-markdown-vault`): gitignore it next to `docs/.markdown_vault_mcp/` and `git rm --cached` — unless someone is deliberately pinning it for the clean-clone demo, then document that instead | wiki | from the Cleaner's structure audit |
-| Delete the empty `client/src/assets/` template leftover dir | client | from the Cleaner's structure audit |
 | Type the JSONL logger's message parameter so chat.ts can drop its `as unknown as Record<string, unknown>` double casts | server | from the Cleaner's review |
 | Align TypeScript versions across workspaces (client `~6.0.2` vs server `^5.8.0`) | build | from the Cleaner's review |
 | Delete or rewrite the leftover Vite-template `client/README.md` | docs | from the Cleaner's review |
