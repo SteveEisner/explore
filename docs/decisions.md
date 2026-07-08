@@ -2,6 +2,22 @@
 
 Architecture and design decisions, newest first. Referenced from [ARCHITECTURE.md](ARCHITECTURE.md).
 
+## D3. Component state lives in a hierarchical key-value store
+
+**Date:** 2026-07-07
+**Decision:** All interactive state for artifact components is driven from a central, hierarchical key-value store (keys like `flow/selected-step`, `outcomes/selected-case`), not from per-component internal state. Artifacts declare their state keys up front in a manifest (initial value + human-readable description of what the key means). Components subscribe to store keys and render from them; user interactions write to the store.
+
+**Why:** Modeled on the hand-built PR-review explainer (`pr-review.html`), where this pattern proved its worth: because every interaction flows through the store, *a host-driven state change takes exactly the same path as a local click*. That property is load-bearing for us:
+
+- **Phase 4 interaction signals** — the session bridge can observe store writes to learn what the user is exploring ("keeps drilling into X").
+- **LLM steering** — the LLM (or chat) can drive the artifact by writing state, e.g. "look at the third flow step" navigates the UI for the user.
+- **Multimodal feedback** — a screenshot or annotation can be tagged with the exact store state that produced the view.
+- **Persistence** — an exploration session's UI position is serializable for free.
+
+The declared manifest doubles as documentation the LLM can read: state keys are part of the artifact's contract, not incidental implementation.
+
+**Status:** recorded now, wired in later — initial components may use local state until the store lands. New vocabulary components should be designed so their selection/toggle state maps cleanly onto store keys.
+
 ## D2. Artifact medium: OpenUI component vocabulary (experimental)
 
 **Date:** 2026-07-07

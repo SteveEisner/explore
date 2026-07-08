@@ -25,9 +25,13 @@ The live task tracker, organized by component area (see [docs/ARCHITECTURE.md](d
 
 | Task | Phase | Owner | Status |
 |---|---|---|---|
-| Evaluate and integrate OpenUI: library setup, rendering pipeline, on-disk representation (decisions.md D2) | 1 | — | todo |
-| Define the initial component vocabulary for exploration apps | 1 | — | todo |
-| Raw-HTML escape hatch and its sandboxing model | 1 | — | todo |
+| Evaluate and integrate OpenUI: library setup, rendering pipeline, on-disk representation (decisions.md D2) | 1 | — | done |
+| Define the initial component vocabulary for exploration apps (Stack, Content, Tabs) | 1 | — | done |
+| Add Gallery (master-detail), Aside (side context panel), and Comparison (side-by-side panels) to the vocabulary | 1 | Claude | done |
+| Translate the hand-built PR-review explainer to `.oui` as a vocabulary benchmark (docs/pr-review.oui) | 1 | Claude | done |
+| Raw-HTML escape hatch sandboxing model (Content renders unsandboxed today) | 1 | — | todo |
+| Hierarchical KV state store for component state, host-readable/writable, declared via manifest (decisions.md D3); wire Gallery `stateKey` to it | 4 | — | todo |
+| Context/audience switcher component with context-variant text (from pr-review.html analysis) | 4 | — | todo |
 | Artifact runtime API: let artifacts query the wiki on demand (via the Wiki API) | 4 | — | todo |
 | Grow the vocabulary with interactive exploration elements (filters, drill-downs, timelines, diagrams, quizzes), guided by escape-hatch usage | 4 | — | todo |
 

@@ -19,6 +19,10 @@ export default defineConfig({
         target: 'ws://localhost:3001',
         ws: true,
       },
+      // Wiki files (.md/.oui) come straight from the back end.
+      '/docs': {
+        target: 'http://localhost:3001',
+      },
     },
   },
 })

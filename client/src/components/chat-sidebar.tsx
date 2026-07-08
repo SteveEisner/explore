@@ -1,6 +1,5 @@
 import * as React from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { Markdown } from "@/components/markdown";
 import {
   AlertCircleIcon,
   CheckIcon,
@@ -9,7 +8,6 @@ import {
   SendIcon,
   WrenchIcon,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
@@ -96,20 +94,6 @@ export function ChatSidebar({ chat }: { chat: ChatState }) {
           <span className="sr-only">Send</span>
         </Button>
       </form>
-    </div>
-  );
-}
-
-/** Chat message text, rendered as GitHub-flavored markdown. */
-function Markdown({ text, invert }: { text: string; invert?: boolean }) {
-  return (
-    <div
-      className={cn(
-        "prose prose-sm max-w-none break-words",
-        invert && "prose-invert"
-      )}
-    >
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
     </div>
   );
 }

@@ -1,0 +1,1604 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PR 502764 Explainer v2</title>
+  <style>
+    :root {
+      --bg: #101214;
+      --text: #edf2f6;
+      --muted: #bdc7d0;
+      --soft: #8d99a4;
+      --line: #33414c;
+      --line2: #4a5c68;
+      --accent: #80bdff;
+      --yellow: #f2c86d;
+      --red: #ff8c8c;
+      --green: #9bd88f;
+      --wash: rgba(128, 189, 255, .11);
+      --warn: rgba(242, 200, 109, .10);
+      --risk: rgba(255, 140, 140, .10);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+    a { color: var(--accent); }
+    p { margin: 0 0 11px; color: var(--muted); }
+    h1 { margin: 0; font-size: 18px; line-height: 1.2; }
+    h2 { margin: 0 0 8px; font-size: 20px; }
+    h3 { margin: 0 0 6px; font-size: 15px; }
+    .page { max-width: 1500px; margin: 0 auto; padding: 18px 30px 46px; }
+    .header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: center;
+      padding-bottom: 10px;
+    }
+    .context-picker {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      white-space: nowrap;
+      position: relative;
+    }
+    .context-select { position: relative; min-width: 250px; }
+    .context-button {
+      width: 100%;
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      background: #102033;
+      color: var(--text);
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      padding: 4px 30px 4px 9px;
+      text-align: left;
+      background-image:
+        linear-gradient(45deg, transparent 50%, var(--accent) 50%),
+        linear-gradient(135deg, var(--accent) 50%, transparent 50%);
+      background-position: calc(100% - 15px) 50%, calc(100% - 10px) 50%;
+      background-size: 5px 5px, 5px 5px;
+      background-repeat: no-repeat;
+    }
+    .context-menu {
+      position: absolute;
+      left: 0;
+      top: calc(100% + 6px);
+      z-index: 50;
+      display: none;
+      width: min(470px, calc(100vw - 24px));
+      border: 1px solid var(--line2);
+      background: #14181d;
+      box-shadow: 0 18px 44px rgba(0, 0, 0, .38);
+    }
+    .context-select.open .context-menu { display: block; }
+    .context-option {
+      display: block;
+      width: 100%;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font: inherit;
+      padding: 11px 12px;
+      text-align: left;
+      white-space: normal;
+    }
+    .context-option:last-child { border-bottom: 0; }
+    .context-option:hover,
+    .context-option.active { background: var(--wash); color: var(--text); }
+    .context-option b { display: block; color: var(--text); }
+    .context-option small { display: block; color: var(--soft); line-height: 1.35; margin-top: 3px; }
+    .tabs {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      overflow-x: auto;
+      padding: 6px 0 12px;
+      background: rgba(16, 18, 20, .98);
+      backdrop-filter: blur(10px);
+    }
+    .tabbtn {
+      border: 1px solid var(--line);
+      border-right: 0;
+      background: #15191d;
+      color: var(--muted);
+      padding: 5px 11px;
+      cursor: pointer;
+      white-space: nowrap;
+      font: inherit;
+    }
+    .tabbtn:first-child { border-radius: 6px 0 0 6px; }
+    .tabbtn:last-child { border-right: 1px solid var(--line); border-radius: 0 6px 6px 0; }
+    .tabbtn.active { border-color: var(--accent); color: var(--text); background: var(--wash); box-shadow: inset 0 -2px 0 var(--accent); }
+    .chapter { display: none; }
+    .chapter.active { display: block; }
+    .frame { min-height: 640px; }
+    .main { padding: 28px 18px 0 8px; }
+    .section { padding: 19px 0; }
+    .section + .section { margin-top: 12px; }
+    .section:first-child { padding-top: 0; }
+    .lead {
+      color: var(--text);
+      font-size: 22px;
+      line-height: 1.35;
+      max-width: 1050px;
+    }
+    .ctx { display: none; }
+    body[data-context="new"] .ctx-new,
+    body[data-context="billing"] .ctx-billing,
+    body[data-context="flow"] .ctx-flow,
+    body[data-context="audit"] .ctx-audit { display: block; }
+    body[data-context="new"] .deep,
+    body[data-context="billing"] .deep { display: none; }
+    body[data-context="flow"] .deep,
+    body[data-context="audit"] .deep { display: block; }
+    body[data-context="audit"] .audit-only { display: block; }
+    body:not([data-context="audit"]) .audit-only { display: none; }
+    .map {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .map-card {
+      position: relative;
+      border-top: 2px solid var(--line2);
+      padding-top: 12px;
+      min-height: 120px;
+    }
+    .map-card:not(:last-child)::after {
+      content: ">";
+      position: absolute;
+      top: 10px;
+      right: -12px;
+      color: var(--accent);
+    }
+    .map-card b { display: block; color: var(--text); margin-bottom: 6px; }
+    .overview-diagram {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 42px minmax(0, 1.25fr);
+      gap: 12px;
+      align-items: stretch;
+      margin-top: 18px;
+      max-width: 1180px;
+    }
+    .diagram-panel {
+      border-top: 2px solid var(--line2);
+      padding-top: 12px;
+    }
+    .diagram-panel h3 { margin-bottom: 10px; }
+    .diagram-stack {
+      display: grid;
+      gap: 10px;
+    }
+    .diagram-item {
+      padding-left: 12px;
+      border-left: 3px solid rgba(128, 189, 255, .35);
+    }
+    .diagram-item b { display: block; color: var(--text); margin-bottom: 3px; }
+    .diagram-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent);
+      font-size: 24px;
+      font-weight: 800;
+    }
+    .module-grid {
+      display: grid;
+      grid-template-columns: minmax(280px, .95fr) minmax(0, 1.35fr);
+      gap: 28px;
+      margin-top: 16px;
+      max-width: 1180px;
+    }
+    .file-list {
+      border-top: 1px solid var(--line);
+    }
+    .file-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .file-row b {
+      display: block;
+      overflow-wrap: anywhere;
+    }
+    .file-row small {
+      display: block;
+      color: var(--soft);
+      margin-top: 2px;
+    }
+    .add { color: var(--green); }
+    .del { color: var(--red); }
+    .module-list {
+      display: grid;
+      gap: 12px;
+    }
+    .module-item {
+      border-top: 2px solid var(--line2);
+      padding-top: 10px;
+    }
+    .module-item b { display: block; color: var(--text); margin-bottom: 3px; }
+    .orientation-ladder {
+      border: 1px solid var(--line);
+      background: #0d1115;
+      margin-top: 14px;
+    }
+    .orientation-row {
+      display: grid;
+      grid-template-columns: 180px minmax(0, 1fr);
+      border-bottom: 1px solid var(--line);
+    }
+    .orientation-row:last-child { border-bottom: 0; }
+    .orientation-label {
+      border-right: 1px solid var(--line);
+      background: #11161b;
+      color: var(--accent);
+      font-weight: 650;
+      padding: 11px 12px;
+    }
+    .orientation-body { padding: 12px; }
+    .orientation-gallery {
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr);
+      border-top: 1px solid var(--line);
+    }
+    .orientation-detail { padding: 14px 0 0 22px; }
+    .shape-diagram {
+      width: 100%;
+      max-width: 900px;
+      min-height: 330px;
+      margin-top: 12px;
+      display: block;
+    }
+    .local-points {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      margin-top: 10px;
+      max-width: 1000px;
+    }
+    .local-point {
+      padding: 9px 10px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+    }
+    .local-point:nth-child(2n) { border-right: 0; }
+    .local-point:nth-last-child(-n+2) { border-bottom: 0; }
+    .local-point b {
+      display: block;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+    .scope-list { margin: 8px 0 0; padding-left: 18px; color: var(--muted); }
+    .scope-list li { margin: 5px 0; }
+    .scope-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 22px;
+      margin-top: 16px;
+      border-top: 1px solid var(--line);
+      padding-top: 14px;
+    }
+    .scope-strip b { display: block; color: var(--text); margin-bottom: 5px; }
+    .orientation-footer {
+      border-top: 1px solid var(--line);
+      padding-top: 16px;
+      margin-top: 8px;
+      max-width: 1180px;
+    }
+    .orientation-footer .scope-strip { margin-top: 0; border-top: 0; padding-top: 0; }
+    .journey {
+      display: grid;
+      grid-template-columns: 1.1fr minmax(0, 2fr);
+      gap: 22px;
+      margin-top: 16px;
+      align-items: start;
+    }
+    .journey-list {
+      border-top: 1px solid var(--line);
+    }
+    .journey-step {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr);
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+    }
+    .journey-step span:first-child {
+      color: var(--accent);
+      font-weight: 800;
+    }
+    .journey-step b { color: var(--text); }
+    .journey-diagram {
+      border-top: 2px solid var(--line2);
+      padding-top: 12px;
+    }
+    .flow-board, .glossary-board, .outcome-board {
+      display: grid;
+      grid-template-columns: 320px minmax(0, 1fr);
+      margin-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+    .evidence-board {
+      display: grid;
+      grid-template-columns: 380px minmax(0, 1fr);
+      margin-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+    .side-nav { border-right: 1px solid var(--line); }
+    .navitem {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      width: 100%;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 13px 28px 13px 12px;
+      text-align: left;
+      font: inherit;
+      position: relative;
+    }
+    .navitem::after { content: ">"; position: absolute; right: 10px; color: var(--accent); }
+    .navitem.active { background: var(--wash); color: var(--text); box-shadow: inset 3px 0 0 var(--accent); }
+    .navitem b { display: block; color: var(--text); }
+    .navitem small { display: block; color: var(--soft); margin-top: 3px; }
+    .detail { padding: 14px 0 0 22px; }
+    .rail {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .rail.step4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .rail-card {
+      position: relative;
+      border-top: 2px solid var(--line2);
+      padding-top: 12px;
+      min-height: 112px;
+    }
+    .rail-card:not(:last-child)::after {
+      content: ">";
+      position: absolute;
+      top: 10px;
+      right: -11px;
+      color: var(--accent);
+    }
+    .rail-card b { display: block; color: var(--text); margin-bottom: 5px; }
+    .collector-timeline {
+      margin-top: 15px;
+      max-width: 1180px;
+      padding: 4px 0 2px;
+    }
+    .timeline-axis {
+      display: grid;
+      grid-template-columns: 120px repeat(3, minmax(0, 1fr));
+      align-items: end;
+      color: var(--soft);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+    .timeline-axis b {
+      display: block;
+      color: var(--text);
+      font-size: 14px;
+    }
+    .timeline-row {
+      display: grid;
+      grid-template-columns: 120px minmax(0, 1fr);
+      min-height: 46px;
+      align-items: center;
+      border-top: 1px solid rgba(74, 92, 104, .65);
+    }
+    .timeline-row:last-child {
+      border-bottom: 1px solid rgba(74, 92, 104, .65);
+    }
+    .timeline-label {
+      color: var(--text);
+      font-weight: 750;
+      padding-right: 14px;
+    }
+    .timeline-track {
+      position: relative;
+      height: 46px;
+      background:
+        linear-gradient(to right,
+          transparent 0,
+          transparent calc(33.333% - 1px),
+          rgba(74, 92, 104, .35) calc(33.333% - 1px),
+          rgba(74, 92, 104, .35) calc(33.333% + 1px),
+          transparent calc(33.333% + 1px),
+          transparent calc(66.666% - 1px),
+          rgba(74, 92, 104, .35) calc(66.666% - 1px),
+          rgba(74, 92, 104, .35) calc(66.666% + 1px),
+          transparent calc(66.666% + 1px));
+    }
+    .timeline-span {
+      position: absolute;
+      top: 17px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+    .timeline-span.old { left: 0; width: 33.333%; background: var(--yellow); }
+    .timeline-span.next { left: 33.333%; width: 33.333%; background: var(--green); }
+    .timeline-span.stop { left: 0; width: 22%; background: var(--red); }
+    .timeline-span.unrelated { left: 46%; width: 39%; background: var(--accent); opacity: .65; }
+    .timeline-marker {
+      position: absolute;
+      top: 7px;
+      transform: translateX(-50%);
+      color: var(--text);
+      background: #0d1115;
+      border: 1px solid var(--line2);
+      padding: 2px 6px;
+      font-size: 12px;
+      font-weight: 750;
+    }
+    .timeline-marker.a { left: 0; transform: translateX(0); }
+    .timeline-marker.b { left: 33.333%; }
+    .timeline-marker.c { left: 66.666%; }
+    .timeline-marker.s { left: 22%; color: var(--red); border-color: var(--red); }
+    .timeline-marker.x { left: 46%; }
+    .timeline-marker.y { left: 85%; }
+    .timeline-note {
+      position: absolute;
+      left: 70%;
+      right: 0;
+      top: 9px;
+      color: var(--soft);
+      font-size: 13px;
+    }
+    .timeline-explain {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 12px;
+      color: var(--muted);
+    }
+    .timeline-explain b {
+      display: block;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+    .mini-timeline {
+      margin-top: 12px;
+      border-top: 1px solid var(--line);
+      max-width: 1000px;
+    }
+    .mini-timeline .timeline-row {
+      grid-template-columns: 92px minmax(0, 1fr);
+      min-height: 36px;
+    }
+    .mini-timeline .timeline-track { height: 36px; }
+    .mini-timeline .timeline-span { top: 14px; }
+    .split {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 24px;
+      margin-top: 12px;
+      max-width: 1100px;
+    }
+    .split > div {
+      border-top: 2px solid var(--line2);
+      padding-top: 12px;
+    }
+    .callout {
+      margin-top: 16px;
+      border-top: 2px solid var(--line2);
+      padding-top: 12px;
+    }
+    .callout-head {
+      display: flex;
+      gap: 12px;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+    .badge {
+      border: 1px solid var(--line2);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 2px 8px;
+      white-space: nowrap;
+      font-size: 12px;
+      font-weight: 750;
+    }
+    .badge.risk { color: var(--red); border-color: var(--red); background: var(--risk); }
+    .badge.watch { color: var(--yellow); border-color: var(--yellow); background: var(--warn); }
+    .badge.safe { color: var(--green); border-color: var(--green); background: rgba(155, 216, 143, .10); }
+    .before-after {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      border-top: 1px solid var(--line);
+      margin-top: 12px;
+    }
+    .before-after > div {
+      padding: 10px 14px 0 0;
+      border-right: 1px solid var(--line);
+    }
+    .before-after > div:last-child { border-right: 0; padding-left: 14px; }
+    .pseudo {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      white-space: pre-wrap;
+      color: #dbe6ef;
+      line-height: 1.5;
+      margin-top: 7px;
+    }
+    .mark { background: rgba(242, 200, 109, .13); box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+    .truth-table {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) minmax(240px, 1.2fr);
+      border-top: 1px solid var(--line);
+      margin-top: 12px;
+    }
+    .truth-table div {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+    }
+    .truth-table div:nth-child(odd) { color: var(--text); }
+    .truth-table div:nth-child(even) { color: var(--muted); }
+    .note {
+      border-left: 3px solid var(--accent);
+      background: rgba(128, 189, 255, .08);
+      color: var(--muted);
+      padding: 10px 12px;
+      margin-top: 12px;
+      max-width: 1000px;
+    }
+    .proof-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 13px;
+      max-width: 1100px;
+    }
+    .proof-card {
+      border-top: 2px solid var(--line2);
+      padding-top: 10px;
+    }
+    .proof-card b {
+      display: block;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .proof-card .confidence {
+      display: inline-block;
+      margin-top: 8px;
+      color: var(--green);
+      font-weight: 750;
+    }
+    .record-map {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      margin-top: 12px;
+      max-width: 1120px;
+    }
+    .record-box {
+      padding: 12px;
+      border-right: 1px solid var(--line);
+    }
+    .record-box:last-child { border-right: 0; }
+    .record-box b { display: block; color: var(--text); margin-bottom: 4px; }
+    .snippet-pair {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      margin-top: 12px;
+    }
+    .snippet {
+      border-right: 1px solid var(--line);
+    }
+    .snippet:last-child { border-right: 0; }
+    .snippet header {
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      padding: 8px 10px;
+    }
+    .code-lines {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      color: #dbe6ef;
+      padding: 10px;
+      line-height: 1.45;
+    }
+    .code-line { display: block; min-height: 1.45em; }
+    details.meta {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      margin-top: 14px;
+      color: var(--muted);
+    }
+    details.meta summary { cursor: pointer; color: var(--soft); }
+    @media (max-width: 950px) {
+      .page { padding: 13px 16px 34px; }
+      .header, .map, .overview-diagram, .module-grid, .orientation-row, .orientation-gallery, .local-points, .scope-strip, .journey, .flow-board, .glossary-board, .outcome-board, .evidence-board, .rail, .split, .before-after, .truth-table, .record-map, .snippet-pair, .timeline-axis, .timeline-row, .timeline-explain, .proof-grid { display: block; }
+      .main { padding: 22px 0 0; }
+      .map-card, .diagram-panel, .module-item, .rail-card, .split > div { margin-top: 14px; }
+      .map-card::after, .rail-card::after { display: none; }
+      .diagram-arrow { display: none; }
+      .side-nav { border-right: 0; }
+      .orientation-label { border-right: 0; border-bottom: 1px solid var(--line); }
+      .orientation-detail { padding-left: 0; }
+      .detail { padding-left: 0; }
+      .record-box, .snippet { border-right: 0; border-bottom: 1px solid var(--line); }
+      .before-after > div { border-right: 0; padding-left: 0; }
+    }
+  </style>
+</head>
+<body data-context="new">
+  <div class="page">
+    <header class="header">
+      <div>
+        <h1>PR 502764: Shared Billing Collector Apply Flow</h1>
+        <p style="margin:2px 0 0">A walkthrough of the collector-model refactor in apply-time billing.</p>
+      </div>
+      <div class="context-picker">
+        <span>Context</span>
+        <div class="context-select" id="contextSelect">
+          <button class="context-button" id="contextButton" type="button" aria-expanded="false">New to this code</button>
+          <div class="context-menu" aria-label="Context choices">
+            <button class="context-option active" type="button" data-context-option="new">
+              <b>New to this code</b>
+              <small>Start with the purpose of the change and the billing words used by the diff.</small>
+            </button>
+            <button class="context-option" type="button" data-context-option="billing">
+              <b>Know billing basics</b>
+              <small>Use billing concepts directly while still treating this PR’s collector model as new.</small>
+            </button>
+            <button class="context-option" type="button" data-context-option="flow">
+              <b>Know this apply flow</b>
+              <small>Use apply_bills, change plans, and collector builders as known landmarks.</small>
+            </button>
+            <button class="context-option" type="button" data-context-option="audit">
+              <b>Checking invariants</b>
+              <small>Focus on proof obligations, edge cases, and whether the diff is the right size.</small>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      <button class="tabbtn active" data-tab="orient-tab">1. Orientation</button>
+      <button class="tabbtn" data-tab="concepts">2. Concepts</button>
+      <button class="tabbtn" data-tab="flow-tab">3. Flow</button>
+      <button class="tabbtn" data-tab="outcomes">4. Outcomes</button>
+      <button class="tabbtn" data-tab="callouts">5. Callouts</button>
+      <button class="tabbtn" data-tab="evidence">6. Evidence</button>
+    </nav>
+
+    <section id="orient-tab" class="chapter active">
+      <div class="frame">
+        <main class="main">
+          <section class="section">
+            <h2>From Stack To Code</h2>
+            <div class="orientation-ladder">
+              <div class="orientation-row">
+                <div class="orientation-label">Summary</div>
+                <div class="orientation-body">
+                  <p id="orientation-summary-text">This PR makes sure that when a customer’s subscription changes, the system does not lose track of future billing work. Some charges happen immediately, but usage-based charges may need to happen later. This change makes the order-apply step decide, for each existing future billing instruction, whether to keep it, replace it, move it forward, or remove it.</p>
+                </div>
+              </div>
+              <div class="orientation-row">
+                <div class="orientation-label">Components</div>
+                <div class="orientation-body">
+                  <p id="orientation-component-text">This change is in Order Workflow, the part of Cash billing that applies an accepted order. In plain terms, this is where the system turns a planned subscription change into saved bills, saved subscription updates, and saved instructions for later billing.</p>
+                </div>
+              </div>
+              <div class="orientation-row">
+                <div class="orientation-label">Code Shape</div>
+                <div class="orientation-body">
+                  <div class="orientation-gallery">
+                    <div class="side-nav">
+                      <button class="navitem active" data-orient-code="shape"><span><b>Overview</b><small>file/module relationship</small></span></button>
+                      <button class="navitem" data-orient-code="apply"><span><b>Apply order</b><small><code>apply_bills</code></small></span></button>
+                      <button class="navitem" data-orient-code="shared"><span><b>Build future actions</b><small><code>_create_future_billing_collector_actions</code></small></span></button>
+                      <button class="navitem" data-orient-code="postpaid"><span><b>Resolve POSTPAID</b><small><code>_create_postpaid_future_actions</code></small></span></button>
+                      <button class="navitem" data-orient-code="preserve"><span><b>Preserve unrelated work</b><small><code>_preserve_postpaid_actions_for_subscription</code></small></span></button>
+                    </div>
+                    <div class="orientation-detail">
+                      <p id="orientation-code-body"></p>
+                      <svg id="orientation-code-diagram" class="shape-diagram" viewBox="0 0 760 330" role="img" aria-label="Runtime code shape diagram">
+                        <defs>
+                          <marker id="shape-arrow-v2" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+                            <path d="M0,0 L0,6 L8,3 z" fill="#80bdff"></path>
+                          </marker>
+                        </defs>
+                        <rect x="20" y="24" width="150" height="64" fill="#15191d" stroke="#4a5c68"></rect>
+                        <text x="95" y="50" text-anchor="middle" fill="#edf2f6" font-size="14">preview result</text>
+                        <text x="95" y="70" text-anchor="middle" fill="#bdc7d0" font-size="12">bills + timelines</text>
+
+                        <rect x="220" y="24" width="160" height="64" fill="#1d2a36" stroke="#80bdff" stroke-width="2"></rect>
+                        <text x="300" y="50" text-anchor="middle" fill="#edf2f6" font-size="14">apply_bills</text>
+                        <text x="300" y="70" text-anchor="middle" fill="#bdc7d0" font-size="12">outer apply path</text>
+
+                        <rect x="450" y="24" width="155" height="64" fill="#15191d" stroke="#4a5c68"></rect>
+                        <text x="527" y="50" text-anchor="middle" fill="#edf2f6" font-size="14">storage</text>
+                        <text x="527" y="70" text-anchor="middle" fill="#bdc7d0" font-size="12">schema unchanged</text>
+
+                        <line x1="170" y1="56" x2="220" y2="56" stroke="#80bdff" stroke-width="2" marker-end="url(#shape-arrow-v2)"></line>
+                        <line x1="380" y1="56" x2="450" y2="56" stroke="#80bdff" stroke-width="2" marker-end="url(#shape-arrow-v2)"></line>
+
+                        <rect x="38" y="142" width="188" height="74" fill="#18231a" stroke="#9bd88f" stroke-width="2"></rect>
+                        <text x="132" y="170" text-anchor="middle" fill="#edf2f6" font-size="14">PREPAID path</text>
+                        <text x="132" y="191" text-anchor="middle" fill="#bdc7d0" font-size="12">NEXT_REBILL bills</text>
+
+                        <rect x="286" y="126" width="188" height="106" fill="#1d2a36" stroke="#80bdff" stroke-width="2"></rect>
+                        <text x="380" y="156" text-anchor="middle" fill="#edf2f6" font-size="14">shared builder</text>
+                        <text x="380" y="178" text-anchor="middle" fill="#bdc7d0" font-size="12">one future-action payload</text>
+                        <text x="380" y="200" text-anchor="middle" fill="#bdc7d0" font-size="12">new code shape</text>
+
+                        <rect x="535" y="142" width="188" height="74" fill="#2d2518" stroke="#f2c86d" stroke-width="2"></rect>
+                        <text x="629" y="170" text-anchor="middle" fill="#edf2f6" font-size="14">POSTPAID ledger</text>
+                        <text x="629" y="191" text-anchor="middle" fill="#bdc7d0" font-size="12">saved collectors by item</text>
+
+                        <line x1="132" y1="142" x2="276" y2="96" stroke="#80bdff" stroke-width="2" marker-end="url(#shape-arrow-v2)"></line>
+                        <line x1="300" y1="88" x2="360" y2="126" stroke="#80bdff" stroke-width="2" marker-end="url(#shape-arrow-v2)"></line>
+                        <line x1="535" y1="179" x2="474" y2="179" stroke="#80bdff" stroke-width="2" marker-end="url(#shape-arrow-v2)"></line>
+                        <line x1="474" y1="154" x2="520" y2="88" stroke="#80bdff" stroke-width="2" marker-end="url(#shape-arrow-v2)"></line>
+
+                        <rect x="180" y="268" width="170" height="40" fill="#15191d" stroke="#4a5c68"></rect>
+                        <text x="265" y="293" text-anchor="middle" fill="#bdc7d0" font-size="12">tests live in Evidence</text>
+                        <rect x="410" y="268" width="170" height="40" fill="#15191d" stroke="#4a5c68"></rect>
+                        <text x="495" y="293" text-anchor="middle" fill="#bdc7d0" font-size="12">raw patch lives on GitHub</text>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="orientation-row">
+                <div class="orientation-label">Local Code</div>
+                <div class="orientation-body">
+                  <div id="orientation-local-body"></div>
+                  <div id="orientation-local-artifacts" class="local-points"></div>
+                </div>
+              </div>
+              <div class="orientation-row">
+                <div class="orientation-label">Change Context</div>
+                <div class="orientation-body">
+                  <div class="scope-strip">
+                    <div>
+                      <b>Distinct Changes</b>
+                      <p>One apply-time builder now assembles PREPAID future rebills and POSTPAID collector outcomes before the replacement change plan is saved.</p>
+                      <p>POSTPAID collectors are resolved by item id, so each saved collector is advanced, rewritten, preserved, consumed, or dropped.</p>
+                    </div>
+                    <div>
+                      <b>Not Changed</b>
+                      <p>Preview bill calculation, product pricing, storage schema, and storage APIs stay outside this slice.</p>
+                    </div>
+                    <div>
+                      <b>Changelist</b>
+                      <div class="file-list">
+                        <div class="file-row"><span><b>order_workflow_billing_processor.py</b><small>dropbox/cash/order_workflow/internal/</small></span><span><span class="add">+329</span> <span class="del">-244</span></span></div>
+                        <div class="file-row"><span><b>tests/billing_processor_unit_tests.py</b><small>dropbox/cash/order_workflow/internal/</small></span><span><span class="add">+311</span> <span class="del">-160</span></span></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>  
+            </div>
+          </section>
+        </main>
+      </div>
+    </section>
+
+    <section id="concepts" class="chapter">
+      <div class="frame">
+        <main class="main">
+          <section class="section">
+            <h2>Terms used by the changed code</h2>
+            <div class="record-map">
+              <div class="record-box"><b>Bill item</b><p>What apply saves when money is charged or refunded now.</p></div>
+              <div class="record-box"><b>Billing collector</b><p>What apply saves when billing should happen later.</p></div>
+              <div class="record-box"><b>Change plan</b><p>The stored collector list that future billing reads. Bill items are not stored here.</p></div>
+            </div>
+            <div class="glossary-board">
+              <div class="side-nav">
+                <button class="navitem active" data-concept="collector"><span><b>Billing collector</b><small>saved instruction for later billing</small></span></button>
+                <button class="navitem" data-concept="window"><span><b>Usage window</b><small>time period a collector will bill</small></span></button>
+                <button class="navitem" data-concept="ledger"><span><b>Saved collector index</b><small>item-id lookup during apply</small></span></button>
+                <button class="navitem" data-concept="payload"><span><b>Change-plan payload</b><small>replacement saved action list</small></span></button>
+                <button class="navitem" data-concept="preservation"><span><b>Preservation</b><small>carry forward untouched work</small></span></button>
+              </div>
+              <div class="detail">
+                <h2 id="concept-title"></h2>
+                <div id="concept-body"></div>
+                <div id="concept-artifact"></div>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </section>
+
+    <section id="flow-tab" class="chapter">
+      <div class="frame">
+        <main class="main">
+          <section class="section">
+            <h2>Apply-time flow</h2>
+            <p class="ctx ctx-new">Apply starts with the bills and timelines preview already produced. It saves the bill rows that belong to this order, then saves the future billing instructions that should remain after the order changes the subscription.</p>
+            <p class="ctx ctx-billing">Apply saves immediate bills first, then replaces the future-action change plan. The replacement plan has to include PREPAID future rebills and POSTPAID usage collectors because storage reads one latest future-action set after apply.</p>
+            <p class="ctx ctx-flow">Read the flow through `apply_bills`, `_create_future_billing_collector_actions`, `_create_postpaid_future_actions`, and `_preserve_postpaid_actions_for_subscription`. The control flow matters because old collector state is needed before cleanup, and cleanup is needed after replacements are saved.</p>
+            <p class="ctx ctx-audit">The flow is correct only if every collector observed in the pre-cancel change plan is either consumed, advanced, rewritten, preserved, ignored as PREPAID, or dropped because it has no valid future window. That outcome has to happen before storage latest state is allowed to forget the old revision.</p>
+            <div class="flow-board">
+              <div class="side-nav">
+                <button class="navitem active" data-flow="group"><span><b>1. Sort previewed bills</b><small>Separate now from later.</small></span></button>
+                <button class="navitem" data-flow="snapshot"><span><b>2. Snapshot collectors</b><small>Read old work before cleanup.</small></span></button>
+                <button class="navitem" data-flow="build"><span><b>3. Build replacement payload</b><small>Combine PREPAID and POSTPAID.</small></span></button>
+                <button class="navitem" data-flow="save"><span><b>4. Save future actions</b><small>Write one complete latest set.</small></span></button>
+                <button class="navitem" data-flow="cleanup"><span><b>5. Clear stale POSTPAID</b><small>Remove old latest revisions.</small></span></button>
+              </div>
+              <div class="detail">
+                <h2 id="flow-title"></h2>
+                <div id="flow-body"></div>
+                <div id="flow-artifact"></div>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </section>
+
+    <section id="outcomes" class="chapter">
+      <div class="frame">
+        <main class="main">
+          <section class="section">
+            <h2>POSTPAID collector outcomes</h2>
+            <p>Use this timeline for the examples below. The saved collector before apply covers A -> B. Apply runs at B. The main question is whether the saved result after apply contains the next collector B -> C, the same A -> B collector on a newer revision, no collector for this item, or an unrelated collector that was still waiting.</p>
+            <div class="collector-timeline" aria-label="Shared POSTPAID collector timeline">
+              <div class="timeline-axis">
+                <span></span>
+                <span><b>A</b>Jan 1</span>
+                <span><b>B</b>Feb 1 / apply</span>
+                <span><b>C</b>Mar 1</span>
+              </div>
+              <div class="timeline-row">
+                <div class="timeline-label">Old collector</div>
+                <div class="timeline-track">
+                  <span class="timeline-span old"></span>
+                  <span class="timeline-marker a">A</span>
+                  <span class="timeline-marker b">B</span>
+                  <span class="timeline-note">usage from A -> B will be billed after B</span>
+                </div>
+              </div>
+              <div class="timeline-row">
+                <div class="timeline-label">Apply</div>
+                <div class="timeline-track">
+                  <span class="timeline-marker b">B</span>
+                  <span class="timeline-note">order apply decides the saved collector state</span>
+                </div>
+              </div>
+              <div class="timeline-row">
+                <div class="timeline-label">Next collector</div>
+                <div class="timeline-track">
+                  <span class="timeline-span next"></span>
+                  <span class="timeline-marker b">B</span>
+                  <span class="timeline-marker c">C</span>
+                  <span class="timeline-note">exists only if the item and contract continue</span>
+                </div>
+              </div>
+              <div class="timeline-row">
+                <div class="timeline-label">STOP variant</div>
+                <div class="timeline-track">
+                  <span class="timeline-span stop"></span>
+                  <span class="timeline-marker a">A</span>
+                  <span class="timeline-marker s">S</span>
+                  <span class="timeline-note">S means the item stopped inside A -> B</span>
+                </div>
+              </div>
+              <div class="timeline-row">
+                <div class="timeline-label">Other collector</div>
+                <div class="timeline-track">
+                  <span class="timeline-span unrelated"></span>
+                  <span class="timeline-marker x">X</span>
+                  <span class="timeline-marker y">Y</span>
+                  <span class="timeline-note">a different item's collector that apply did not otherwise touch</span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-explain">
+              <div><b>A -> B</b>The old saved collector. It is pending until the window ends or is billed.</div>
+              <div><b>B -> C</b>The next collector. It is saved only when future usage can still happen.</div>
+              <div><b>S</b>A STOP point inside the old window. Apply may bill A -> S and then stop the sequence.</div>
+              <div><b>X -> Y</b>An unrelated collector for another item. It is preserved only if still open.</div>
+            </div>
+            <div class="outcome-board">
+              <div class="side-nav">
+                <button class="navitem active" data-outcome="new"><span><b>New active item</b><small>Start a first collector.</small></span></button>
+                <button class="navitem" data-outcome="open"><span><b>Still-open old window</b><small>Rewrite current revision.</small></span></button>
+                <button class="navitem" data-outcome="due"><span><b>Window ended, item continues</b><small>Save the next window.</small></span></button>
+                <button class="navitem" data-outcome="end"><span><b>Window ended with the contract</b><small>Save nothing.</small></span></button>
+                <button class="navitem" data-outcome="billed"><span><b>Current bill settled the window</b><small>Advance once.</small></span></button>
+                <button class="navitem" data-outcome="partial"><span><b>STOP bills part of the window</b><small>Consume without successor.</small></span></button>
+                <button class="navitem" data-outcome="unrelated"><span><b>Unrelated future work</b><small>Preserve if still open.</small></span></button>
+              </div>
+              <div class="detail">
+                <h2 id="outcome-title"></h2>
+                <div id="outcome-body"></div>
+                <div id="outcome-artifact"></div>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </section>
+
+    <section id="callouts" class="chapter">
+      <div class="frame">
+        <main class="main">
+          <section class="section">
+            <h2>Callouts</h2>
+            <p>These are the parts of the change where the code has to preserve a non-obvious fact across several steps. Each callout names the fact, the source of risk, and the evidence a reviewer should look for.</p>
+
+            <div class="callout">
+              <div class="callout-head">
+                <h2>One POSTPAID item has one active collector sequence</h2>
+                <span class="badge risk">Highest risk</span>
+              </div>
+              <p>A saved POSTPAID collector can be reached from more than one part of apply. Bill items show windows that were just billed. Current timeline items show what remains active. Preservation sees saved collectors that neither path handled.</p>
+              <p>The risk is duplicate or stale future work: two branches could create a successor for the same item, or one branch could preserve a collector another branch already consumed. The code keys old collectors by subscription item so each branch is talking about the same collector sequence.</p>
+              <p class="ctx ctx-audit">The invariant is stronger than “no duplicate actions in the returned list.” It is “no duplicate active future work for one POSTPAID subscription item after storage reconstructs the latest change plan.”</p>
+              <div class="before-after">
+                <div>
+                  <h3>Before</h3>
+                  <div class="pseudo">PREPAID future actions are built from NEXT_REBILL bills.
+
+POSTPAID saved collectors are not resolved as item-level outcomes here.</div>
+                </div>
+                <div>
+                  <h3>After</h3>
+                  <div class="pseudo"><span class="mark">old_postpaid_actions_by_item_id</span>
+
+for immediate bill item:
+  consume old collector and add one successor
+
+for current POSTPAID item:
+  rewrite, advance, create, or drop collector
+
+preserve remaining collectors only if still open</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="callout">
+              <div class="callout-head">
+                <h2>Old collector state is read before cleanup removes it from latest state</h2>
+                <span class="badge watch">Ordering</span>
+              </div>
+              <p>Replacement builders need the old actions to know which usage window is open, consumed, or due. Cleanup also has to remove old latest revisions.</p>
+              <p>The risk is ordering-dependent: if cleanup runs before the code snapshots the old change plan, the old collector window may no longer be available to build the replacement. If cleanup does not run after replacements are saved, stale old revisions can remain active.</p>
+              <div class="rail step4">
+                <div class="rail-card"><b>Read old plan</b><p>Find saved PREPAID and POSTPAID collectors.</p></div>
+                <div class="rail-card"><b>Build replacements</b><p>Use the snapshot, not storage latest state.</p></div>
+                <div class="rail-card"><b>Save new revisions</b><p>Make replacements durable.</p></div>
+                <div class="rail-card"><b>Exclude new revisions</b><p>Cleanup stale POSTPAID without deleting replacements.</p></div>
+              </div>
+            </div>
+
+            <div class="callout">
+              <div class="callout-head">
+                <h2>PREPAID and POSTPAID still use different evidence</h2>
+                <span class="badge safe">Boundary</span>
+              </div>
+              <p>The helper creates one saved payload, but it does not collapse the two billing models. PREPAID future actions come from NEXT_REBILL bill items. POSTPAID collectors come from saved usage windows and current POSTPAID timeline state.</p>
+              <p>The risk is a false simplification: because both action types are saved together, it is tempting to treat them as if they are derived the same way. The code should share the final payload construction, not the source-of-truth rules.</p>
+              <div class="split">
+                <div><h3>PREPAID path</h3><p>NEXT_REBILL bill item describes the next coverage block. Saved REBILL action supplies the previous block for continuity.</p></div>
+                <div><h3>POSTPAID path</h3><p>Saved collector describes the usage window. Immediate bills consume windows; current timelines decide whether a future collector still exists.</p></div>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </section>
+
+    <section id="evidence" class="chapter">
+      <div class="frame">
+        <main class="main">
+          <section class="section">
+            <h2>Evidence</h2>
+            <p>These tests are useful when they prove a saved-state outcome, not when they merely exercise a branch. Read each case as: given this collector state before apply, storage contains this collector state after apply.</p>
+            <div class="evidence-board">
+              <div class="side-nav">
+                <button class="navitem active" data-evidence="mixed"><span><b>Replacement payload is complete</b><small>PREPAID and POSTPAID are both saved.</small></span></button>
+                <button class="navitem" data-evidence="zero"><span><b>Time can close a window</b><small>No bill item is still an outcome.</small></span></button>
+                <button class="navitem" data-evidence="contract"><span><b>Contract end stops the sequence</b><small>Closed final window is dropped.</small></span></button>
+                <button class="navitem" data-evidence="duplicate"><span><b>Many bill rows still mean one successor</b><small>One item, one collector sequence.</small></span></button>
+                <button class="navitem" data-evidence="boundary"><span><b>PREPAID actions stay out</b><small>POSTPAID logic ignores plain REBILL.</small></span></button>
+                <button class="navitem" data-evidence="preserve"><span><b>Unrelated open work remains</b><small>X -> Y survives replacement.</small></span></button>
+              </div>
+              <div class="detail">
+                <h2 id="evidence-title"></h2>
+                <div id="evidence-body"></div>
+                <div id="evidence-artifact"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="section">
+            <h2>The compact review question</h2>
+            <p>For every saved or current POSTPAID collector state the code can observe, the outcome table should produce exactly one correct storage result.</p>
+            <p class="ctx ctx-audit">That question also tests the size of the change: the PR changes apply-time collector persistence while leaving preview calculation, storage schema, and billing frequencies outside the diff.</p>
+          </section>
+        </main>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const contextOptions = {
+      new: { label: "New to this code" },
+      billing: { label: "Know billing basics" },
+      flow: { label: "Know this apply flow" },
+      audit: { label: "Checking invariants" }
+    };
+    const orientationSummaryData = {
+      new: "This PR makes sure that when a customer’s subscription changes, the system does not lose track of future billing work. Some charges happen immediately, but usage-based charges may need to happen later. This change makes the order-apply step decide, for each existing future billing instruction, whether to keep it, replace it, move it forward, or remove it.",
+      billing: "This PR improves how subscription changes update scheduled billing. When an order is applied, the system saves today’s bills and also updates the saved instructions for future bills. The change focuses on POSTPAID usage billing, where a saved instruction may represent an open usage period. Instead of letting old instructions survive implicitly, apply now resolves each one into a clear outcome.",
+      flow: "This PR refactors apply_bills so future billing actions are rebuilt through one collector-state flow. PREPAID rebills still come from future bills, but POSTPAID collectors are resolved from the saved collector set: consumed collectors advance or disappear, still-open collectors are rewritten onto the current subscription revision, and unrelated collectors are preserved only when still valid.",
+      audit: "This PR makes the scheduled POSTPAID apply path treat saved collectors as a ledger that must be fully resolved before saving the replacement change plan. The goal is to avoid partial or stale active collector state when an immediate order rewrites subscription revisions. The key behavioral fixes are preserving open collectors on the current revision, advancing due collectors even without bill items, dropping closed/end-of-contract collectors, and advancing only once for multiple bill items on the same subscription item."
+    };
+    const orientationComponentData = {
+      new: "This change is in Order Workflow, the part of Cash billing that applies an accepted order. In plain terms, this is where the system turns a planned subscription change into saved bills, saved subscription updates, and saved instructions for later billing.",
+      billing: "This change is in Cash Order Workflow. That component sits after quote/preview generation: preview decides what should happen, and order apply persists the result. This PR changes the apply-side future-billing instruction update, not product pricing or invoice storage.",
+      flow: "This change is in the internal order workflow billing processor and its unit tests. The processor receives previewed bills and subscription timelines, persists immediate bill side effects, and writes the change-plan actions that future billing reads later.",
+      audit: "This change is isolated to order_workflow_billing_processor.py and its billing_processor_unit_tests.py coverage. It does not modify pricing, catalog, storage schema, or integration expectations from the parent stack; it changes how apply assembles the replacement future-action payload."
+    };
+    const orientationCodeData = {
+      shape: {
+        body: {
+          new: "The runtime change stays inside the order workflow billing processor. `apply_bills` remains the outer apply path, but future-action construction is now gathered behind a shared builder. That builder keeps PREPAID work bill-driven and sends the POSTPAID work through a saved-collector ledger, so the final saved change plan can contain the full future-action set without duplicating or dropping collector state.",
+          billing: "The runtime change stays inside the order workflow billing processor. `apply_bills` remains the outer apply path, but future-action construction is now gathered behind a shared builder. That builder keeps PREPAID work bill-driven and sends the POSTPAID work through a saved-collector ledger, so the final saved change plan can contain the full future-action set without duplicating or dropping collector state.",
+          flow: "The runtime change stays inside the order workflow billing processor. `apply_bills` remains the outer apply path, but future-action construction is now gathered behind a shared builder. That builder keeps PREPAID work bill-driven and sends the POSTPAID work through a saved-collector ledger, so the final saved change plan can contain the full future-action set without duplicating or dropping collector state.",
+          audit: "The runtime change stays inside the order workflow billing processor. `apply_bills` remains the outer apply path, but future-action construction is now gathered behind a shared builder. That builder keeps PREPAID work bill-driven and sends the POSTPAID work through a saved-collector ledger, so the final saved change plan can contain the full future-action set without duplicating or dropping collector state."
+        },
+        diagram: true
+      },
+      apply: {
+        body: {
+          new: "`apply_bills` is the code that makes an accepted order real: it saves the bill for today and records what billing should happen later. This PR changes the \"later\" part for POSTPAID usage items by rebuilding their saved billing instructions during apply. The thing to keep straight is timing: the code must read the old instruction before it can replace it, then remove old instructions that should not remain active.",
+          billing: "At apply time, some bill rows are saved immediately and some bill rows describe future billing work. This change keeps that split: PREPAID future work still comes from future bills, while POSTPAID future work comes from saved usage collectors and the current subscription state. The important check is that the final saved action list has both kinds of future work without mixing up today's bill with later billing.",
+          flow: "Applying an order can move a subscription to a new revision while old POSTPAID collector revisions are still marked latest in storage. `apply_bills` now reads those old revisions, saves replacement future actions on the current revision, and then clears stale old POSTPAID revisions while excluding newly saved replacements. The ordering is the review surface: replacements must be built from old state, but cleanup must leave only the intended latest actions.",
+          audit: "Applying an order can move a subscription to a new revision while old POSTPAID collector revisions are still marked latest in storage. `apply_bills` now reads those old revisions, saves replacement future actions on the current revision, and then clears stale old POSTPAID revisions while excluding newly saved replacements. The ordering is the review surface: replacements must be built from old state, but cleanup must leave only the intended latest actions."
+        },
+        diagram: false
+      },
+      shared: {
+        body: {
+          new: "Future actions are saved instructions for billing that should happen after this order. This helper is now the place where apply assembles those instructions for both PREPAID and POSTPAID items. The key boundary is narrow: it combines the future-action payload, but it does not recalculate prices or change what preview decided.",
+          billing: "PREPAID future actions are still driven by `NEXT_REBILL` bills because those bills already describe the next prepaid charge. This helper adds POSTPAID actions alongside that existing PREPAID list instead of changing how PREPAID is derived. The thing to verify is that the shared path coordinates the two sources without making POSTPAID pretend to be bill-driven.",
+          flow: "`_create_future_billing_collector_actions` receives the evidence apply already has: future bills, saved change-plan actions, current timelines, and previous timelines. It delegates PREPAID and POSTPAID rules to their builders, then returns one payload for storage. The review check is that this helper stays orchestration-only: it should decide where actions come from, not invent new billing behavior.",
+          audit: "`_create_future_billing_collector_actions` receives the evidence apply already has: future bills, saved change-plan actions, current timelines, and previous timelines. It delegates PREPAID and POSTPAID rules to their builders, then returns one payload for storage. The review check is that this helper stays orchestration-only: it should decide where actions come from, not invent new billing behavior."
+        },
+        diagram: false
+      },
+      postpaid: {
+        body: {
+          new: "A POSTPAID usage item is charged after a usage period ends, so the system saves a collector that remembers the period to bill later. This function decides what collector should exist after the order applies: create a first collector, advance a due collector, keep an open collector, or stop when the item or contract no longer needs one. The important result is simple: each active POSTPAID subscription item should leave apply with at most one correct next collector.",
+          billing: "Saved POSTPAID collectors are treated as pending work keyed by subscription item. This function first accounts for collectors that produced immediate bill items, then looks at current POSTPAID timeline items, then preserves unrelated saved collectors that still point to future work. The thing to keep straight is ownership: once one block consumes or replaces a collector, later blocks must not carry the same collector forward again.",
+          flow: "`_create_postpaid_future_actions` uses subscription-item ids as the ledger key because bill items, current timeline items, and saved actions all meet there. The function removes or skips collectors as soon as their outcome is decided, so preservation only sees unrelated still-open work. The correctness check is one outcome per collector: consumed, advanced, rewritten, preserved, or dropped, never duplicated.",
+          audit: "The correctness check is one outcome per collector: consumed, advanced, rewritten, preserved, or dropped, never duplicated."
+        },
+        diagram: false
+      },
+      preserve: {
+        body: {
+          new: "Some POSTPAID collectors are unrelated to the bill rows or item changes handled earlier in apply. Preservation is the safety net for those still-valid saved instructions: keep them so future billing is not forgotten. The important limit is that preservation only keeps collectors that still describe future work; it should not revive a collector whose period has already ended.",
+          billing: "Earlier blocks remove collectors that were billed, advanced, replaced, or no longer valid. This helper sees the remaining saved POSTPAID collectors for one subscription and carries forward the ones whose usage window is still open. The thing to verify is that the helper is conservative in both directions: do not drop unrelated future work, and do not preserve closed work.",
+          flow: "When a subscription revision changes, an unrelated open collector may still be valid but must be readable through the current revision. This helper rewrites preserved POSTPAID collectors onto the current subscription revision while keeping their existing usage window. The review check is that revision rewrite changes where storage finds the collector, not what time window the collector represents.",
+          audit: "When a subscription revision changes, an unrelated open collector may still be valid but must be readable through the current revision. This helper rewrites preserved POSTPAID collectors onto the current subscription revision while keeping their existing usage window. The review check is that revision rewrite changes where storage finds the collector, not what time window the collector represents."
+        },
+        diagram: false
+      }
+    };
+    const orientationLocalData = {
+      new: {
+        paragraphs: [
+          "Apply saves two kinds of work: bills that happen now, and billing instructions that happen later.",
+          "This PR changes the later-billing part. It makes apply save one complete list of future billing instructions for the subscriptions changed by the order."
+        ],
+        points: [
+          ["Now", "Save the bill rows for charges or refunds that happen with this order."],
+          ["Later", "Save instructions for billing work that should happen after this order."],
+          ["This PR", "Make the later-billing instructions complete for changed subscriptions."],
+          ["Review check", "No future billing instruction should be forgotten or left behind when it should stop."]
+        ]
+      },
+      billing: {
+        paragraphs: [
+          "Future billing instructions come from two sources. PREPAID instructions still come from future bills. POSTPAID instructions come from saved collectors that describe usage periods to bill later.",
+          "The important result is one replacement list. If an instruction should still exist after apply, it must be in that list."
+        ],
+        points: [
+          ["PREPAID source", "Future bills describe the next prepaid charge."],
+          ["POSTPAID source", "Saved collectors describe usage periods to bill later."],
+          ["Replacement list", "Apply combines both sources into one future-action list."],
+          ["Review check", "The list is replacement state, so anything still needed must appear in it."]
+        ]
+      },
+      flow: {
+        paragraphs: [
+          "The local apply sequence is: read the old saved collectors, save immediate bills, build the replacement future-action list, save that list, then cancel stale POSTPAID revisions while protecting newly saved replacements.",
+          "That ordering is the thing to verify. Old collector state has to be available while replacements are built, and old POSTPAID revisions are no longer latest after the replacement list is saved."
+        ],
+        points: [
+          ["1. Snapshot", "Read saved collectors while old revisions are still available."],
+          ["2. Persist now", "Save immediate bills; those bill rows prove which collector windows were charged."],
+          ["3. Rebuild later", "Combine PREPAID future bills with POSTPAID collector outcomes into one action list."],
+          ["4. Save and clean", "Save the replacement list, then clear stale old POSTPAID revisions without deleting replacements."]
+        ]
+      },
+      audit: {
+        paragraphs: [
+          "Storage reconstructs active future billing from latest action revisions, so this code saves PREPAID and POSTPAID future work together as one replacement payload for the rewritten subscriptions.",
+          "For POSTPAID, each saved collector must reach exactly one outcome: billed and advanced, due with no bill item and advanced, still open and rewritten onto the current revision, unrelated and preserved, or no longer valid and dropped. The final state should contain every collector that should still exist and no stale collector that should have stopped."
+        ],
+        points: [
+          ["Consumed", "A bill row settled the old POSTPAID window, so save at most one successor."],
+          ["Due with no bill", "The old window ended with no chargeable usage, so advance only if the contract continues."],
+          ["Still open", "Rewrite the collector onto the current subscription revision without changing its window."],
+          ["Not valid", "Drop collectors for removed items, closed contract-end windows, or already-superseded old revisions."]
+        ]
+      }
+    };
+    let currentOrientationCode = "shape";
+    const conceptData = {
+      collector: {
+        title: "Billing collector",
+        body: {
+          new: [
+            "A billing collector is a saved instruction to bill something later. The system needs it when a subscription item is active but the charge is not due yet.",
+            "In this PR, the main concern is whether apply leaves behind exactly the collectors that future billing still needs."
+          ],
+          billing: [
+            "In code, a billing collector is a saved `StatefulBillingAction`, usually `REBILL` for PREPAID or `REBILL_POSTPAID` for POSTPAID.",
+            "`new_billable_state` describes the item, quantity, subscription revision, and billing window that the future action will use."
+          ],
+          flow: [
+            "A collector is correct only if it points to future work that should still happen. A collector that was billed, superseded, or closed at contract end should not remain latest.",
+            "The PR’s core invariant is one intended collector outcome per subscription item, with no duplicate successor and no missing still-open collector."
+          ],
+          audit: [
+            "A collector is active only if storage can find it in the latest valid change-plan revision for the subscription.",
+            "The PR’s core invariant is one intended collector outcome per subscription item, with no duplicate successor and no missing still-open collector."
+          ]
+        },
+        artifact: '<div class="pseudo">subscription item active now\n          |\n          v\nsave instruction to bill it later</div>'
+      },
+      window: {
+        title: "Usage window",
+        body: {
+          new: [
+            "A usage window is the time period whose usage will be charged later. For example, a Jan-Feb window is charged when the system reaches the end of that period.",
+            "The tricky case is zero usage: there may be no bill item, but the window can still be over."
+          ],
+          billing: [
+            "In code, the window is `billing_period_start` to `billing_period_end` on the collector’s `BillableState`.",
+            "When `billing_period_end` equals the order apply time, the saved window has reached its end even if no immediate bill item consumed it."
+          ],
+          flow: [
+            "A closed window should advance to a successor only if the contract still has later in-contract time.",
+            "At contract end, the old window is over and there is no next window to collect, so the collector should be dropped instead of preserved."
+          ],
+          audit: [
+            "A closed window should advance to a successor only if the contract still has later in-contract time.",
+            "At contract end, the old window is over and there is no next window to collect, so the collector should be dropped instead of preserved."
+          ]
+        },
+        artifact: '<div class="pseudo">Jan 1 ---------------- Feb 1\n        usage happens here\n                         bill after this point</div>'
+      },
+      ledger: {
+        title: "Saved collector index",
+        body: {
+          new: [
+            "The saved collector index is a temporary lookup table used while apply decides what to do with old POSTPAID collectors.",
+            "It exists so the code can match a bill item or current subscription item back to the saved instruction for the same subscription item."
+          ],
+          billing: [
+            "The index is keyed by `subscription_item_id`. That is the shared identifier available on saved actions, immediate bill items, and current timeline items.",
+            "When a collector is consumed or replaced, the code removes it from the index so the later preservation pass cannot carry it forward again."
+          ],
+          flow: [
+            "This index is the guardrail against duplicate collectors. A subscription item can produce multiple bill items, but those bill items still correspond to one saved collector sequence.",
+            "The review check is whether every path that settles or replaces a collector removes it before preservation runs."
+          ],
+          audit: [
+            "This index is the guardrail against duplicate collectors. A subscription item can produce multiple bill items, but those bill items still correspond to one saved collector sequence.",
+            "The review check is whether every path that settles or replaces a collector removes it before preservation runs."
+          ]
+        },
+        artifact: '<div class="pseudo">old saved instructions\n  item A -> later billing work\n  item B -> later billing work</div>'
+      },
+      payload: {
+        title: "Change-plan payload",
+        body: {
+          new: [
+            "The change-plan payload is the list of saved billing instructions that future billing will read after this order applies.",
+            "This PR matters because the payload must be complete: missing an instruction can forget future billing, while an extra stale instruction can bill the wrong thing later."
+          ],
+          billing: [
+            "`future_actions` is the in-memory payload before it is saved. The helper builds PREPAID actions from future bills and POSTPAID actions from saved collectors plus current timelines.",
+            "The payload is saved as the next latest change-plan revision for the rewritten subscriptions."
+          ],
+          flow: [
+            "The final payload is the artifact to reason about. It should contain current PREPAID future rebills, current POSTPAID successor or preserved collectors, and nothing stale.",
+            "Because storage uses latest revisions, the payload needs to be complete rather than a partial append."
+          ],
+          audit: [
+            "The final payload is the artifact to reason about. It should contain current PREPAID future rebills, current POSTPAID successor or preserved collectors, and nothing stale.",
+            "Because storage uses latest revisions, the payload needs to be complete rather than a partial append."
+          ]
+        },
+        artifact: '<div class="pseudo">future billing after apply\n  = every instruction future billing should read later</div>'
+      },
+      preservation: {
+        title: "Preservation",
+        body: {
+          new: [
+            "Preservation keeps saved POSTPAID collectors that this order did not otherwise touch.",
+            "It is needed because rewriting the change plan should not accidentally erase unrelated future billing work."
+          ],
+          billing: [
+            "By the time preservation runs, earlier blocks have already removed collectors that were billed, advanced, replaced, or invalid.",
+            "The helper carries forward the remaining still-open collectors for the subscription, updating them to the current subscription revision."
+          ],
+          flow: [
+            "The boundary is the important part: preservation should keep unrelated future work, but it should not revive closed windows or duplicate collectors already handled elsewhere.",
+            "A correct preservation pass is boring: it only carries forward work that is still pending and untouched."
+          ],
+          audit: [
+            "The boundary is the important part: preservation should keep unrelated future work, but it should not revive closed windows or duplicate collectors already handled elsewhere.",
+            "A correct preservation pass is boring: it only carries forward work that is still pending and untouched."
+          ]
+        },
+        artifact: '<div class="pseudo">order did not touch this future billing instruction\n          |\n          v\nkeep it if it still points to future work</div>'
+      }
+    };
+    const flowData = {
+      group: {
+        title: "1. Sort previewed bills",
+        body: {
+          new: [
+            "The flow starts after preview has already produced bill rows. Some rows mean “save this bill for the order being applied now.” Other rows mean “save an instruction so a later billing run can create a bill.”",
+            "This step does not change storage and does not decide new billing behavior. It only sorts the preview rows so later steps read the right kind of row for the right job."
+          ],
+          billing: [
+            "The important split is immediate versus future. Immediate bills become durable bills during this apply. NEXT_REBILL bills are preview’s representation of future PREPAID work, so they remain inputs to the PREPAID future-action builder.",
+            "POSTPAID usage billing is different: the thing to preserve or advance is the saved collector, not a future bill row. This PR keeps the existing bill grouping, then adds the POSTPAID decisions in the future-action construction step."
+          ],
+          flow: [
+            "`apply_bills` builds `bills_by_time` once from previewed `MultiProductBill` rows. The rest of apply reads from that index instead of repeatedly scanning raw bills.",
+            "What changes in this PR is not the sort itself. The change is that the future-action path now combines the PREPAID actions derived from `bills_by_time[NEXT_REBILL]` with POSTPAID actions derived from saved collectors and immediate apply state."
+          ],
+          audit: [
+            "`apply_bills` builds `bills_by_time` before any future-action construction. At this point storage is still unchanged; the result is only an in-memory map from `RelativeTime` to `MultiProductBill` rows.",
+            "That map is the boundary between existing behavior and the new collector work: `_create_prepaid_future_actions` keeps using `bills_by_time[NEXT_REBILL]`, while `_create_postpaid_future_actions` later uses `bills_by_time[IMMEDIATE]` only to identify collector windows that were settled by this apply."
+          ]
+        },
+        artifact: '<div class="pseudo">Preview output entering apply\n\n  Bill due now\n    -> saved as an immediate bill\n\n  Future PREPAID bill\n    -> used to create a future PREPAID rebill action\n\n  POSTPAID usage collector\n    -> not decided by this sorting step;\n       POSTPAID is handled from saved collector state later</div>'
+      },
+      snapshot: {
+        title: "2. Read old collectors",
+        body: {
+          new: [
+            "Before apply can replace future billing instructions, it needs to know which instructions already exist. For POSTPAID usage, an existing instruction is the saved collector for an open or recently-ended usage window.",
+            "This step reads those saved instructions before any cleanup happens. Nothing is changed yet; apply is taking a snapshot it will use to build replacements and later remove stale old POSTPAID revisions."
+          ],
+          billing: [
+            "The change plan is the durable list of future actions. PREPAID future actions say “bill this known future amount later.” POSTPAID future actions say “when this usage window ends, bill whatever usage was recorded for it.”",
+            "This PR depends on the old POSTPAID actions being available while replacements are built. If cleanup ran first, apply could no longer tell which collector window it was replacing."
+          ],
+          flow: [
+            "`future_changes` is the saved change plan as it existed before this apply writes its replacement actions. `_get_actions_from_changes(..., REBILL_POSTPAID)` extracts the old scheduled POSTPAID collectors from that snapshot.",
+            "The same old collector can matter twice: first as data for the next collector, and later as the old latest revision that should stop being latest after the replacement is saved."
+          ],
+          audit: [
+            "`_get_future_changes` reads the existing change plan before the PR's replacement payload is saved. `_get_actions_from_changes(..., BillingItemActionType.REBILL_POSTPAID)` then extracts the old scheduled POSTPAID collectors from that read.",
+            "The storage invariant is that apply should not end with both an old consumed POSTPAID collector and its replacement marked latest. To enforce that, `apply_bills` needs both sides of the transition: the old revisions from this snapshot and the new revision ids returned by `save_change_plan`."
+          ]
+        },
+        artifact: '<div class="snippet-pair"><div class="snippet"><header>Before: read old future actions for PREPAID</header><div class="code-lines"><span class="code-line">future_changes = self._get_future_changes(...)</span><span class="code-line"></span><span class="code-line">saved_prepaid_rebill_actions = _get_actions_from_changes(</span><span class="code-line">    future_changes, REBILL</span><span class="code-line">)</span><span class="code-line"></span><span class="code-line"># POSTPAID collectors are not snapshotted here as cleanup targets.</span></div></div><div class="snippet"><header>After: also keep old POSTPAID collectors for rewrite and cleanup</header><div class="code-lines"><span class="code-line">future_changes = self._get_future_changes(...)</span><span class="code-line"></span><span class="code-line mark">scheduled_postpaid_actions = _get_actions_from_changes(</span><span class="code-line mark">    future_changes, REBILL_POSTPAID</span><span class="code-line mark">)</span><span class="code-line"></span><span class="code-line mark"># Replacement builders use old collector state.</span><span class="code-line mark"># Cleanup later uses old POSTPAID revision ids.</span></div></div></div>'
+      },
+      build: {
+        title: "3. Build next collectors",
+        body: {
+          new: [
+            "This is the main decision step. Apply builds the future billing instructions that should exist after the order finishes applying.",
+            "PREPAID instructions still come from future bill rows. POSTPAID instructions are rebuilt from the old saved collectors plus the current subscription state. The output is one list that should exactly describe the future billing work that remains."
+          ],
+          billing: [
+            "The PREPAID builder is bill-driven because preview can already compute the future amount. The POSTPAID builder is collector-driven because the future amount depends on usage recorded during the window.",
+            "The POSTPAID builder walks the apply result and assigns each old collector to an outcome: consumed and replaced, still open and rewritten to the current revision, advanced because its window ended with no bill row, dropped because the item or contract no longer needs a collector, or preserved because it belongs to future work untouched by this apply."
+          ],
+          flow: [
+            "`_create_future_billing_collector_actions` is the coordination point. It first creates PREPAID future actions from future bills, then passes those actions into `_create_postpaid_future_actions` so POSTPAID can append its own collector decisions.",
+            "The important detail is that POSTPAID does not become bill-driven. Immediate bill items are only one signal that an old collector was consumed; saved old collectors and current timelines are still required to decide what future POSTPAID action should exist."
+          ],
+          audit: [
+            "`_create_future_billing_collector_actions` is the coordinator. It calls `_create_prepaid_future_actions` for bill-driven PREPAID work, then calls `_create_postpaid_future_actions` with the same action list so POSTPAID can append collector outcomes.",
+            "Correctness here means neither losing nor duplicating collector state. Losing an action can skip a future bill. Duplicating an action can bill the same subscription item twice. Preserving the wrong old action can keep a closed window alive."
+          ]
+        },
+        artifact: '<div class="snippet-pair"><div class="snippet"><header>Before: build future actions from PREPAID future bills</header><div class="code-lines"><span class="code-line">future_actions = []</span><span class="code-line"></span><span class="code-line">for bill in bills_by_time[NEXT_REBILL]:</span><span class="code-line">    future_actions.extend(</span><span class="code-line">        _create_prepaid_future_actions(...)</span><span class="code-line">    )</span></div></div><div class="snippet"><header>After: add POSTPAID collector work to the same save payload</header><div class="code-lines"><span class="code-line mark">future_actions = _create_future_billing_collector_actions(</span><span class="code-line mark">    bills_by_time=bills_by_time,</span><span class="code-line mark">    future_changes=future_changes,</span><span class="code-line mark">    immediate/current timeline context,</span><span class="code-line mark">)</span><span class="code-line"></span><span class="code-line">PREPAID source:  NEXT_REBILL bill rows</span><span class="code-line">POSTPAID source: saved collectors + current state</span></div></div></div>'
+      },
+      save: {
+        title: "4. Save next collectors",
+        body: {
+          new: [
+            "After the replacement list is built, apply writes it to storage as the next change-plan revision. This is the first step in the flow that changes the saved future billing instructions.",
+            "From this point on, future billing should read the newly saved collectors rather than relying on the old POSTPAID collectors that existed before this order applied."
+          ],
+          billing: [
+            "The saved payload contains both PREPAID future rebills and POSTPAID usage collectors. Saving them together makes the latest change plan describe the full future billing state for the rewritten subscriptions.",
+            "The returned revision ids are not just bookkeeping. The cleanup step needs them so it can clear old POSTPAID revisions without clearing the replacements that were just saved."
+          ],
+          flow: [
+            "`apply_bills` calls `save_change_plan` only when the builder returned actions. The call writes the action bodies and returns the action revision ids created by that write.",
+            "The PR relies on this ordering: save replacements first, remember their revision ids, then clear stale old POSTPAID revisions while excluding those new ids."
+          ],
+          audit: [
+            "`apply_bills` calls `storage.save_change_plan(..., actions=future_actions)` after the replacement payload is built. The returned `future_action_revision_ids` identify the new rows that cleanup must protect.",
+            "The temporary overlap with old POSTPAID latest revisions is intentional and short-lived. It lets storage create the replacement records before `cancel_action_revisions_for_subscriptions` clears old records that should no longer be considered latest."
+          ]
+        },
+        artifact: '<div class="snippet-pair"><div class="snippet"><header>Payload about to be saved</header><div class="code-lines"><span class="code-line">future_actions = [</span><span class="code-line">  PREPAID rebill actions,</span><span class="code-line">  POSTPAID successor collectors,</span><span class="code-line">  POSTPAID rewritten open collectors,</span><span class="code-line">  POSTPAID preserved open collectors,</span><span class="code-line">]</span></div></div><div class="snippet"><header>Save result</header><div class="code-lines"><span class="code-line mark">future_action_revision_ids = storage.save_change_plan(...)</span><span class="code-line"></span><span class="code-line">These ids identify the new rows cleanup must protect.</span></div></div></div>'
+      },
+      cleanup: {
+        title: "5. Clear stale POSTPAID",
+        body: {
+          new: [
+            "The last step clears old POSTPAID collector revisions that should no longer be active after the replacement list has been saved.",
+            "This is POSTPAID-only cleanup. PREPAID future actions follow the normal saved change-plan path; the special cleanup exists because old POSTPAID collectors can otherwise remain marked latest next to their replacements."
+          ],
+          billing: [
+            "The cleanup is scoped to the subscriptions that had scheduled POSTPAID collectors in the snapshot. That keeps the operation from touching unrelated change-plan actions.",
+            "The cleanup also excludes the revision ids returned by the save step. That exclusion is what separates “old stale collector revision” from “new replacement collector revision” when both belong to the same subscription."
+          ],
+          flow: [
+            "`postpaid_subscription_ids_to_cancel` is derived from `scheduled_postpaid_actions`, the old POSTPAID subset read before replacement save. `future_action_revision_ids` comes from the save step immediately before cleanup.",
+            "Those two inputs make cleanup precise: it only operates on subscriptions involved in scheduled POSTPAID collection, and it does not cancel the replacement actions this apply just wrote."
+          ],
+          audit: [
+            "`postpaid_subscription_ids_to_cancel` comes from the old `scheduled_postpaid_actions`; `future_action_revision_ids` comes from `save_change_plan`. `cancel_action_revisions_for_subscriptions` uses both so cleanup is scoped to old scheduled POSTPAID work and excludes the replacements.",
+            "The proof obligation for this step is narrow: cleanup must not delete the new replacement revision, and it must not leave an old POSTPAID latest revision active for the same scheduled collector work."
+          ]
+        },
+        artifact: '<div class="snippet-pair"><div class="snippet"><header>After save, before POSTPAID cleanup</header><div class="code-lines"><span class="code-line">old POSTPAID revision R1 may still be latest</span><span class="code-line">new replacement revision R2 exists</span><span class="code-line">future_action_revision_ids protects R2</span></div></div><div class="snippet"><header>After POSTPAID cleanup</header><div class="code-lines"><span class="code-line mark">old POSTPAID revision R1 is no longer latest</span><span class="code-line mark">new replacement revision R2 remains latest</span><span class="code-line">PREPAID actions are not targeted by this cleanup</span></div></div></div>'
+      }
+    };
+    const outcomeData = {
+      new: {
+        title: "New active item starts a first collector",
+        body: [
+          "This case has an active POSTPAID item after apply, but it does not have the old A -> B collector from the timeline.",
+          "Because there is no old saved window to preserve or advance, apply creates the first collector from the current valid coverage point. If apply is at B and the item continues, the saved collector is usually B -> C."
+        ],
+        artifact: '<div class="mini-timeline"><div class="timeline-row"><div class="timeline-label">No old</div><div class="timeline-track"><span class="timeline-marker b">B</span></div></div><div class="timeline-row"><div class="timeline-label">Save</div><div class="timeline-track"><span class="timeline-span next"></span><span class="timeline-marker b">B</span><span class="timeline-marker c">C</span></div></div></div><div class="note">This is the only outcome that does not depend on an existing A -> B collector.</div>'
+      },
+      open: {
+        title: "Still-open old window is rewritten",
+        body: [
+          "Use the same A -> B old collector, but move apply earlier than B. The collector is still waiting for its window to end.",
+          "The saved window should stay A -> B because no usage period has closed yet. Apply only rewrites the saved action onto the current subscription revision so storage can still find it after the subscription revision changes."
+        ],
+        artifact: '<div class="mini-timeline"><div class="timeline-row"><div class="timeline-label">Old</div><div class="timeline-track"><span class="timeline-span old"></span><span class="timeline-marker a">A</span><span class="timeline-marker b">B</span></div></div><div class="timeline-row"><div class="timeline-label">Apply</div><div class="timeline-track"><span class="timeline-marker s">apply</span><span class="timeline-note">before B, so A -> B is still open</span></div></div><div class="timeline-row"><div class="timeline-label">Save</div><div class="timeline-track"><span class="timeline-span old"></span><span class="timeline-marker a">A</span><span class="timeline-marker b">B</span></div></div></div>'
+      },
+      due: {
+        title: "Window ended, and the item continues",
+        body: [
+          "Apply runs at B, exactly where the A -> B collector window ends.",
+          "A bill item is not required to prove that A -> B is over; time reached B. If the item and contract continue after B, apply saves the next collector B -> C so future billing can read the next usage window."
+        ],
+        artifact: '<div class="mini-timeline"><div class="timeline-row"><div class="timeline-label">Old</div><div class="timeline-track"><span class="timeline-span old"></span><span class="timeline-marker a">A</span><span class="timeline-marker b">B</span></div></div><div class="timeline-row"><div class="timeline-label">Apply</div><div class="timeline-track"><span class="timeline-marker b">B</span><span class="timeline-note">A -> B is closed by time</span></div></div><div class="timeline-row"><div class="timeline-label">Save</div><div class="timeline-track"><span class="timeline-span next"></span><span class="timeline-marker b">B</span><span class="timeline-marker c">C</span></div></div></div>'
+      },
+      end: {
+        title: "Window ended at the contract end",
+        body: [
+          "This is the same due-at-B case, but B is also the contract end.",
+          "The old A -> B collector is closed. The next B -> C collector would describe usage after the contract ended, so apply saves no successor for this item."
+        ],
+        artifact: '<div class="mini-timeline"><div class="timeline-row"><div class="timeline-label">Old</div><div class="timeline-track"><span class="timeline-span old"></span><span class="timeline-marker a">A</span><span class="timeline-marker b">B</span></div></div><div class="timeline-row"><div class="timeline-label">Contract</div><div class="timeline-track"><span class="timeline-marker b">ends at B</span><span class="timeline-note">no valid B -> C coverage</span></div></div><div class="timeline-row"><div class="timeline-label">Save</div><div class="timeline-track"><span class="timeline-marker b">none</span></div></div></div>'
+      },
+      billed: {
+        title: "Current bill settled the old window",
+        body: [
+          "Here, apply at B produced immediate bill items for the old A -> B collector.",
+          "Those bill items settle A -> B now, so the old collector is no longer future work. If the item continues, apply saves one B -> C collector. If several bill rows point at the same subscription item, they still settle one collector sequence, so apply creates only one successor."
+        ],
+        artifact: '<div class="mini-timeline"><div class="timeline-row"><div class="timeline-label">Bill</div><div class="timeline-track"><span class="timeline-span old"></span><span class="timeline-marker a">A</span><span class="timeline-marker b">B</span><span class="timeline-note">charged during apply</span></div></div><div class="timeline-row"><div class="timeline-label">Old</div><div class="timeline-track"><span class="timeline-marker b">consumed</span></div></div><div class="timeline-row"><div class="timeline-label">Save</div><div class="timeline-track"><span class="timeline-span next"></span><span class="timeline-marker b">B</span><span class="timeline-marker c">C</span></div></div></div>'
+      },
+      partial: {
+        title: "STOP bills part of the old window",
+        body: [
+          "S is a STOP inside the old A -> B window. The item is ending before the old collector reaches B.",
+          "Apply may bill A -> S now because that is the used part before the item stopped. That bill consumes the old collector for this item, and apply saves no B -> C successor because the item does not continue."
+        ],
+        artifact: '<div class="mini-timeline"><div class="timeline-row"><div class="timeline-label">Bill</div><div class="timeline-track"><span class="timeline-span stop"></span><span class="timeline-marker a">A</span><span class="timeline-marker s">S</span><span class="timeline-note">bill used portion</span></div></div><div class="timeline-row"><div class="timeline-label">Old</div><div class="timeline-track"><span class="timeline-marker s">consumed at S</span></div></div><div class="timeline-row"><div class="timeline-label">Save</div><div class="timeline-track"><span class="timeline-marker s">none</span><span class="timeline-note">item stopped before B -> C</span></div></div></div>'
+      },
+      unrelated: {
+        title: "Unrelated open future work is preserved",
+        body: [
+          "Some saved POSTPAID collectors are not the A -> B collector being billed, advanced, or stopped in the selected example.",
+          "If another collector is still open and belongs to a subscription revision being rewritten, apply copies it into the replacement payload. That prevents the replacement save from forgetting future work that this order did not otherwise touch."
+        ],
+        artifact: '<div class="mini-timeline"><div class="timeline-row"><div class="timeline-label">Other item</div><div class="timeline-track"><span class="timeline-span unrelated"></span><span class="timeline-marker x">X</span><span class="timeline-marker y">Y</span><span class="timeline-note">open collector not handled by earlier rows</span></div></div><div class="timeline-row"><div class="timeline-label">Save</div><div class="timeline-track"><span class="timeline-span unrelated"></span><span class="timeline-marker x">X</span><span class="timeline-marker y">Y</span><span class="timeline-note">copy into replacement payload</span></div></div></div>'
+      }
+    };
+    const evidenceData = {
+      mixed: {
+        title: "Replacement payload contains the full future-billing set",
+        body: [
+          "The shared builder is correct only if it saves both families of future work. PREPAID future rebills still come from future bill rows. POSTPAID collectors come from saved collector state and current timelines.",
+          "The unit coverage sets up both kinds of work and checks the saved payload, not just the returned list shape. The saved result contains PREPAID REBILL actions and POSTPAID collector actions together. Confidence: high."
+        ],
+        artifact: '<div class="proof-grid"><div class="proof-card"><b>Given</b>Future PREPAID bill rows and saved POSTPAID collector state are both present.</div><div class="proof-card"><b>When</b>Apply builds the replacement future-action payload.</div><div class="proof-card"><b>Then</b>The saved payload contains both PREPAID and POSTPAID actions.<span class="confidence">confidence: high</span></div></div><div class="split"><div><h3>PREPAID evidence</h3><p>NEXT_REBILL bill row creates a future REBILL action.</p></div><div><h3>POSTPAID evidence</h3><p>Saved collector state creates or preserves a REBILL_POSTPAID action.</p></div></div>'
+      },
+      zero: {
+        title: "A usage window can close without producing a bill item",
+        body: [
+          "At B, the old A -> B collector window has ended. Zero usage means there may be no immediate bill item, but it does not mean the A -> B collector remains open.",
+          "The test runs apply at B with no bill item for that window. The saved result advances to B -> C when the item and contract continue. Confidence: high."
+        ],
+        artifact: '<div class="mini-timeline"><div class="timeline-row"><div class="timeline-label">Given</div><div class="timeline-track"><span class="timeline-span old"></span><span class="timeline-marker a">A</span><span class="timeline-marker b">B</span><span class="timeline-note">old collector, zero usage</span></div></div><div class="timeline-row"><div class="timeline-label">When</div><div class="timeline-track"><span class="timeline-marker b">apply at B</span><span class="timeline-note">no bill item exists</span></div></div><div class="timeline-row"><div class="timeline-label">Then</div><div class="timeline-track"><span class="timeline-span next"></span><span class="timeline-marker b">B</span><span class="timeline-marker c">C</span><span class="timeline-note">next collector is saved</span></div></div></div>'
+      },
+      contract: {
+        title: "A final closed window leaves no successor",
+        body: [
+          "At contract end, B -> C is not a valid future usage window. The old A -> B collector is closed, and the next collector would point outside the contract.",
+          "The tests cover both creation and preservation paths: apply does not create B -> C, and preservation does not keep the closed A -> B collector active. Confidence: high."
+        ],
+        artifact: '<div class="mini-timeline"><div class="timeline-row"><div class="timeline-label">Given</div><div class="timeline-track"><span class="timeline-span old"></span><span class="timeline-marker a">A</span><span class="timeline-marker b">B</span><span class="timeline-note">contract also ends at B</span></div></div><div class="timeline-row"><div class="timeline-label">When</div><div class="timeline-track"><span class="timeline-marker b">apply at B</span><span class="timeline-note">old window is closed</span></div></div><div class="timeline-row"><div class="timeline-label">Then</div><div class="timeline-track"><span class="timeline-marker b">none</span><span class="timeline-note">no A -> B preservation, no B -> C successor</span></div></div></div>'
+      },
+      duplicate: {
+        title: "Several bill rows for one item advance one collector once",
+        body: [
+          "A subscription item can produce more than one immediate bill row, but those rows still settle the same A -> B collector sequence.",
+          "The duplicate-bill-item test creates multiple bill rows for one subscription item and proves the saved result has one successor collector, not one successor per bill row. Confidence: high."
+        ],
+        artifact: '<div class="before-after"><div><h3>Wrong shape</h3><div class="pseudo">bill row 1 -> save B -> C\nbill row 2 -> save B -> C\n\nresult: duplicate future work</div></div><div><h3>Tested shape</h3><div class="pseudo">bill rows for same subscription_item_id\n          |\n          v\none consumed A -> B collector\n          |\n          v\none saved B -> C collector</div></div></div>'
+      },
+      boundary: {
+        title: "Plain PREPAID REBILL actions do not enter the POSTPAID ledger",
+        body: [
+          "The POSTPAID code indexes saved POSTPAID collectors by subscription item. A plain PREPAID REBILL action is also a saved future action, but it is not a POSTPAID usage collector.",
+          "Feature-boundary tests include non-POSTPAID saved actions and show they are not preserved or rewritten by the POSTPAID collector path. Confidence: high."
+        ],
+        artifact: '<div class="split"><div><h3>Plain REBILL</h3><p>Handled by the PREPAID future-action path.</p></div><div><h3>REBILL_POSTPAID</h3><p>Handled by the POSTPAID collector ledger.</p></div></div><div class="note">The proof is negative but concrete: the POSTPAID path leaves plain REBILL actions to their own builder instead of treating them as usage collectors.</div>'
+      },
+      preserve: {
+        title: "Unrelated open collector remains in the replacement payload",
+        body: [
+          "X -> Y is a different collector from the A -> B item being billed, advanced, or stopped. If X -> Y is still open, replacing the change plan must not drop it.",
+          "The preservation tests cover an open collector that earlier apply branches did not consume. The saved result keeps X -> Y on the current subscription revision. Confidence: medium-high, because this proof depends on earlier branches removing handled collectors before preservation runs."
+        ],
+        artifact: '<div class="mini-timeline"><div class="timeline-row"><div class="timeline-label">Given</div><div class="timeline-track"><span class="timeline-span unrelated"></span><span class="timeline-marker x">X</span><span class="timeline-marker y">Y</span><span class="timeline-note">unrelated collector still open</span></div></div><div class="timeline-row"><div class="timeline-label">When</div><div class="timeline-track"><span class="timeline-marker b">apply rewrites subscription revision</span></div></div><div class="timeline-row"><div class="timeline-label">Then</div><div class="timeline-track"><span class="timeline-span unrelated"></span><span class="timeline-marker x">X</span><span class="timeline-marker y">Y</span><span class="timeline-note">same window, current revision</span></div></div></div>'
+      }
+    };
+    function contextText(obj) {
+      return obj[document.body.dataset.context] || obj.billing || obj.new || "";
+    }
+    function paragraphHtml(value) {
+      const paragraphs = Array.isArray(value) ? value : [value];
+      return paragraphs.map(text => "<p>" + text + "</p>").join("");
+    }
+    function setContext(id) {
+      document.body.dataset.context = id;
+      document.getElementById("contextButton").textContent = contextOptions[id].label;
+      document.querySelectorAll("[data-context-option]").forEach(btn => btn.classList.toggle("active", btn.dataset.contextOption === id));
+      document.getElementById("contextSelect").classList.remove("open");
+      document.getElementById("contextButton").setAttribute("aria-expanded", "false");
+      renderOrientation();
+      renderConcept(document.querySelector("[data-concept].active")?.dataset.concept || "collector");
+      renderFlow(document.querySelector("[data-flow].active")?.dataset.flow || "group");
+    }
+    function renderOrientation() {
+      const ctx = document.body.dataset.context || "new";
+      document.getElementById("orientation-summary-text").textContent =
+        orientationSummaryData[ctx] || orientationSummaryData.new;
+      document.getElementById("orientation-component-text").textContent =
+        orientationComponentData[ctx] || orientationComponentData.new;
+
+      const codeArea = orientationCodeData[currentOrientationCode];
+      document.querySelectorAll("[data-orient-code]").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.orientCode === currentOrientationCode);
+      });
+      document.getElementById("orientation-code-body").textContent =
+        codeArea.body[ctx] || codeArea.body.new;
+      document.getElementById("orientation-code-diagram").style.display =
+        codeArea.diagram ? "block" : "none";
+
+      const local = orientationLocalData[ctx] || orientationLocalData.new;
+      document.getElementById("orientation-local-body").innerHTML =
+        local.paragraphs.map(text => "<p>" + text + "</p>").join("");
+      document.getElementById("orientation-local-artifacts").innerHTML =
+        local.points.map(([title, body]) => (
+          '<div class="local-point"><b>' + title + '</b>' + body + '</div>'
+        )).join("");
+    }
+    function renderConcept(id) {
+      const item = conceptData[id];
+      document.querySelectorAll("[data-concept]").forEach(btn => btn.classList.toggle("active", btn.dataset.concept === id));
+      document.getElementById("concept-title").textContent = item.title;
+      document.getElementById("concept-body").innerHTML = paragraphHtml(contextText(item.body));
+      document.getElementById("concept-artifact").innerHTML = item.artifact;
+    }
+    function renderFlow(id) {
+      const item = flowData[id];
+      document.querySelectorAll("[data-flow]").forEach(btn => btn.classList.toggle("active", btn.dataset.flow === id));
+      document.getElementById("flow-title").textContent = item.title;
+      document.getElementById("flow-body").innerHTML = paragraphHtml(contextText(item.body));
+      document.getElementById("flow-artifact").innerHTML = item.artifact;
+    }
+    function renderOutcome(id) {
+      const item = outcomeData[id];
+      document.querySelectorAll("[data-outcome]").forEach(btn => btn.classList.toggle("active", btn.dataset.outcome === id));
+      document.getElementById("outcome-title").textContent = item.title;
+      document.getElementById("outcome-body").innerHTML = paragraphHtml(item.body);
+      document.getElementById("outcome-artifact").innerHTML = item.artifact;
+    }
+    function renderEvidence(id) {
+      const item = evidenceData[id];
+      document.querySelectorAll("[data-evidence]").forEach(btn => btn.classList.toggle("active", btn.dataset.evidence === id));
+      document.getElementById("evidence-title").textContent = item.title;
+      document.getElementById("evidence-body").innerHTML = paragraphHtml(item.body);
+      document.getElementById("evidence-artifact").innerHTML = item.artifact;
+    }
+    function tab(id) {
+      document.querySelectorAll(".chapter").forEach(chapter => chapter.classList.toggle("active", chapter.id === id));
+      document.querySelectorAll(".tabbtn").forEach(btn => btn.classList.toggle("active", btn.dataset.tab === id));
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+      document.querySelectorAll(".tabbtn").forEach(btn => btn.addEventListener("click", () => tab(btn.dataset.tab)));
+      document.getElementById("contextButton").addEventListener("click", event => {
+        event.stopPropagation();
+        const menu = document.getElementById("contextSelect");
+        const open = menu.classList.toggle("open");
+        document.getElementById("contextButton").setAttribute("aria-expanded", String(open));
+      });
+      document.querySelectorAll("[data-context-option]").forEach(btn => {
+        btn.addEventListener("click", event => {
+          event.stopPropagation();
+          setContext(btn.dataset.contextOption);
+        });
+      });
+      document.querySelectorAll("[data-orient-code]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          currentOrientationCode = btn.dataset.orientCode;
+          renderOrientation();
+        });
+      });
+      document.querySelectorAll("[data-concept]").forEach(btn => btn.addEventListener("click", () => renderConcept(btn.dataset.concept)));
+      document.querySelectorAll("[data-flow]").forEach(btn => btn.addEventListener("click", () => renderFlow(btn.dataset.flow)));
+      document.querySelectorAll("[data-outcome]").forEach(btn => btn.addEventListener("click", () => renderOutcome(btn.dataset.outcome)));
+      document.querySelectorAll("[data-evidence]").forEach(btn => btn.addEventListener("click", () => renderEvidence(btn.dataset.evidence)));
+      document.addEventListener("click", () => {
+        document.getElementById("contextSelect").classList.remove("open");
+        document.getElementById("contextButton").setAttribute("aria-expanded", "false");
+      });
+      renderOrientation();
+      renderConcept("collector");
+      renderFlow("group");
+      renderOutcome("new");
+      renderEvidence("mixed");
+    });
+  </script>
+</body>
+</html>

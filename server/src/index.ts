@@ -4,15 +4,24 @@ import { WebSocketServer } from "ws";
 import { ChatService } from "./chat.js";
 import { ClaudeSession } from "./claude.js";
 import { JsonlLogger } from "./logger.js";
-import { createStaticHandler } from "./static.js";
+import { createFilesHandler, createStaticHandler } from "./static.js";
 
 const PORT = Number(process.env.PORT ?? 3001);
 
 // Works from both src/ (tsx dev) and dist/ (compiled): ../../client/dist.
 const clientDist = path.resolve(import.meta.dirname, "../../client/dist");
 
-// Web serving engine — exists only to serve the front-end application.
-const httpServer = createServer(createStaticHandler(clientDist));
+// Web serving engine: the front-end application, plus the wiki (repo docs/)
+// served verbatim at /docs so the viewer can load .md/.oui files directly.
+const staticHandler = createStaticHandler(clientDist);
+const docsHandler = createFilesHandler(
+  path.resolve(import.meta.dirname, "../../docs"),
+  "/docs/"
+);
+const httpServer = createServer((req, res) => {
+  if (req.url?.startsWith("/docs/")) return docsHandler(req, res);
+  staticHandler(req, res);
+});
 
 // Back-end services — no public API; all communication is async over the
 // websocket. The Claude session runs the CLI against the repo root so the

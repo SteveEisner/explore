@@ -1,5 +1,7 @@
+import * as React from "react";
 import { ChatSidebar } from "@/components/chat-sidebar";
-import { TopBar } from "@/components/top-bar";
+import { FileViewer } from "@/components/file-viewer";
+import { MainToolbar } from "@/components/main-toolbar";
 import { useChat } from "@/hooks/use-chat";
 import { GenerativeView } from "@/lib/openui";
 
@@ -8,19 +10,35 @@ const TEST_MESSAGE =
   "Content heading, then a Tabs component with two or three tabs of HTML " +
   "content. Afterwards, confirm briefly in chat.";
 
+/**
+ * What the main viewing area shows: a file from the wiki (url null = the
+ * empty in-memory OUI document the app starts on), or authoring mode where
+ * the LLM's streamed ui tool output renders live.
+ */
+export type MainView = { kind: "doc"; url: string | null } | { kind: "authoring" };
+
 export default function App() {
   const chat = useChat();
+  const [view, setView] = React.useState<MainView>({ kind: "doc", url: null });
 
   return (
     <div className="flex h-screen bg-background text-foreground">
-      {/* Main panel: floating top bar over the LLM-constructed UI. */}
-      <main className="relative min-w-0 flex-1">
-        <TopBar onTest={() => chat.send(TEST_MESSAGE)} disabled={!chat.connected} />
-        <div className="h-full w-full overflow-y-auto">
-          <GenerativeView
-            response={chat.ui.program}
-            isStreaming={chat.ui.streaming}
-          />
+      <main className="flex min-w-0 flex-1 flex-col">
+        <MainToolbar
+          view={view}
+          onView={setView}
+          onTest={() => chat.send(TEST_MESSAGE)}
+          disabled={!chat.connected}
+        />
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {view.kind === "authoring" ? (
+            <GenerativeView
+              response={chat.ui.program}
+              isStreaming={chat.ui.streaming}
+            />
+          ) : (
+            <FileViewer url={view.url} />
+          )}
         </div>
       </main>
 
