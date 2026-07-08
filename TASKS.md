@@ -63,6 +63,8 @@ The live task tracker, organized by component area (see [docs/ARCHITECTURE.md](d
 | Minimal UI shell with rendered artifact view, hot-reload on artifact change | 1 | — | todo |
 | Chat pane alongside the artifact, with streaming, in-progress indicator, errors in chat, cancel/retry | 2 | — | todo |
 | Support artifact updates mid-conversation without losing view state where possible | 2 | — | todo |
+| Chat header cleanup: drop the session id and connected badge from the chat pane | 5 | Worker 2 | done |
+| Markdown viewer upgrades: rehype-sanitize, rehype-slug, highlight.js, mermaid diagrams | 5 | Worker 2 | done |
 | Usability pass on the core loop: open wiki → generate → chat → refine | 5 | — | todo |
 | Visual design pass on the app shell (layout, theming, dark mode) | 5 | — | todo |
 
@@ -71,8 +73,8 @@ The live task tracker, organized by component area (see [docs/ARCHITECTURE.md](d
 | Task | Phase | Owner | Status |
 |---|---|---|---|
 | Point-and-comment: select an artifact region and attach feedback | 3 | — | todo |
-| Drawing/annotation overlay on the rendered artifact | 3 | — | todo |
-| Screenshot round-trip: send the rendered (or marked-up) view back to the LLM | 3 | — | todo |
+| Drawing/annotation overlay on the rendered artifact | 3 | Worker 2 | done |
+| Screenshot round-trip: send the rendered (or marked-up) view back to the LLM | 3 | Worker 2 | done |
 | Voice agent: spoken conversation about the content or the application | 3 | — | todo |
 | Represent multimodal feedback in the LLM conversation (images, structured regions, transcripts) | 3 | — | todo |
 | Keep text chat working as the universal fallback for every mode | 3 | — | todo |
