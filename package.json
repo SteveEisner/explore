@@ -17,6 +17,8 @@
     "prepare": "git config core.hooksPath .githooks"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "tsx": "^4.23.0",
+    "typescript": "^5.9.3"
   }
 }
