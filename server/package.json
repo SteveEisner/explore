@@ -12,6 +12,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@openuidev/lang-core": "^0.2.7",
+    "@wirux/mcp-markdown-vault": "^2.3.0",
     "ws": "^8.18.0",
     "zod": "^4.4.3"
   },

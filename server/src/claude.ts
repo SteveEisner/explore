@@ -29,6 +29,12 @@ export interface ClaudeSessionOptions {
   dataDir?: string;
   /** CLI binary, defaults to `claude` on PATH. */
   command?: string;
+  /**
+   * The wiki directory. When set, the model gets the markdown-vault MCP
+   * server (note CRUD/search) plus the wiki file-listing MCP server, both
+   * rooted here — its only window onto content outside the sandbox cwd.
+   */
+  wikiDir?: string;
 }
 
 type ClaudeProcess = ChildProcessByStdio<Writable, Readable, Readable>;
@@ -53,12 +59,14 @@ export class ClaudeSession extends EventEmitter {
   private readonly cwd: string;
   private readonly command: string;
   private readonly sessionFile: string;
+  private readonly wikiDir: string | undefined;
   sessionId: string | null = null;
 
   constructor(options: ClaudeSessionOptions = {}) {
     super();
     this.cwd = options.cwd ?? process.cwd();
     this.command = options.command ?? "claude";
+    this.wikiDir = options.wikiDir;
     const dataDir = options.dataDir ?? path.join(process.cwd(), "data");
     this.sessionFile = path.join(dataDir, "claude-session.json");
     this.sessionId = this.loadPersistedSessionId();
@@ -107,6 +115,27 @@ export class ClaudeSession extends EventEmitter {
    * rather than beginning a fresh one.
    */
   private start(): boolean {
+    // MCP tools the model may call without prompting. Everything else an MCP
+    // server exposes (e.g. the vault's petri-net `workflow` tool) still needs
+    // permission, which --print mode auto-denies.
+    const allowedTools = ["mcp__ui__ui"];
+    let systemPrompt = buildUiSystemPrompt();
+    if (this.wikiDir) {
+      allowedTools.push(
+        "mcp__vault__vault",
+        "mcp__vault__edit",
+        "mcp__vault__view",
+        "mcp__vault__system",
+        "mcp__wiki__list_files"
+      );
+      systemPrompt +=
+        "\n\n# The wiki\n" +
+        "The user's wiki is a markdown vault. Use the `vault`, `edit`, " +
+        "`view`, and `system` MCP tools to list, read, search, and edit its " +
+        "notes, and `list_files` to enumerate every wiki file including " +
+        "non-markdown pages (.oui, .html). Wiki files are web-served at " +
+        "/docs/<path>; use that URL form when linking wiki pages in UIs.";
+    }
     const args = [
       "--print",
       "--input-format",
@@ -116,13 +145,14 @@ export class ClaudeSession extends EventEmitter {
       "--include-partial-messages",
       "--verbose",
       // The `ui` tool: an MCP server the CLI spawns, plus the OpenUI Lang
-      // system prompt teaching the model the component library.
+      // system prompt teaching the model the component library. When a wiki
+      // is configured, the vault + wiki servers ride along.
       "--mcp-config",
       this.writeMcpConfig(),
       "--allowedTools",
-      "mcp__ui__ui",
+      allowedTools.join(","),
       "--append-system-prompt",
-      buildUiSystemPrompt(),
+      systemPrompt,
       // Sandbox: the model gets file tools only, scoped to the working
       // directory (the gitignored sandbox/ dir) plus temp dirs. Everything
       // else must go through the MCP servers configured above.
@@ -234,23 +264,40 @@ export class ClaudeSession extends EventEmitter {
   }
 
   /**
-   * Write the MCP config the CLI loads at spawn. The ui-mcp server runs from
-   * compiled dist/ in production; under tsx (this file ends in .ts) it runs
+   * Write the MCP config the CLI loads at spawn. Our own servers run from
+   * compiled dist/ in production; under tsx (this file ends in .ts) they run
    * the TypeScript source via the workspace's tsx binary.
    */
   private writeMcpConfig(): string {
     const isDev = import.meta.url.endsWith(".ts");
     const here = import.meta.dirname;
-    const uiServer = isDev
-      ? {
-          command: path.resolve(here, "../../node_modules/.bin/tsx"),
-          args: [path.join(here, "ui-mcp.ts")],
-        }
-      : { command: process.execPath, args: [path.join(here, "ui-mcp.js")] };
+    const localServer = (name: string, env?: Record<string, string>) => ({
+      ...(isDev
+        ? {
+            command: path.resolve(here, "../../node_modules/.bin/tsx"),
+            args: [path.join(here, `${name}.ts`)],
+          }
+        : { command: process.execPath, args: [path.join(here, `${name}.js`)] }),
+      ...(env ? { env } : {}),
+    });
+
+    const mcpServers: Record<string, unknown> = { ui: localServer("ui-mcp") };
+    if (this.wikiDir) {
+      // Third-party markdown-note CRUD/search over the wiki, plus our own
+      // listing tool covering the non-markdown wiki files it can't see.
+      mcpServers.vault = {
+        command: path.resolve(
+          here,
+          "../../node_modules/.bin/markdown-vault-mcp"
+        ),
+        env: { VAULT_PATH: this.wikiDir },
+      };
+      mcpServers.wiki = localServer("wiki-mcp", { WIKI_PATH: this.wikiDir });
+    }
 
     const configPath = path.join(path.dirname(this.sessionFile), "mcp.json");
     mkdirSync(path.dirname(configPath), { recursive: true });
-    writeFileSync(configPath, JSON.stringify({ mcpServers: { ui: uiServer } }));
+    writeFileSync(configPath, JSON.stringify({ mcpServers }));
     return configPath;
   }
 
