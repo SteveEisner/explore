@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { Readable, Writable } from "node:stream";
 import { buildSystemPrompt } from "./prompt.js";
+import { materializeSkills } from "./skills.js";
 
 /**
  * One NDJSON event emitted by `claude --output-format stream-json`.
@@ -138,7 +139,15 @@ export class ClaudeSession extends EventEmitter {
   private start(): boolean {
     // MCP tools the model may call without prompting. Everything else an MCP
     // server exposes still needs permission, which --print mode auto-denies.
-    const allowedTools = ["mcp__ui__ui", "mcp__ui__state", "mcp__ui__set_state"];
+    // Bare "Skill" pre-approves loading any of our shipped skills (the only
+    // ones discoverable — see materializeSkills).
+    const allowedTools = [
+      "mcp__ui__ui",
+      "mcp__ui__state",
+      "mcp__ui__set_state",
+      "mcp__ui__edit_artifact",
+      "Skill",
+    ];
     if (this.wikiDir) {
       allowedTools.push(
         "mcp__vault__vault",
@@ -176,17 +185,22 @@ export class ClaudeSession extends EventEmitter {
       // Sandbox: the model gets file tools only, scoped to the working
       // directory (the gitignored sandbox/ dir) plus temp dirs. Everything
       // else must go through the MCP servers configured above.
-      // - `--tools` removes Bash, WebFetch, WebSearch, Task, etc. entirely.
-      // - `--setting-sources ""` ignores user/project settings, so no outside
-      //   allow rules, hooks, or extra MCP servers leak in.
+      // - `--tools` removes Bash, WebFetch, WebSearch, Task, etc. entirely;
+      //   `Skill` stays in so the model can load our shipped skills.
+      // - `--setting-sources "project"` reads config from the sandbox cwd
+      //   ONLY — which this server fully materializes (skills via
+      //   materializeSkills; no settings file exists there) — so skills are
+      //   discoverable while user-level allow rules, hooks, extra MCP
+      //   servers, and user/plugin skills still can't leak in. (Empirically:
+      //   "" hides project skills entirely; --add-dir does not load them.)
       // - `--strict-mcp-config` limits MCP servers to our --mcp-config file.
       // - In --print mode permission prompts auto-deny, so file access
       //   outside the working directories is refused; `acceptEdits` only
       //   auto-approves writes inside them.
       "--tools",
-      "Read,Write,Edit,Glob,Grep",
+      "Read,Write,Edit,Glob,Grep,Skill",
       "--setting-sources",
-      "",
+      "project",
       "--strict-mcp-config",
       "--permission-mode",
       "acceptEdits",
@@ -215,6 +229,9 @@ export class ClaudeSession extends EventEmitter {
 
     // The sandbox working directory is gitignored, so it may not exist yet.
     mkdirSync(this.cwd, { recursive: true });
+    // Refresh <sandbox>/.claude/skills from server/skills so the session
+    // discovers exactly the currently-authored skills (see skills.ts).
+    materializeSkills(this.cwd);
 
     const proc = spawn(this.command, args, {
       cwd: this.cwd,

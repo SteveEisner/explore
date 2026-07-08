@@ -4,6 +4,14 @@ The single task list: live tracker organized by component area (see [docs/ARCHIT
 
 **How to use:** claim a task by putting your name in Owner. Statuses: `todo` · `in progress` · `blocked` · `done`. When a task reaches `done`, log it in the worklog (see AGENTS.md).
 
+## Next session: Phase 4 — interactive exploration
+
+The declared focus for the next two-hour session: interactive exploration elements (the vocabulary growing into quizzes, filters, drill-downs, timelines; interaction signals feeding refinement). Three prerequisites feed it from tonight's work:
+
+- **(a) Faster prompt loops** — the Optimizer's perf instrumentation + latency grind (J3 crunch track).
+- **(b) A better understanding of clear explaining** — J1/J2 guidance findings (what makes generated explanations actually land).
+- **(c) A voice model** — expected to take significant time; start early. (Elevated from the Multimodal backlog.)
+
 ## Priority: customer journeys ([docs/journeys.md](docs/journeys.md))
 
 | Task | Journey | Owner | Status |
@@ -86,7 +94,7 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Context-aware rendering: `context` prop on every component, gated against an app-level context level | 1 | Claude | done |
 | Sandbox the artifact viewer/editor so rendered content can't do anything dangerous: Content injects LLM-authored HTML via dangerouslySetInnerHTML with no sanitization (the markdown path uses rehype-sanitize), so a prompt injection in wiki content could become script execution — sanitize or isolate (iframe/CSP). Explicitly **not high priority** right now (2026-07-07) | 1 | — | todo |
 | Hierarchical KV state store for component state, host-readable/writable (decisions.md D3); Tabs/Gallery selection wired via `stateKey` (default `artifact/<type>/<statementId>`) — landed with the state-parity task | 4 | Worker 1 | done |
-| State-key manifest (D3 second half): artifacts declare their state keys up front (initial value + human-readable description) so the store doubles as documentation the LLM can read | 4 | — | todo |
+| State-key manifest (D3 second half): artifacts declare their state keys up front (initial value + human-readable description) so the store doubles as documentation the LLM can read | 4 | Worker 1 | in progress |
 | Context/audience switcher component with context-variant text (from pr-review.html analysis) | 4 | — | todo |
 | Artifact runtime API: let artifacts query the wiki on demand (via the Wiki API) | 4 | — | todo |
 | Grow the vocabulary with interactive exploration elements (filters, drill-downs, timelines, diagrams, quizzes), guided by escape-hatch usage | 4 | — | todo |
@@ -98,8 +106,9 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Task | Journey | Owner | Status |
 |---|---|---|---|
 | Synthesize the clarity doctrine for teaching: audience calibration, orient-then-detail, dependency-order context, smallest useful model, layered depth, boundaries, checkable claims, anti-pedantry — [docs/explaining-with-clarity.md](docs/explaining-with-clarity.md) | J1/J2 | Worker 2 | done |
-| Distill the doctrine into the system prompt ("# Explaining" in server/prompts/system-prompt.md, ~25 lines, tied to context levels and the state tool) and verify it lands in the assembled session prompt | J1/J2 | Worker 2 | done |
-| Validate the explainer live: one Q&A at newcomer level and one at expert level over the same wiki topic (eval-harness scenario or scripted session); check calibration, no re-explaining, layered artifact depth | J2 | — | todo |
+| Deliver the doctrine as an on-demand **skill**, not always-on prompt text (prompt section reverted): server/skills/explaining-clarity/SKILL.md, description-triggered on explaining / answering wiki questions / building an exploration artifact; materialized into the sandbox at every spawn (server/src/skills.ts), discovered via `--setting-sources "project"` with the Skill tool enabled. Live-verified on Haiku: skill discovered, loaded, core definition quoted back | J1/J2 | Worker 2 | done |
+| Tweak the skill's definition with the author: trigger-description wording, guidance content, when-to-load boundaries | J1/J2 | Worker 2 | in progress |
+| Validate the explainer live: one Q&A at newcomer level and one at expert level over the same wiki topic (eval-harness scenario or scripted session); check calibration, no re-explaining, layered artifact depth, and that the skill gets loaded unprompted | J2 | — | todo |
 
 | Task | Phase | Owner | Status |
 |---|---|---|---|
@@ -107,7 +116,7 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Expose the artifact tool to the LLM: create/update artifacts in the OpenUI representation | 1 | — | todo |
 | Initial generation guidance: system-prompt material and artifact patterns for good explanation apps | 1 | — | todo |
 | Tune the LLM's personality and role awareness: it's an exploration guide / co-author embedded in this app — not a generic coding assistant. It should know what the app is, the panes it's living in, its tools, and its role in each journey (explainer in J1, discussion partner in J2, fast editor in J3). Overlaps the wake-up-prompt audit (see Ideas below) — fold that in or sequence after it | 5 | — | todo |
-| The `ui` tool must be able to edit ANY .oui file in the wiki, not just the one in the "new artifact" pane (needed for J4 reopen-and-continue-editing) | 4 | — | todo |
+| The `ui` tool must be able to edit ANY .oui file in the wiki, not just the one in the "new artifact" pane (needed for J4 reopen-and-continue-editing) | 4 | Worker 1 | in progress |
 | Feed artifact interaction signals back to the LLM as context ("user keeps drilling into X") | 4 | — | todo |
 | Improve default artifact quality via refined guidance (templates, design prompts) | 5 | — | todo |
 
@@ -119,6 +128,7 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Watch the artifacts directory and push updates to the artifact view | 1 | — | todo |
 | **State parity: server/LLM can make any content-panel state change the front end can** (navigate to a file, select a tab, ...). Full chain: front-end controls keep their state in the KV store (D3) → store synced to the back end → back end applies incremental store updates via tools → front end reacts to store changes | 4 | Worker 1 | done |
 | Wiki content hot-reload: when the LLM edits a wiki file, the content pane live-reloads if it's showing that file — file watcher on the wiki dir + server notification over the websocket channel | 2 | Worker 1 | done |
+| Pre-warm the Claude CLI on first client connect: one minimal suppressed turn pays CLI boot + session init + prompt-cache write while the user is still typing (perf eval showed ~1.2–1.9s spawn-to-init, all CLI-side); `WARMUP=0` opts out (tests, experiments); "warming"/"ready" statuses on the wire. Verified: ask→UI 6.5s→4.8s on Haiku, zero leaked warm events. Known tradeoff: +1 uncached prompt pass per session; a user who sends within ~4s of connect queues behind the warm turn | J3 | The Optimizer | done |
 | Bridge chat messages to the LLM session; stream responses back | 2 | — | todo |
 | Persist conversation + artifact history per exploration session | 2 | — | todo |
 | Design-conversation memory: cumulative history of the design conversation (LLM memory or dedicated component) | 3 | — | todo |

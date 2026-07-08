@@ -3,9 +3,9 @@
 A synthesis of the four clarity standards this project applies to code
 (code-clarity, comment-clarity, test-clarity, pr-clarity), transposed to the
 act of *teaching*: presenting information to a person who wants to
-understand something. It is the source document for the explainer section of
-the LLM system prompt (`server/prompts/system-prompt.md`); the prompt is the
-distillation, this is the reasoning behind it.
+understand something. It is the source document for the LLM's
+`explaining-clarity` skill (`server/skills/explaining-clarity/SKILL.md`);
+the skill is the distillation, this is the reasoning behind it.
 
 ## The shared insight
 
@@ -132,6 +132,17 @@ not the explainer's inventory.
 
 ## How this wires into the app
 
+- The distillation is an **Agent Skill**, not always-on prompt text: the
+  session sees only the skill's one-line description until the work is
+  actually explanatory, then loads the full guidance on demand. Authored in
+  `server/skills/explaining-clarity/SKILL.md` (versioned), materialized
+  into the sandbox's `.claude/skills/` at every session spawn
+  (`server/src/skills.ts`), discovered via `--setting-sources "project"`
+  with the `Skill` tool enabled — so a skill edit applies on the next
+  session start, like a prompt edit.
+- The skill's `description` is the trigger: it tells the model to load the
+  guidance before explaining a concept, answering wiki questions, or
+  building/revising an exploration artifact.
 - **Chat** answers are sized to the question (the brevity rule already in
   the system prompt); the *level* of the answer follows the audience
   evidence in the conversation and the `state` snapshot.
@@ -140,6 +151,3 @@ not the explainer's inventory.
   serve the expert, and the reader switches instead of scrolling past what
   they don't need.
 - **Grounding** (system prompt) is principle 7 enforced: wiki facts only.
-- The distilled instruction block lives in
-  `server/prompts/system-prompt.md` under "# Explaining"; it is read at
-  session spawn, so prompt edits apply on the next session start.
