@@ -90,7 +90,7 @@ const Content = defineComponent({
     html: z.string().describe("Raw HTML markup to display"),
     context: contextProp,
   }),
-  component: ({ props }) => {
+  component: function ContentComponent({ props }) {
     if (!useContextVisible(props.context)) return null;
     return (
       <div
@@ -141,7 +141,7 @@ const Comparison = defineComponent({
       ),
     context: contextProp,
   }),
-  component: ({ props, renderNode }) => {
+  component: function ComparisonComponent({ props, renderNode }) {
     if (!useContextVisible(props.context)) return null;
     const count = props.panels.length;
     return (
@@ -223,7 +223,7 @@ const Gallery = defineComponent({
       ),
     context: contextProp,
   }),
-  component: ({ props, renderNode, statementId }) => {
+  component: function GalleryComponent({ props, renderNode, statementId }) {
     const visible = useContextVisible(props.context);
     const [selected, setSelected] = useStoreSelection(
       props.stateKey,
@@ -305,7 +305,7 @@ const Aside = defineComponent({
       ),
     context: contextProp,
   }),
-  component: ({ props, renderNode }) => {
+  component: function AsideComponent({ props, renderNode }) {
     if (!useContextVisible(props.context)) return null;
     return (
       <div
@@ -360,7 +360,7 @@ const Tabs = defineComponent({
       ),
     context: contextProp,
   }),
-  component: ({ props, renderNode, statementId }) => {
+  component: function TabsComponent({ props, renderNode, statementId }) {
     const visible = useContextVisible(props.context);
     const [selected, setSelected] = useStoreSelection(
       props.stateKey,
@@ -416,7 +416,7 @@ const Stack = defineComponent({
       ),
     context: contextProp,
   }),
-  component: ({ props, renderNode }) => {
+  component: function StackComponent({ props, renderNode }) {
     if (!useContextVisible(props.context)) return null;
     return (
       <div className={cn("stack flex w-full min-w-0 flex-col", props.className)}>

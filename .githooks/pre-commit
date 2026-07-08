@@ -1,0 +1,5 @@
+#!/bin/sh
+# Quality gate: no commit lands with type or lint errors (lint warnings pass).
+# Wired via `git config core.hooksPath .githooks` (the root `prepare` script).
+# Emergencies only: git commit --no-verify.
+npm run check

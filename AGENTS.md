@@ -17,6 +17,10 @@ Before starting work, claim the task in `TASKS.md` (set Owner to your name, stat
 
 **Blitz backlog:** when you notice a small fix (≤ ~30 min, independent, clearly scoped) that is *outside your current task*, do not fix it — add it to the "Blitz backlog" table in `TASKS.md`. These are deliberately banked for a future multi-agent blitz.
 
+## Quality gates
+
+`npm run check` (typecheck + lint for both workspaces) must pass before every commit. A pre-commit hook in `.githooks/` enforces this; `npm install` wires it up via the root `prepare` script (`core.hooksPath`). Lint *errors* block; warnings don't. Don't bypass with `git commit --no-verify` except in a genuine emergency — and say so in the commit message. TypeScript `strict` is on in both workspaces; keep it that way.
+
 ## Code clarity
 
 Whenever you edit code, apply the **code-clarity** and **comment-clarity** skills (invoke them via the Skill tool before writing): keep the active problem state small, make implicit proofs explicit (no unexplained non-null assertions or magic marker strings), prefer explicit state over string matching, and give non-obvious blocks intent comments that name the invariant they establish. Docstrings state contracts (entrance invariants, guarantees, failure cases), not mechanics or edit history. After updating a file, reread the whole file for maximum clarity and minimum redundancy. Keep edits behavior-preserving and minimal — no formatting churn, and no style rewrites of coherent vendored code (e.g. `client/src/components/ui/`).
