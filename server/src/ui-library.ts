@@ -216,59 +216,19 @@ export const uiLibrary = createLibrary({
 });
 
 /**
- * System prompt appended to every Claude CLI session: teaches OpenUI Lang,
- * documents the component library, and explains the `ui` tool contract.
- * editMode enables incremental patches (resend only changed statements).
+ * One line per component — `Signature(args) — description` — derived from
+ * the zod schemas through the library's prompt spec, so the contract the
+ * LLM reads always matches the real prop shapes (argument order is the
+ * positional-call order). Injected into server/prompts/system-prompt.md at
+ * its {{COMPONENT_SIGNATURES}} placeholder; the rest of the prompt is
+ * hand-written there. We deliberately do not use uiLibrary.prompt(): its
+ * generated text carries unsuppressible default rules that conflict with
+ * this product (invented "plausible data", suggestions of components we
+ * don't have).
  */
-export function buildUiSystemPrompt(): string {
-  return uiLibrary.prompt({
-    preamble: [
-      "# The ui tool",
-      "",
-      "You can render a user interface into the main panel of the user's app",
-      "by calling the `ui` tool (mcp__ui__ui) with a single `spec` argument",
-      "containing an OpenUI Lang program, as specified below.",
-      "",
-      "The panel keeps the UI from your previous ui calls: to change it, send",
-      "only the changed or new statements (edit mode) — unchanged statements",
-      "persist. Send a full program with a new `root` to replace everything.",
-    ].join("\n"),
-    additionalRules: [
-      "Every full program must define root = Stack(...).",
-      "When creating a new artifact (a full program), also pass the ui " +
-        "tool's `name` argument: a short kebab-case filename (no extension) " +
-        "used as the default name when the user saves the artifact to the " +
-        "wiki. Omit `name` on edit patches.",
-      "Pass ONLY OpenUI Lang statements in `spec` — no markdown fences, no prose.",
-      "Structural components are named editing points (decisions.md D4): " +
-        "they render neutral layout only, with no visual styling of their " +
-        "own. Their value is that each named statement is an independently " +
-        "editable boundary — so decompose the page into many small named " +
-        "statements rather than a few large HTML blobs. Give the artifact " +
-        "its look with your own HTML and CSS: include a Content statement " +
-        "carrying a <style> block and target the components' hook classes " +
-        "(tabs-nav, tabs-trigger, gallery-nav-item, gallery-detail, " +
-        "aside-block, comparison-panel, comparison-label, ...) plus any " +
-        "className you set on instances.",
-      "Context-aware rendering: every component accepts an optional context " +
-        "prop (array of integers). A component without it always renders. A " +
-        "component with it renders only when the app's active context level " +
-        "is in its list. Level 0 always exists and is the app default; an " +
-        "exploration may introduce further levels 1, 2, 3, ... for " +
-        "different reader depths (e.g. 0 = new to the material, higher = " +
-        "more expert or more specialized). Emit one gated variant per " +
-        "level, include 0 on the variant that should show by default, and " +
-        "keep ungated content coherent on its own.",
-    ],
-    examples: [
-      [
-        'root = Stack([intro, details])',
-        'intro = Content("<h1>Report</h1><p>Summary of results.</p>")',
-        'details = Tabs([{label: "Overview", content: [ov]}, {label: "Data", content: [data]}])',
-        'ov = Content("<p>Overview body</p>")',
-        'data = Content("<table><tr><td>42</td></tr></table>")',
-      ].join("\n"),
-    ],
-    editMode: true,
-  });
+export function componentSignatures(): string {
+  const spec = uiLibrary.toSpec();
+  return Object.values(spec.components)
+    .map((c) => (c.description ? `${c.signature} — ${c.description}` : c.signature))
+    .join("\n");
 }

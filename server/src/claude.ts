@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { Readable, Writable } from "node:stream";
-import { buildUiSystemPrompt } from "./ui-library.js";
+import { buildSystemPrompt } from "./prompt.js";
 
 /**
  * One NDJSON event emitted by `claude --output-format stream-json`.
@@ -35,6 +35,20 @@ export interface ClaudeSessionOptions {
    * rooted here — its only window onto content outside the sandbox cwd.
    */
   wikiDir?: string;
+  /** Model for the CLI session (`--model`); the CLI's default when unset. */
+  model?: string;
+  /**
+   * Reasoning-effort level for the CLI session (`--effort`, e.g. "low",
+   * "medium", "high"); the CLI's default when unset.
+   */
+  effort?: string;
+  /**
+   * Path to a file whose contents replace the entire appended system prompt
+   * (the ui/state/wiki teaching text) at spawn time. An experiment knob for
+   * the performance eval; production leaves it unset and gets the built
+   * prompt. Tool permissions are unaffected — only the prompt text changes.
+   */
+  appendSystemPromptFile?: string;
 }
 
 type ClaudeProcess = ChildProcessByStdio<Writable, Readable, Readable>;
@@ -60,6 +74,9 @@ export class ClaudeSession extends EventEmitter {
   private readonly command: string;
   private readonly sessionFile: string;
   private readonly wikiDir: string | undefined;
+  private readonly model: string | undefined;
+  private readonly effort: string | undefined;
+  private readonly appendSystemPromptFile: string | undefined;
   sessionId: string | null = null;
 
   constructor(options: ClaudeSessionOptions = {}) {
@@ -67,6 +84,9 @@ export class ClaudeSession extends EventEmitter {
     this.cwd = options.cwd ?? process.cwd();
     this.command = options.command ?? "claude";
     this.wikiDir = options.wikiDir;
+    this.model = options.model;
+    this.effort = options.effort;
+    this.appendSystemPromptFile = options.appendSystemPromptFile;
     const dataDir = options.dataDir ?? path.join(process.cwd(), "data");
     this.sessionFile = path.join(dataDir, "claude-session.json");
     this.sessionId = this.loadPersistedSessionId();
@@ -117,33 +137,8 @@ export class ClaudeSession extends EventEmitter {
    */
   private start(): boolean {
     // MCP tools the model may call without prompting. Everything else an MCP
-    // server exposes (e.g. the vault's petri-net `workflow` tool) still needs
-    // permission, which --print mode auto-denies.
+    // server exposes still needs permission, which --print mode auto-denies.
     const allowedTools = ["mcp__ui__ui", "mcp__ui__state", "mcp__ui__set_state"];
-    let systemPrompt = buildUiSystemPrompt();
-    systemPrompt +=
-      "\n\n# The state tool\n" +
-      "Call the `state` tool (mcp__ui__state) to see what the user is " +
-      "currently looking at: the open document and its type, scroll " +
-      "position (including which markdown source line is at the top of " +
-      "the screen), any text selection (with source line range), pointer " +
-      "position, panel states, and viewport size. Pass screenshot: true " +
-      "to also receive an image of the main window. Use it before " +
-      "answering questions about 'this', 'here', or what's on screen." +
-      "\n\n# Driving the app: the state store and set_state\n" +
-      "All of the app's UI state lives in a shared hierarchical key-value " +
-      "store; the `state` tool's snapshot includes every key under " +
-      "`stateStore`. Call `set_state` (mcp__ui__set_state) to change it — " +
-      "the update applies instantly, exactly as if the user did it. Use " +
-      "it to navigate for the user ('app/view' opens a wiki file or the " +
-      "authoring panel), switch the reader's context level " +
-      "('app/context-level'), or drive artifact components: a Tabs or " +
-      "Gallery selection lives under its stateKey (or " +
-      "'artifact/tabs/<statementId>' / 'artifact/gallery/<statementId>'), " +
-      "and the value may be the item index or its label. Prefer steering " +
-      "the existing UI with set_state over re-rendering it with the ui " +
-      "tool when the user asks to 'show', 'open', or 'go to' something " +
-      "that is already on screen.";
     if (this.wikiDir) {
       allowedTools.push(
         "mcp__vault__vault",
@@ -152,15 +147,14 @@ export class ClaudeSession extends EventEmitter {
         "mcp__vault__system",
         "mcp__wiki__list_files"
       );
-      systemPrompt +=
-        "\n\n# The wiki\n" +
-        "The user's wiki is a markdown vault. Use the `vault`, `edit`, " +
-        "`view`, and `system` MCP tools to list, read, search, and edit its " +
-        "notes, and `list_files` to enumerate every wiki file including " +
-        "non-markdown pages (.oui, .html). Wiki files are web-served at " +
-        "/docs/<path>; use that URL form when linking wiki pages in UIs. " +
-        "When you edit a wiki file the user is viewing, the app reloads " +
-        "it automatically — no need to tell the user to refresh.";
+    }
+    // The appended prompt is authored in server/prompts/*.md and read at
+    // every spawn, so prompt edits apply on the next session start.
+    let systemPrompt = buildSystemPrompt({ wiki: this.wikiDir !== undefined });
+    // Eval override: swap the whole appended prompt for the file's contents
+    // so prompt-size experiments can vary this layer without code changes.
+    if (this.appendSystemPromptFile) {
+      systemPrompt = readFileSync(this.appendSystemPromptFile, "utf8");
     }
     const args = [
       "--print",
@@ -200,13 +194,20 @@ export class ClaudeSession extends EventEmitter {
       "/tmp",
       "/private/tmp",
       tmpdir(),
-      // Belt and braces should a tool slip back into the set.
+      // Belt and braces should a tool slip back into the set — and, for the
+      // vault's workflow tool, the way we keep it out of the model's context
+      // entirely: disallowed tools are removed from the tool list, unlike
+      // merely non-allowed ones, which stay visible and auto-deny on call
+      // (context cost plus a failure trap for zero value).
       "--disallowedTools",
       "Bash",
       "WebFetch",
       "WebSearch",
       "Task",
+      "mcp__vault__workflow",
     ];
+    if (this.model) args.push("--model", this.model);
+    if (this.effort) args.push("--effort", this.effort);
     const resuming = this.sessionId !== null;
     if (this.sessionId) {
       args.push("--resume", this.sessionId);

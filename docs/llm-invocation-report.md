@@ -2,6 +2,8 @@
 
 *2026-07-07. Task 2 of tonight's split: a full account of the text sent into the server's LLM session at invocation time, assembled from the code (`server/src/claude.ts`, `server/src/ui-library.ts`, `server/src/ui-mcp.ts`, `server/src/wiki-mcp.ts`) and the installed vault package. Everything in a code block below is verbatim.*
 
+> **Update (2026-07-07, later that night — Worker 1):** the prompt-cleanup cluster landed and Layer 2 below no longer matches production. The appended prompt is now authored in `server/prompts/system-prompt.md` (+ `wiki.md`), assembled by `server/src/prompt.ts` with only the component signatures machine-generated (`uiLibrary.toSpec()`); `uiLibrary.prompt()` and its default Important Rules are no longer used. Findings 1–4 are fixed: the "realistic/plausible data" and component-suggestion rules are gone (replaced by a Grounding section and our-six-components guidance), a role/identity opener leads the prompt, the state/set_state/wiki sections are slimmed to cross-tool policy (details live in the tool descriptions), and `mcp__vault__workflow` is removed from context entirely via `--disallowedTools` (bare tool names remove the tool from the model's tool list, per Claude Code CLI docs). New size: ~8.7 KB with wiki (was ~11.0 KB). The verbatim Layer 2 below is kept as the historical baseline.
+
 ## How the session is invoked
 
 The server spawns the Claude Code CLI (`claude`) in `--print` mode with stream-JSON I/O:
