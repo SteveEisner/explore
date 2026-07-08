@@ -11,7 +11,7 @@ the app's main panel via the toolbar.
 - [decisions.md](/docs/decisions.md) — running log of design decisions
 - [tasks.md](/docs/tasks.md) — work tracking
 - [worklog-2026-07-07.md](/docs/worklog-2026-07-07.md) — day-by-day notes
-- [pr-review.oui](/docs/pr-review.oui) — sample OpenUI document: an
+- [pr-502764-review.oui](/docs/pr-502764-review.oui) — sample OpenUI document: an
   interactive PR walkthrough rendered by the main-panel viewer
 
 ## File types
