@@ -176,7 +176,12 @@ export interface UiSpecEvent {
   name?: string;
 }
 
-/** Lifecycle/status updates: connecting, session started/resumed, thinking… */
+/**
+ * Lifecycle/status updates: connecting, session started/resumed, thinking…
+ * "warming"/"ready" bracket the pre-warm turn: the back end spins up the
+ * Claude CLI on the first client connection (before any user message) so
+ * the first real ask doesn't pay spawn + session-init latency.
+ */
 export interface ChatStatusEvent {
   type: "chat:status";
   status:
@@ -185,6 +190,8 @@ export interface ChatStatusEvent {
     | "session"
     | "session-resumed"
     | "thinking"
+    | "warming"
+    | "ready"
     | "exited";
   sessionId?: string;
   model?: string;

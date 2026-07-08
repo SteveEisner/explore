@@ -10,8 +10,6 @@ import { Button } from "@/components/ui/button";
 import { useStoreValue } from "@/lib/state-store";
 import type { MainView } from "@/App";
 
-export const HOME_URL = "/docs/README.md";
-
 /**
  * Toolbar across the top of the main viewing area, shaped like a filename
  * selector: home on the left, the current document's name in the middle
@@ -51,8 +49,8 @@ export function MainToolbar({
       <Button
         size="icon-sm"
         variant="ghost"
-        onClick={() => onView({ kind: "doc", url: HOME_URL })}
-        aria-label="Home (README.md)"
+        onClick={() => onView({ kind: "home" })}
+        aria-label="Home (wiki folder view)"
       >
         <HomeIcon />
       </Button>
@@ -156,15 +154,17 @@ function ArtifactNameBar({
 function ViewTitle({ view }: { view: MainView }) {
   // Sparkles = artifact (.oui / authoring), file = ordinary wiki document.
   const face =
-    view.kind === "authoring"
-      ? { icon: SparklesIcon, name: "New Artifact", muted: true }
-      : view.url === null
-        ? { icon: SparklesIcon, name: "Untitled.oui", muted: true }
-        : {
-            icon: view.url.endsWith(".oui") ? SparklesIcon : FileTextIcon,
-            name: view.url.split("/").pop()!,
-            muted: false,
-          };
+    view.kind === "home"
+      ? { icon: HomeIcon, name: "Home", muted: true }
+      : view.kind === "authoring"
+        ? { icon: SparklesIcon, name: "New Artifact", muted: true }
+        : view.url === null
+          ? { icon: SparklesIcon, name: "Untitled.oui", muted: true }
+          : {
+              icon: view.url.endsWith(".oui") ? SparklesIcon : FileTextIcon,
+              name: view.url.split("/").pop()!,
+              muted: false,
+            };
 
   return (
     <div className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md border bg-muted/40 px-3 text-sm">

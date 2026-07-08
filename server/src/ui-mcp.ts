@@ -103,7 +103,8 @@ server.registerTool(
       "`updates` mapping keys to new values (null deletes a key). App " +
       "keys: 'app/view' — what the main panel shows: {kind:'doc', url:" +
       "'/docs/<path>'} opens a wiki file (a plain '/docs/<path>' string " +
-      "also works), {kind:'authoring'} shows the generative-UI panel; " +
+      "also works), {kind:'home'} the wiki folder view, " +
+      "{kind:'authoring'} the generative-UI panel; " +
       "'app/context-level' (integer) — the active context level gating " +
       "context-aware artifact components; 'app/artifact-name' (string) — " +
       "the filename the authoring panel's artifact saves under; " +

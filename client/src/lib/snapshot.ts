@@ -7,7 +7,10 @@ import { stateSnapshot } from "@/lib/state-store";
  * bits of app state the caller passes in.
  */
 export interface SnapshotInputs {
-  view: { kind: "doc"; url: string | null } | { kind: "authoring" };
+  view:
+    | { kind: "home" }
+    | { kind: "doc"; url: string | null }
+    | { kind: "authoring" };
   chatOpen: boolean;
   chatBusy: boolean;
   drawMode: boolean;
@@ -22,7 +25,13 @@ export function buildAppSnapshot(inputs: SnapshotInputs): unknown {
   const { view, scroller, doc } = inputs;
   return {
     view:
-      view.kind === "authoring"
+      view.kind === "home"
+        ? {
+            mode: "home",
+            description:
+              "Home: README excerpt plus the wiki's folder/file listing",
+          }
+        : view.kind === "authoring"
         ? {
             mode: "authoring",
             description:

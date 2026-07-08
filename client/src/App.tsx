@@ -3,7 +3,8 @@ import { SparklesIcon, SquarePenIcon } from "lucide-react";
 import { ChatSidebar } from "@/components/chat-sidebar";
 import { DrawingOverlay } from "@/components/drawing-overlay";
 import { FileViewer } from "@/components/file-viewer";
-import { HOME_URL, MainToolbar } from "@/components/main-toolbar";
+import { HomeView } from "@/components/home-view";
+import { MainToolbar } from "@/components/main-toolbar";
 import { Button } from "@/components/ui/button";
 import { useChat } from "@/hooks/use-chat";
 import { registerAppStateProvider } from "@/lib/app-state";
@@ -15,11 +16,15 @@ import { buildAppSnapshot, type SnapshotInputs } from "@/lib/snapshot";
 import { useStoreValue } from "@/lib/state-store";
 
 /**
- * What the main viewing area shows: a file from the wiki (url null = an
- * empty in-memory OUI document), or authoring mode where the LLM's streamed
- * ui tool output renders live. The app opens on the wiki README.
+ * What the main viewing area shows: the Home folder view of the wiki, a
+ * file from the wiki (url null = an empty in-memory OUI document), or
+ * authoring mode where the LLM's streamed ui tool output renders live. The
+ * app opens on Home.
  */
-export type MainView = { kind: "doc"; url: string | null } | { kind: "authoring" };
+export type MainView =
+  | { kind: "home" }
+  | { kind: "doc"; url: string | null }
+  | { kind: "authoring" };
 
 /** Markdown wiki pages get the floating "New Artifact" entry point. */
 function isMarkdownUrl(url: string | null): boolean {
@@ -40,19 +45,19 @@ function normalizeView(raw: unknown): MainView {
   if (typeof raw === "string") return { kind: "doc", url: raw };
   if (raw && typeof raw === "object") {
     const v = raw as { kind?: unknown; url?: unknown };
+    if (v.kind === "home") return { kind: "home" };
     if (v.kind === "authoring") return { kind: "authoring" };
     if (v.kind === "doc" && (typeof v.url === "string" || v.url === null)) {
       return { kind: "doc", url: v.url };
     }
   }
-  return { kind: "doc", url: HOME_URL };
+  return { kind: "home" };
 }
 
 export default function App() {
   const chat = useChat();
   const [rawView, setView] = useStoreValue<unknown>("app/view", {
-    kind: "doc",
-    url: HOME_URL,
+    kind: "home",
   });
   const view = normalizeView(rawView);
   const [drawMode, setDrawMode] = useStoreValue("app/draw-mode", false);
@@ -207,6 +212,10 @@ export default function App() {
                 <GenerativeView
                   response={chat.ui.program}
                   isStreaming={chat.ui.streaming}
+                />
+              ) : view.kind === "home" ? (
+                <HomeView
+                  onNavigate={(url) => setView({ kind: "doc", url })}
                 />
               ) : (
                 <FileViewer

@@ -15,6 +15,16 @@ import type {
 const UI_TOOL_NAME = "mcp__ui__ui";
 
 /**
+ * The pre-warm turn's message: the cheapest possible turn that still drives
+ * the CLI through full session init and one API round trip (which also
+ * writes the prompt cache for the real first ask). Phrased so the model
+ * spends no thinking, calls no tools, and emits two tokens.
+ */
+const WARMUP_PROMPT =
+  'Session warm-up ping (not from the user). Reply with only "ok" — ' +
+  "no tools, no other text.";
+
+/**
  * Chat service: bridges websocket clients and the Claude CLI session.
  *
  * Incoming "chat" commands are forwarded to the LLM (starting or resuming a
@@ -38,12 +48,23 @@ export class ChatService {
     string,
     { requester: WebSocket; timer: NodeJS.Timeout }
   >();
+  /**
+   * True while the pre-warm turn is in flight: its conversation events are
+   * swallowed (it is not part of the user's chat). Because the CLI processes
+   * turns serially, everything from the warm send until the next "result"
+   * event belongs to the warm turn — a user message sent meanwhile just
+   * queues, and its events arrive after the flag clears.
+   */
+  private warmupActive = false;
+  private warmupStartedAt = 0;
 
   constructor(
     private readonly claude: ClaudeSession,
     private readonly logger: JsonlLogger,
     /** Wiki root; artifact:save writes .oui files here. */
-    private readonly wikiDir: string
+    private readonly wikiDir: string,
+    /** Pre-warm the CLI on first client connect (default on; WARMUP=0 off). */
+    private readonly warmupEnabled: boolean = true
   ) {
     claude.on("event", (event: ClaudeStreamEvent) => {
       this.logger.log("claude", event);
@@ -61,6 +82,9 @@ export class ChatService {
       });
     });
     claude.on("exit", (code: number | null) => {
+      // A CLI death ends any in-flight warm turn — clear the flag so real
+      // conversation events are never swallowed by a stale warm-up.
+      this.warmupActive = false;
       this.logger.log("server", { type: "claude:exit", code });
       this.broadcast({
         type: "chat:status",
@@ -98,6 +122,36 @@ export class ChatService {
         ? `back end ready, known session ${this.claude.sessionId}`
         : "back end ready",
     });
+    this.maybeWarmUp();
+  }
+
+  /**
+   * Pre-warm the CLI while the user is still typing their first message:
+   * spawn it and run one minimal turn, so the real first ask skips CLI boot,
+   * session init, and the cold prompt-cache write (~1–2s + a cache read
+   * instead of a write). Runs at most once per CLI process — skipped when
+   * the CLI is already up (including a warm turn already in flight, since
+   * sending marks the session running). When resuming a persisted session,
+   * the ping lands in that session's history; it is invisible in the UI.
+   */
+  private maybeWarmUp(): void {
+    if (!this.warmupEnabled || this.claude.running) return;
+    this.warmupActive = true;
+    this.warmupStartedAt = Date.now();
+    this.logger.log("server", { type: "warmup:start" });
+    try {
+      this.claude.send(WARMUP_PROMPT);
+      this.broadcast({
+        type: "chat:status",
+        status: "warming",
+        detail: "pre-warming the session",
+      });
+    } catch (err) {
+      // A failed warm-up must not degrade into swallowed real turns; the
+      // first user message will start the CLI the ordinary (cold) way.
+      this.warmupActive = false;
+      this.logger.log("server", { type: "warmup:error", message: String(err) });
+    }
   }
 
   private onClientMessage(ws: WebSocket, raw: string): void {
@@ -295,6 +349,31 @@ export class ChatService {
 
   /** Translate one raw Claude CLI stream event into chat:* events. */
   private onClaudeEvent(event: ClaudeStreamEvent): void {
+    // Warm-turn traffic is lifecycle, not conversation. While the warm turn
+    // runs, only "system" events pass through (so clients still get the
+    // session-started status); its message/tool/ui events are swallowed, and
+    // its closing "result" becomes the "ready" signal. Everything is still
+    // in the JSONL log — suppression only affects client broadcasts.
+    if (this.warmupActive) {
+      if (event.type === "result") {
+        this.warmupActive = false;
+        this.logger.log("server", {
+          type: "warmup:done",
+          durationMs: Date.now() - this.warmupStartedAt,
+          costUsd:
+            typeof event.total_cost_usd === "number"
+              ? event.total_cost_usd
+              : undefined,
+        });
+        this.broadcast({
+          type: "chat:status",
+          status: "ready",
+          detail: "session pre-warmed",
+        });
+        return;
+      }
+      if (event.type !== "system") return;
+    }
     switch (event.type) {
       case "system": {
         if (event.subtype === "init") {

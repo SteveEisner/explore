@@ -67,7 +67,7 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Task | Phase | Owner | Status |
 |---|---|---|---|
 | Wiki API test suite: `tests/` harness spawns the real server against a temp wiki; covers /docs retrieval (content, MIME, 404s, traversal), artifact:save creation/edits (normalization, overwrite protection, hostile-name rejection), wiki:changed hot-reload (debounce, dotfiles, save→notify), and wiki-MCP list_files — `npm test` | bar | Worker 2 | done |
-| List endpoint: enumerate wiki files with paths + basic metadata | 1 | Worker 1 | in progress |
+| List endpoint: enumerate wiki files with paths + basic metadata | 1 | Worker 1 | done |
 | Read endpoint: chunked line reads (offset + limit), never whole-doc | 1 | — | todo |
 | Create endpoint: new file with given content | 1 | — | todo |
 | Rename endpoint: rename/move within the wiki | 1 | — | todo |
@@ -132,7 +132,7 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Support artifact updates mid-conversation without losing view state where possible | 2 | — | todo |
 | Chat header cleanup: drop the session id and connected badge from the chat pane | 5 | Worker 2 | done |
 | Markdown viewer upgrades: rehype-sanitize, rehype-slug, highlight.js, mermaid diagrams | 5 | Worker 2 | done |
-| Home is a folder view, not README.md: excerpt of README.md at top with a &lt;more&gt; link that opens the full README, then a hierarchical list of the wiki's folders, markdown files, and .oui files, each linked to open the doc/OUI (subsumes the phase-6 "wiki browser" stretch task) | 5 | Worker 1 | in progress |
+| Home is a folder view, not README.md: excerpt of README.md at top with a &lt;more&gt; link that opens the full README, then a hierarchical list of the wiki's folders, markdown files, and .oui files, each linked to open the doc/OUI (subsumes the phase-6 "wiki browser" stretch task) | 5 | Worker 1 | done |
 | Usability pass on the core loop: open wiki → generate → chat → refine | 5 | — | todo |
 | Visual design pass on the app shell (layout, theming, dark mode) | 5 | — | todo |
 
