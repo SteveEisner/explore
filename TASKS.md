@@ -4,6 +4,41 @@ The live task tracker, organized by component area (see [docs/ARCHITECTURE.md](d
 
 **How to use:** claim a task by putting your name in Owner. Statuses: `todo` · `in progress` · `blocked` · `done`. When a task reaches `done`, log it in the worklog (see AGENTS.md).
 
+## Priority: customer journeys ([docs/journeys.md](docs/journeys.md))
+
+| Task | Journey | Owner | Status |
+|---|---|---|---|
+| Run J1 end-to-end: wiki bundle → generated exploration; audit wake-up prompt; capture guidance gaps | J1 | Claude | in progress |
+| Generation guidance so J1 output is archetype-class (vocabulary use, context levels, artifact CSS) | J1 | — | todo |
+| Exercise J2: Q&A session over a study-notes wiki; guidance for chat-vs-artifact mode, grounded answers, wiki links, "quiz me" handoff | J2 | — | todo |
+| Measure J3 loop: per-turn timing in the JSONL log (ask → first token → render complete) | J3 | — | todo |
+| Speed up J3: attack the biggest latency contributor; keep edits surgical (no view-state loss) | J3 | — | todo |
+| Train the LLM toward chat brevity (explanations belong in the artifact, not the chat) | J2/J3 | — | todo |
+| Save artifacts to the wiki as .oui from the "new artifact" view: click into the filename bar to name it; a Save button sits at the far right inside that bar, shown only for a new artifact (not when viewing a saved one); saving requires a name. The UI generation process should also supply a default artifact name | J4 | Worker 2 | in progress |
+| Reopen a saved .oui and continue editing (second half of the old save/reopen task) | J4 | Worker 2 | in progress |
+| Clean-clone quickstart: README setup, env/API-key handling, seed wiki, verify from fresh checkout. Note: vault semantic search has a one-time cost on first run (local embedding model download + initial indexing) — warm it during setup, don't let it land mid-demo | J0 | — | todo |
+| Test that vault search actually works (search / global_search / semantic_search over the wiki): never exercised; verify results are sane and the semantic index builds | bar | — | todo |
+| Test harness: typecheck+lint one command; protocol + prompt-builder unit tests; scripted chat-turn integration test; benchmark .oui as rendering fixture | bar | — | todo |
+| **Isolated side instance (gates all crunch tracks):** full app runs from a git worktree with its own server — parameterize ports, wiki path, sandbox dir, session file, JSONL log; one-command launch | J0/bar | — | todo |
+
+## Blitz backlog (small fixes banked for a 5+ agent blitz)
+
+Little things deliberately *not* fixed on sight — banked here until there are enough for a parallel multi-agent blitz. A good blitz item is: small (≤ ~30 min), independent (no shared files with other blitz items where possible), and scoped so an agent can finish it without questions. When you spot one mid-task, add it here instead of fixing it.
+
+| Task | Area | Notes |
+|---|---|---|
+| Dedupe highlight.js: client pins ^11, root deduped to v10 via react-syntax-highlighter | client | from Worker 2's markdown work |
+| Silence oxlint rules-of-hooks false positives in openui.tsx: name the `component:` render functions (e.g. `function GalleryComponent`) so the linter sees them as components | client | from Worker 1's state-store work |
+
+## Crunch tracks (non-interactive; run unattended once the isolated instance exists)
+
+| Task | Journey | Owner | Status |
+|---|---|---|---|
+| **UI-generation performance eval — instrumentation + eval.** (1) Per-sub-session performance logs: from the moment a command is invoked until the LLM signals all work complete, every event it generates is appended — with wall-clock timestamp and delta-from-invocation — to a file dedicated to that exact sub-session, written into the LLM's private sandbox directory (the server session's cwd), e.g. `sandbox/perf/<turn-id>.jsonl`. Events to cover: command invoked, CLI spawn/resume, first stream token, each tool call start/result (ui/state/vault/wiki), each ui:spec chunk, message boundaries, and the final result/completion signal. Sandbox placement is deliberate: the LLM (or a side eval agent) can read its own timing files. (2) The eval itself: run scripted generation/edit prompts, analyze the per-turn files — time-to-first-token, time-to-first-ui-statement, time-to-render-complete, tokens/turn — and report where the time goes. | J3 | — | todo |
+| Optimize UI-interaction time: grind on the biggest contributors the performance eval identifies | J3 | — | blocked |
+| Optimize model cost: measure tokens/turn from the JSONL log; try cheaper models per role (edits vs. generation vs. chat); quality-check against the benchmark | bar | — | blocked |
+| Automated manual testing: a side agent drives the app through the journeys (browser or websocket), reports regressions; runs against the isolated instance | bar | — | blocked |
+
 ## Wiki (storage & conventions)
 
 | Task | Phase | Owner | Status |
@@ -33,7 +68,8 @@ The live task tracker, organized by component area (see [docs/ARCHITECTURE.md](d
 | Apply D4 to Gallery/Aside/Tabs: de-chrome, hook classes, layout props; teach D4 in generation guidance | 1 | Claude | done |
 | Context-aware rendering: `context` prop on every component, gated against an app-level context level | 1 | Claude | done |
 | Raw-HTML escape hatch sandboxing model (Content renders unsandboxed today) | 1 | — | todo |
-| Hierarchical KV state store for component state, host-readable/writable, declared via manifest (decisions.md D3); wire Gallery `stateKey` to it | 4 | — | todo |
+| Hierarchical KV state store for component state, host-readable/writable (decisions.md D3); Tabs/Gallery selection wired via `stateKey` (default `artifact/<type>/<statementId>`) — landed with the state-parity task | 4 | Worker 1 | done |
+| State-key manifest (D3 second half): artifacts declare their state keys up front (initial value + human-readable description) so the store doubles as documentation the LLM can read | 4 | — | todo |
 | Context/audience switcher component with context-variant text (from pr-review.html analysis) | 4 | — | todo |
 | Artifact runtime API: let artifacts query the wiki on demand (via the Wiki API) | 4 | — | todo |
 | Grow the vocabulary with interactive exploration elements (filters, drill-downs, timelines, diagrams, quizzes), guided by escape-hatch usage | 4 | — | todo |
@@ -45,6 +81,8 @@ The live task tracker, organized by component area (see [docs/ARCHITECTURE.md](d
 | Decide how to drive Claude Code (Agent SDK vs. CLI) and how sessions map to explorations | 1 | — | todo |
 | Expose the artifact tool to the LLM: create/update artifacts in the OpenUI representation | 1 | — | todo |
 | Initial generation guidance: system-prompt material and artifact patterns for good explanation apps | 1 | — | todo |
+| Tune the LLM's personality and role awareness: it's an exploration guide / co-author embedded in this app — not a generic coding assistant. It should know what the app is, the panes it's living in, its tools, and its role in each journey (explainer in J1, discussion partner in J2, fast editor in J3). Overlaps the wake-up-prompt audit (docs/TODO.md) — fold that in or sequence after it | 5 | — | todo |
+| The `ui` tool must be able to edit ANY .oui file in the wiki, not just the one in the "new artifact" pane (needed for J4 reopen-and-continue-editing) | 4 | — | todo |
 | Feed artifact interaction signals back to the LLM as context ("user keeps drilling into X") | 4 | — | todo |
 | Improve default artifact quality via refined guidance (templates, design prompts) | 5 | — | todo |
 
@@ -54,6 +92,8 @@ The live task tracker, organized by component area (see [docs/ARCHITECTURE.md](d
 |---|---|---|---|
 | Choose the web stack and scaffold the app + bridge | 1 | — | todo |
 | Watch the artifacts directory and push updates to the artifact view | 1 | — | todo |
+| **State parity: server/LLM can make any content-panel state change the front end can** (navigate to a file, select a tab, ...). Full chain: front-end controls keep their state in the KV store (D3) → store synced to the back end → back end applies incremental store updates via tools → front end reacts to store changes | 4 | Worker 1 | done |
+| Wiki content hot-reload: when the LLM edits a wiki file, the content pane live-reloads if it's showing that file — file watcher on the wiki dir + server notification over the websocket channel | 2 | Worker 1 | done |
 | Bridge chat messages to the LLM session; stream responses back | 2 | — | todo |
 | Persist conversation + artifact history per exploration session | 2 | — | todo |
 | Design-conversation memory: cumulative history of the design conversation (LLM memory or dedicated component) | 3 | — | todo |
@@ -67,6 +107,7 @@ The live task tracker, organized by component area (see [docs/ARCHITECTURE.md](d
 | Support artifact updates mid-conversation without losing view state where possible | 2 | — | todo |
 | Chat header cleanup: drop the session id and connected badge from the chat pane | 5 | Worker 2 | done |
 | Markdown viewer upgrades: rehype-sanitize, rehype-slug, highlight.js, mermaid diagrams | 5 | Worker 2 | done |
+| Home is a folder view, not README.md: excerpt of README.md at top with a &lt;more&gt; link that opens the full README, then a hierarchical list of the wiki's folders, markdown files, and .oui files, each linked to open the doc/OUI (subsumes the phase-6 "wiki browser" stretch task) | 5 | — | todo |
 | Usability pass on the core loop: open wiki → generate → chat → refine | 5 | — | todo |
 | Visual design pass on the app shell (layout, theming, dark mode) | 5 | — | todo |
 

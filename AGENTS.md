@@ -13,6 +13,10 @@
 
 Before starting work, claim the task in `TASKS.md` (set Owner to your name, status to `in progress`). Update status as it changes (`todo` · `in progress` · `blocked` · `done`). Add newly discovered tasks to the appropriate component-area section.
 
+**Taking on a task means:** when you begin work, check the task plan for tasks relevant to what you're doing and claim them as yours. When you complete work, check again for relevant tasks and mark them done. If you get stuck, note that in the task document (status `blocked` plus a short note of what's blocking).
+
+**Blitz backlog:** when you notice a small fix (≤ ~30 min, independent, clearly scoped) that is *outside your current task*, do not fix it — add it to the "Blitz backlog" table in `TASKS.md`. These are deliberately banked for a future multi-agent blitz.
+
 ## Worklog
 
 Whenever a milestone is reached — a task from `docs/tasks.md` completed, a phase finished, a significant architectural decision made, or a notable bug fixed — append a short entry to the current worklog file in `docs/` (named `worklog-YYYY-MM-DD.md`, using today's date; create it if it doesn't exist).
