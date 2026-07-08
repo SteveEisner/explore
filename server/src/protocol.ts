@@ -12,7 +12,41 @@ export type ClientMessage =
   | ChatCommand
   | LogCommand
   | StateRequestCommand
-  | StateResponseCommand;
+  | StateUpdateCommand
+  | StateResponseCommand
+  | ArtifactSaveCommand;
+
+/**
+ * Persist the authoring panel's artifact into the wiki as a .oui file (J4).
+ * The back end answers the sender with an artifact:saved event carrying the
+ * same id.
+ */
+export interface ArtifactSaveCommand {
+  type: "artifact:save";
+  id: string;
+  /** Filename within the wiki; ".oui" is appended if missing. */
+  name: string;
+  /** The complete OpenUI Lang program to write. */
+  spec: string;
+  /**
+   * Allow replacing an existing file. The client sets this when re-saving an
+   * artifact it loaded from the wiki; a plain new-artifact save refuses to
+   * clobber an existing name.
+   */
+  overwrite?: boolean;
+}
+
+/**
+ * Front-end state mutation: the LLM's `set_state` MCP tool sends
+ * state:update via the back end; browsers apply the updates to the D3
+ * state store and answer with a state:response carrying the applied keys.
+ */
+export interface StateUpdateCommand {
+  type: "state:update";
+  id: string;
+  /** State-store key → new value; null deletes the key. */
+  updates: Record<string, unknown>;
+}
 
 /**
  * Front-end state inspection. The LLM's `state` MCP tool connects to the
@@ -71,13 +105,42 @@ export type ServerEvent =
   | UiDeltaEvent
   | UiSpecEvent
   | StateRequestEvent
-  | StateResponseEvent;
+  | StateUpdateEvent
+  | StateResponseEvent
+  | WikiChangedEvent
+  | ArtifactSavedEvent;
+
+/** Outcome of an artifact:save command, sent only to the requester. */
+export interface ArtifactSavedEvent {
+  type: "artifact:saved";
+  id: string;
+  /** Web path of the written file (e.g. "/docs/my-report.oui") on success. */
+  url?: string;
+  error?: string;
+}
 
 /** state:request forwarded to browser clients (shape mirrors the command). */
 export interface StateRequestEvent {
   type: "state:request";
   id: string;
   screenshot?: boolean;
+}
+
+/** state:update forwarded to browser clients (shape mirrors the command). */
+export interface StateUpdateEvent {
+  type: "state:update";
+  id: string;
+  updates: Record<string, unknown>;
+}
+
+/**
+ * A wiki file changed on disk (e.g. the LLM edited it); the content pane
+ * live-reloads if it is currently showing that file.
+ */
+export interface WikiChangedEvent {
+  type: "wiki:changed";
+  /** Web path of the changed file, e.g. "/docs/journeys.md". */
+  url: string;
 }
 
 /** state:response routed back to the requesting client. */
@@ -109,6 +172,8 @@ export interface UiDeltaEvent {
 export interface UiSpecEvent {
   type: "ui:spec";
   spec: string;
+  /** Model-suggested save filename for the artifact (no extension). */
+  name?: string;
 }
 
 /** Lifecycle/status updates: connecting, session started/resumed, thinking… */

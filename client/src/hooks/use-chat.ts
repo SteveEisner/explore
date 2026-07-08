@@ -3,6 +3,12 @@ import { mergeStatements } from "@openuidev/react-lang";
 import type { ServerEvent } from "@/lib/chat-protocol";
 import { collectAppState } from "@/lib/app-state";
 import {
+  applyServerUpdates,
+  getState,
+  setState,
+  stateSnapshot,
+} from "@/lib/state-store";
+import {
   attachLogSocket,
   frontendLog,
   installErrorLogging,
@@ -40,6 +46,18 @@ export interface ChatState {
   ui: UiState;
   /** Send a user turn; `image` is an optional data-URL attachment. */
   send: (text: string, image?: string) => void;
+  /** True from saveArtifact until the back end answers artifact:saved. */
+  saving: boolean;
+  /** Message from the last failed save; cleared by the next save. */
+  saveError: string | null;
+  /** Save the authoring panel's program to the wiki as <name>.oui (J4). */
+  saveArtifact: (name: string) => void;
+  /**
+   * Seed the authoring panel with a saved .oui's program so the LLM's edit
+   * patches merge onto it, and remember its origin so re-saving under the
+   * same name overwrites the file (J4 reopen-and-continue-editing).
+   */
+  loadArtifact: (url: string, spec: string) => void;
 }
 
 let nextId = 0;
@@ -122,15 +140,46 @@ function reduceEvent(items: ChatItem[], event: ServerEvent): ChatItem[] {
     case "chat:error":
       return [...items, { kind: "error", id: newId(), text: event.message }];
 
-    // ui:* events drive the main panel, and state:request is answered out
-    // of band — neither shows in the chat transcript.
+    // ui:* events drive the main panel; state:request/state:update are
+    // answered out of band; wiki:changed reloads the content pane;
+    // artifact:saved feeds the toolbar's save state — none of them show in
+    // the chat transcript.
     case "ui:start":
     case "ui:delta":
     case "ui:spec":
     case "state:request":
+    case "state:update":
+    case "wiki:changed":
+    case "artifact:saved":
       return items;
   }
 }
+
+/**
+ * Answer the LLM's set_state tool: apply the updates to the state store —
+ * the same path a user interaction takes — and acknowledge with the applied
+ * keys plus the resulting store, so the model sees the effect.
+ */
+function answerStateUpdate(
+  socket: WebSocket,
+  id: string,
+  updates: Record<string, unknown>
+): void {
+  let response: Record<string, unknown>;
+  try {
+    const applied = applyServerUpdates(updates);
+    response = { state: { applied, store: stateSnapshot() } };
+  } catch (err) {
+    response = { error: String(err) };
+  }
+  frontendLog("state:updated", { id, keys: Object.keys(updates ?? {}) });
+  if (socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify({ type: "state:response", id, ...response }));
+  }
+}
+
+/** Monotonic counter so equal-URL wiki changes still trigger a reload. */
+let wikiChangeSeq = 0;
 
 /** Answer the LLM's state tool: snapshot the app and ship it back. */
 async function answerStateRequest(
@@ -251,7 +300,15 @@ export function useChat(): ChatState {
     patch: "", // spec text of the in-flight ui call, growing token by token
     streaming: false,
   });
+  const [saveState, setSaveState] = React.useState<{
+    saving: boolean;
+    error: string | null;
+  }>({ saving: false, error: null });
   const socketRef = React.useRef<WebSocket | null>(null);
+  /** Wiki URL the authoring program was loaded from or last saved to. */
+  const loadedFromRef = React.useRef<string | null>(null);
+  /** Latest merged program, so saveArtifact stays a stable callback. */
+  const programRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     let disposed = false;
@@ -286,11 +343,41 @@ export function useChat(): ChatState {
         if (event.type === "state:request") {
           void answerStateRequest(socket, event.id, event.screenshot === true);
         }
+        if (event.type === "state:update") {
+          answerStateUpdate(socket, event.id, event.updates ?? {});
+        }
+        if (event.type === "wiki:changed") {
+          // Publish into the store; FileViewer reloads if it shows the file.
+          setState(
+            "app/wiki-changed",
+            { url: event.url, seq: ++wikiChangeSeq },
+            "server"
+          );
+        }
+        if (event.type === "artifact:saved") {
+          if (event.error || !event.url) {
+            setSaveState({
+              saving: false,
+              error: event.error ?? "save failed",
+            });
+          } else {
+            setSaveState({ saving: false, error: null });
+            // The artifact now lives in the wiki: remember where (so the
+            // next save overwrites it) and switch the panel to the file.
+            loadedFromRef.current = event.url;
+            setState("app/view", { kind: "doc", url: event.url }, "server");
+          }
+        }
         if (event.type === "ui:start") {
           setUiParts((p) => ({ ...p, patch: "", streaming: true }));
         } else if (event.type === "ui:delta") {
           setUiParts((p) => ({ ...p, patch: p.patch + event.text }));
         } else if (event.type === "ui:spec") {
+          // The model's suggested filename is only a default: never clobber
+          // a name the user already typed (or a loaded artifact's name).
+          if (event.name && !getState("app/artifact-name")) {
+            setState("app/artifact-name", event.name, "server");
+          }
           // Authoritative full spec — commit it into the merged program.
           setUiParts((p) => ({
             base: safeMerge(p.base, event.spec),
@@ -326,11 +413,56 @@ export function useChat(): ChatState {
     setBusy(true);
   }, []);
 
+  const saveArtifact = React.useCallback((name: string) => {
+    const socket = socketRef.current;
+    const spec = programRef.current;
+    const trimmed = name.trim();
+    if (!socket || socket.readyState !== WebSocket.OPEN || !spec || !trimmed) {
+      return;
+    }
+    // Re-saving under the name the program was loaded from (or last saved
+    // as) replaces that file; any other existing name is refused server-side.
+    const fileName = trimmed.endsWith(".oui") ? trimmed : `${trimmed}.oui`;
+    const overwrite = loadedFromRef.current?.split("/").pop() === fileName;
+    frontendLog("artifact:save", { name: trimmed, overwrite });
+    socket.send(
+      JSON.stringify({
+        type: "artifact:save",
+        id: newId(),
+        name: trimmed,
+        spec,
+        overwrite,
+      })
+    );
+    setSaveState({ saving: true, error: null });
+  }, []);
+
+  const loadArtifact = React.useCallback((url: string, spec: string) => {
+    loadedFromRef.current = url;
+    setUiParts({ base: spec, patch: "", streaming: false });
+    const fileName = url.split("/").pop() ?? "";
+    setState("app/artifact-name", fileName.replace(/\.oui$/i, ""));
+    setSaveState({ saving: false, error: null });
+    frontendLog("artifact:load", { url, length: spec.length });
+  }, []);
+
   const ui = React.useMemo<UiState>(() => {
     const { base, patch, streaming } = uiParts;
     const program = streaming && patch ? mergeStreamingPatch(base, patch) : base;
     return { program: program || null, streaming };
   }, [uiParts]);
+  programRef.current = ui.program;
 
-  return { items, connected, busy, sessionId, ui, send };
+  return {
+    items,
+    connected,
+    busy,
+    sessionId,
+    ui,
+    send,
+    saving: saveState.saving,
+    saveError: saveState.error,
+    saveArtifact,
+    loadArtifact,
+  };
 }

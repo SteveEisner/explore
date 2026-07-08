@@ -1,3 +1,4 @@
+import { watch } from "node:fs";
 import { createServer } from "node:http";
 import path from "node:path";
 import { WebSocketServer } from "ws";
@@ -34,10 +35,29 @@ const claude = new ClaudeSession({
 });
 // Observability: every event reaching the back end, one JSON object per line.
 const logger = new JsonlLogger();
-const chat = new ChatService(claude, logger);
+const chat = new ChatService(claude, logger, wikiDir);
 
 const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
 wss.on("connection", (ws) => chat.addClient(ws));
+
+// Wiki hot-reload: when a wiki file changes on disk (typically an LLM edit
+// via the vault tools), tell clients so the content pane can live-reload it.
+// Editors fire bursts of events per save, so debounce per file.
+const wikiChangeTimers = new Map<string, NodeJS.Timeout>();
+watch(wikiDir, { recursive: true }, (_eventType, filename) => {
+  if (!filename) return;
+  const rel = filename.split(path.sep).join("/");
+  // Skip hidden files/dirs (e.g. editor swap files, .obsidian).
+  if (rel.split("/").some((part) => part.startsWith("."))) return;
+  clearTimeout(wikiChangeTimers.get(rel));
+  wikiChangeTimers.set(
+    rel,
+    setTimeout(() => {
+      wikiChangeTimers.delete(rel);
+      chat.publish({ type: "wiki:changed", url: `/docs/${rel}` });
+    }, 150)
+  );
+});
 
 httpServer.listen(PORT, () => {
   logger.log("server", { type: "server:listen", port: PORT });

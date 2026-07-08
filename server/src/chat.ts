@@ -1,8 +1,15 @@
+import { existsSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
+import path from "node:path";
 import type { WebSocket } from "ws";
 import type { ClaudeSession, ClaudeStreamEvent } from "./claude.js";
 import type { JsonlLogger } from "./logger.js";
 import { extractSpecSoFar } from "./partial-json.js";
-import type { ClientMessage, ServerEvent } from "./protocol.js";
+import type {
+  ArtifactSaveCommand,
+  ClientMessage,
+  ServerEvent,
+} from "./protocol.js";
 
 /** The `ui` MCP tool as the model sees it (mcp__<server>__<tool>). */
 const UI_TOOL_NAME = "mcp__ui__ui";
@@ -30,7 +37,9 @@ export class ChatService {
 
   constructor(
     private readonly claude: ClaudeSession,
-    private readonly logger: JsonlLogger
+    private readonly logger: JsonlLogger,
+    /** Wiki root; artifact:save writes .oui files here. */
+    private readonly wikiDir: string
   ) {
     claude.on("event", (event: ClaudeStreamEvent) => {
       this.logger.log("claude", event);
@@ -127,7 +136,27 @@ export class ChatService {
 
     switch (message.type) {
       case "state:request": {
-        this.onStateRequest(ws, message.id, message.screenshot === true);
+        this.forwardToFrontEnd(ws, message.id, {
+          type: "state:request",
+          id: message.id,
+          screenshot: message.screenshot === true,
+        });
+        return;
+      }
+      case "state:update": {
+        if (!message.updates || typeof message.updates !== "object") {
+          this.sendTo(ws, {
+            type: "state:response",
+            id: message.id,
+            error: "updates must be an object of key → value",
+          });
+          return;
+        }
+        this.forwardToFrontEnd(ws, message.id, {
+          type: "state:update",
+          id: message.id,
+          updates: message.updates,
+        });
         return;
       }
       case "state:response": {
@@ -174,6 +203,10 @@ export class ChatService {
         }
         return;
       }
+      case "artifact:save": {
+        void this.saveArtifact(ws, message);
+        return;
+      }
       default:
         this.sendTo(ws, {
           type: "chat:error",
@@ -183,14 +216,57 @@ export class ChatService {
   }
 
   /**
-   * Forward a state request to browser clients (everyone but the requester);
-   * the first matching state:response wins. Times out after 10s so the MCP
-   * tool never hangs.
+   * Write the authoring panel's artifact into the wiki as <name>.oui (J4).
+   * The answer goes only to the requester; other clients learn about the new
+   * file through the wiki watcher's wiki:changed broadcast.
    */
-  private onStateRequest(
+  private async saveArtifact(
+    ws: WebSocket,
+    message: ArtifactSaveCommand
+  ): Promise<void> {
+    const answer = (result: { url?: string; error?: string }) => {
+      this.logger.log("server", {
+        type: "artifact:saved",
+        id: message.id,
+        ...result,
+      });
+      this.sendTo(ws, { type: "artifact:saved", id: message.id, ...result });
+    };
+
+    const fileName = artifactFileName(message.name);
+    if (!fileName) {
+      answer({
+        error:
+          "invalid artifact name — use letters, digits, spaces, dots, dashes, or underscores",
+      });
+      return;
+    }
+    if (typeof message.spec !== "string" || !message.spec.trim()) {
+      answer({ error: "nothing to save — the artifact is empty" });
+      return;
+    }
+    const filePath = path.join(this.wikiDir, fileName);
+    if (!message.overwrite && existsSync(filePath)) {
+      answer({ error: `"${fileName}" already exists in the wiki` });
+      return;
+    }
+    try {
+      await writeFile(filePath, ensureTrailingNewline(message.spec), "utf8");
+      answer({ url: `/docs/${fileName}` });
+    } catch (err) {
+      answer({ error: `could not write ${fileName}: ${String(err)}` });
+    }
+  }
+
+  /**
+   * Forward a state exchange (state:request / state:update) to browser
+   * clients (everyone but the requester); the first matching state:response
+   * wins. Times out after 10s so the MCP tool never hangs.
+   */
+  private forwardToFrontEnd(
     requester: WebSocket,
     id: string,
-    screenshot: boolean
+    event: ServerEvent
   ): void {
     const browsers = [...this.clients].filter(
       (c) => c !== requester && c.readyState === c.OPEN
@@ -212,8 +288,14 @@ export class ChatService {
       });
     }, 10_000);
     this.pendingState.set(id, { requester, timer });
-    const payload = JSON.stringify({ type: "state:request", id, screenshot });
+    const payload = JSON.stringify(event);
     for (const browser of browsers) browser.send(payload);
+  }
+
+  /** Publish a server-originated event to every client (e.g. wiki:changed). */
+  publish(event: ServerEvent): void {
+    this.logger.log("server", event as unknown as Record<string, unknown>);
+    this.broadcast(event);
   }
 
   /** Translate one raw Claude CLI stream event into chat:* events. */
@@ -299,9 +381,15 @@ export class ChatService {
           } else if (block.type === "tool_use") {
             // The finished tool call carries the authoritative full spec —
             // it supersedes whatever was assembled from streamed deltas.
-            const input = block.input as { spec?: string } | undefined;
+            const input = block.input as
+              | { spec?: string; name?: string }
+              | undefined;
             if (block.name === UI_TOOL_NAME && typeof input?.spec === "string") {
-              this.broadcast({ type: "ui:spec", spec: input.spec });
+              this.broadcast({
+                type: "ui:spec",
+                spec: input.spec,
+                name: typeof input.name === "string" ? input.name : undefined,
+              });
             }
             this.broadcast({
               type: "chat:tool",
@@ -361,6 +449,22 @@ export class ChatService {
   private sendTo(ws: WebSocket, event: ServerEvent): void {
     if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(event));
   }
+}
+
+/**
+ * Normalize a user-entered artifact name into a safe wiki filename, or null
+ * if it can't be one: a single path segment (no separators, no traversal, no
+ * leading dot) of word characters, spaces, dots, and dashes, ending in .oui.
+ */
+export function artifactFileName(name: unknown): string | null {
+  if (typeof name !== "string") return null;
+  const base = name.trim().replace(/\.oui$/i, "").trim();
+  if (!/^[\w][\w .-]*$/.test(base) || base.endsWith(".")) return null;
+  return `${base}.oui`;
+}
+
+function ensureTrailingNewline(text: string): string {
+  return text.endsWith("\n") ? text : `${text}\n`;
 }
 
 /** Split a data URL into the media type + base64 payload the API expects. */

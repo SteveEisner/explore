@@ -118,7 +118,7 @@ export class ClaudeSession extends EventEmitter {
     // MCP tools the model may call without prompting. Everything else an MCP
     // server exposes (e.g. the vault's petri-net `workflow` tool) still needs
     // permission, which --print mode auto-denies.
-    const allowedTools = ["mcp__ui__ui", "mcp__ui__state"];
+    const allowedTools = ["mcp__ui__ui", "mcp__ui__state", "mcp__ui__set_state"];
     let systemPrompt = buildUiSystemPrompt();
     systemPrompt +=
       "\n\n# The state tool\n" +
@@ -128,7 +128,21 @@ export class ClaudeSession extends EventEmitter {
       "the screen), any text selection (with source line range), pointer " +
       "position, panel states, and viewport size. Pass screenshot: true " +
       "to also receive an image of the main window. Use it before " +
-      "answering questions about 'this', 'here', or what's on screen.";
+      "answering questions about 'this', 'here', or what's on screen." +
+      "\n\n# Driving the app: the state store and set_state\n" +
+      "All of the app's UI state lives in a shared hierarchical key-value " +
+      "store; the `state` tool's snapshot includes every key under " +
+      "`stateStore`. Call `set_state` (mcp__ui__set_state) to change it — " +
+      "the update applies instantly, exactly as if the user did it. Use " +
+      "it to navigate for the user ('app/view' opens a wiki file or the " +
+      "authoring panel), switch the reader's context level " +
+      "('app/context-level'), or drive artifact components: a Tabs or " +
+      "Gallery selection lives under its stateKey (or " +
+      "'artifact/tabs/<statementId>' / 'artifact/gallery/<statementId>'), " +
+      "and the value may be the item index or its label. Prefer steering " +
+      "the existing UI with set_state over re-rendering it with the ui " +
+      "tool when the user asks to 'show', 'open', or 'go to' something " +
+      "that is already on screen.";
     if (this.wikiDir) {
       allowedTools.push(
         "mcp__vault__vault",
@@ -143,7 +157,9 @@ export class ClaudeSession extends EventEmitter {
         "`view`, and `system` MCP tools to list, read, search, and edit its " +
         "notes, and `list_files` to enumerate every wiki file including " +
         "non-markdown pages (.oui, .html). Wiki files are web-served at " +
-        "/docs/<path>; use that URL form when linking wiki pages in UIs.";
+        "/docs/<path>; use that URL form when linking wiki pages in UIs. " +
+        "When you edit a wiki file the user is viewing, the app reloads " +
+        "it automatically — no need to tell the user to refresh.";
     }
     const args = [
       "--print",

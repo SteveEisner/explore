@@ -78,7 +78,7 @@ const Gallery = defineComponent({
       .string()
       .optional()
       .describe(
-        "Hierarchical state-store key naming this gallery's selection, e.g. 'flow/selected-step'"
+        "Hierarchical state-store key naming this gallery's selection (index or item label), e.g. 'flow/selected-step'; defaults to 'artifact/gallery/<statementId>'"
       ),
     items: z
       .array(
@@ -172,6 +172,12 @@ const Tabs = defineComponent({
         })
       )
       .describe("The tabs, in display order"),
+    stateKey: z
+      .string()
+      .optional()
+      .describe(
+        "Hierarchical state-store key naming the active tab (index or label), e.g. 'report/active-tab'; defaults to 'artifact/tabs/<statementId>'"
+      ),
     className: z
       .string()
       .optional()
@@ -229,6 +235,10 @@ export function buildUiSystemPrompt(): string {
     ].join("\n"),
     additionalRules: [
       "Every full program must define root = Stack(...).",
+      "When creating a new artifact (a full program), also pass the ui " +
+        "tool's `name` argument: a short kebab-case filename (no extension) " +
+        "used as the default name when the user saves the artifact to the " +
+        "wiki. Omit `name` on edit patches.",
       "Pass ONLY OpenUI Lang statements in `spec` — no markdown fences, no prose.",
       "Structural components are named editing points (decisions.md D4): " +
         "they render neutral layout only, with no visual styling of their " +

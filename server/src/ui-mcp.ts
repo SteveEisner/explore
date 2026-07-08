@@ -26,6 +26,14 @@ server.registerTool(
       spec: z
         .string()
         .describe("OpenUI Lang statements (full program or edit patch)"),
+      name: z
+        .string()
+        .optional()
+        .describe(
+          "Default save filename for the artifact: short, kebab-case, no " +
+            "extension (e.g. 'auth-flow-explainer'). Supply it when creating " +
+            "a new artifact (a full program); omit it on edit patches."
+        ),
     },
   },
   async ({ spec }) => {
@@ -61,7 +69,10 @@ server.registerTool(
     },
   },
   async ({ screenshot }) => {
-    const reply = await requestFrontEndState(screenshot === true);
+    const reply = await frontEndExchange({
+      type: "state:request",
+      screenshot: screenshot === true,
+    });
     if (reply.error) {
       return {
         content: [
@@ -82,11 +93,56 @@ server.registerTool(
   }
 );
 
+server.registerTool(
+  "set_state",
+  {
+    description:
+      "Update the front end's shared state store — the same hierarchical " +
+      "key-value store the app's own controls read and write — so the " +
+      "change applies instantly, exactly as if the user did it. Pass " +
+      "`updates` mapping keys to new values (null deletes a key). App " +
+      "keys: 'app/view' — what the main panel shows: {kind:'doc', url:" +
+      "'/docs/<path>'} opens a wiki file (a plain '/docs/<path>' string " +
+      "also works), {kind:'authoring'} shows the generative-UI panel; " +
+      "'app/context-level' (integer) — the active context level gating " +
+      "context-aware artifact components; 'app/artifact-name' (string) — " +
+      "the filename the authoring panel's artifact saves under; " +
+      "'app/chat-open' and 'app/draw-mode' (booleans). Artifact keys: a " +
+      "Tabs/Gallery " +
+      "component's active item lives under its stateKey prop, or " +
+      "'artifact/tabs/<statementId>' / 'artifact/gallery/<statementId>' " +
+      "by default; the value may be the 0-based item index or the item " +
+      "label. Call the `state` tool first to see every current key and " +
+      "value under `stateStore`.",
+    inputSchema: {
+      updates: z
+        .record(z.string(), z.unknown())
+        .describe("State-store key → new value; null deletes the key"),
+    },
+  },
+  async ({ updates }) => {
+    const reply = await frontEndExchange({ type: "state:update", updates });
+    if (reply.error) {
+      return {
+        content: [
+          { type: "text", text: `state update failed: ${reply.error}` },
+        ],
+        isError: true,
+      };
+    }
+    return {
+      content: [{ type: "text", text: JSON.stringify(reply.state, null, 1) }],
+    };
+  }
+);
+
 /**
- * Ask the back end (over its websocket, the only API surface) to fetch the
- * browser's current state. One short-lived connection per request.
+ * Run one command/response exchange with the front end through the back
+ * end's websocket (the only API surface): send the command with a fresh id,
+ * resolve on the state:response carrying the same id. One short-lived
+ * connection per request.
  */
-function requestFrontEndState(screenshot: boolean): Promise<{
+function frontEndExchange(command: Record<string, unknown>): Promise<{
   state?: unknown;
   screenshot?: string;
   error?: string;
@@ -108,9 +164,7 @@ function requestFrontEndState(screenshot: boolean): Promise<{
       () => finish({ error: "timed out waiting for the front end" }),
       15_000
     );
-    ws.on("open", () =>
-      ws.send(JSON.stringify({ type: "state:request", id, screenshot }))
-    );
+    ws.on("open", () => ws.send(JSON.stringify({ ...command, id })));
     ws.on("message", (raw) => {
       try {
         const event = JSON.parse(raw.toString());

@@ -3,6 +3,7 @@ import { FileWarningIcon, LoaderIcon } from "lucide-react";
 import { Markdown } from "@/components/markdown";
 import { frontendLog } from "@/lib/frontend-log";
 import { GenerativeView } from "@/lib/openui";
+import { useStoreValue } from "@/lib/state-store";
 
 /**
  * Renders content served directly as files from the back end (the wiki at
@@ -28,14 +29,28 @@ export function FileViewer({
     | { status: "ready"; text: string; contentType: string }
   >({ status: "empty" });
 
+  // Wiki hot-reload: the chat hook bumps this store key on wiki:changed
+  // events; when the change is for the file we're showing, refetch it.
+  const [wikiChanged] = useStoreValue<{ url: string; seq: number } | null>(
+    "app/wiki-changed",
+    null
+  );
+  const reloadSeq =
+    url !== null && wikiChanged?.url === url ? wikiChanged.seq : 0;
+  const shownUrlRef = React.useRef<string | null>(null);
+
   React.useEffect(() => {
     if (url === null) {
+      shownUrlRef.current = null;
       setState({ status: "empty" });
       return;
     }
     let stale = false;
-    setState({ status: "loading" });
-    frontendLog("doc:load", { url });
+    // A hot-reload of the file already on screen refetches silently —
+    // keep the current content up instead of flashing the loading state.
+    if (shownUrlRef.current !== url) setState({ status: "loading" });
+    shownUrlRef.current = url;
+    frontendLog("doc:load", { url, reloadSeq });
     fetch(url)
       .then(async (res) => {
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
@@ -54,7 +69,7 @@ export function FileViewer({
     return () => {
       stale = true;
     };
-  }, [url]);
+  }, [url, reloadSeq]);
 
   const handleLink = React.useCallback(
     (href: string, event: React.MouseEvent) => {

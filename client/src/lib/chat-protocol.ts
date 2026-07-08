@@ -7,7 +7,23 @@ export type ClientMessage =
   | ChatCommand
   | LogCommand
   | StateRequestCommand
-  | StateResponseCommand;
+  | StateResponseCommand
+  | ArtifactSaveCommand;
+
+/**
+ * Persist the authoring panel's artifact into the wiki as a .oui file (J4).
+ * The back end answers with an artifact:saved event carrying the same id.
+ */
+export interface ArtifactSaveCommand {
+  type: "artifact:save";
+  id: string;
+  /** Filename within the wiki; ".oui" is appended if missing. */
+  name: string;
+  /** The complete OpenUI Lang program to write. */
+  spec: string;
+  /** Allow replacing an existing file (re-saving a loaded artifact). */
+  overwrite?: boolean;
+}
 
 /**
  * Front-end state inspection: the LLM's `state` MCP tool sends
@@ -58,13 +74,43 @@ export type ServerEvent =
   | UiStartEvent
   | UiDeltaEvent
   | UiSpecEvent
-  | StateRequestEvent;
+  | StateRequestEvent
+  | StateUpdateEvent
+  | WikiChangedEvent
+  | ArtifactSavedEvent;
+
+/** Outcome of an artifact:save command, sent only to the requester. */
+export interface ArtifactSavedEvent {
+  type: "artifact:saved";
+  id: string;
+  /** Web path of the written file (e.g. "/docs/my-report.oui") on success. */
+  url?: string;
+  error?: string;
+}
 
 /** state:request forwarded from the back end to this browser. */
 export interface StateRequestEvent {
   type: "state:request";
   id: string;
   screenshot?: boolean;
+}
+
+/**
+ * The LLM's set_state tool: apply these updates to the D3 state store and
+ * answer with a state:response carrying the applied keys.
+ */
+export interface StateUpdateEvent {
+  type: "state:update";
+  id: string;
+  /** State-store key → new value; null deletes the key. */
+  updates: Record<string, unknown>;
+}
+
+/** A wiki file changed on disk; reload the content pane if it shows it. */
+export interface WikiChangedEvent {
+  type: "wiki:changed";
+  /** Web path of the changed file, e.g. "/docs/journeys.md". */
+  url: string;
 }
 
 /** The model began a ui tool call. */
@@ -82,6 +128,8 @@ export interface UiDeltaEvent {
 export interface UiSpecEvent {
   type: "ui:spec";
   spec: string;
+  /** Model-suggested save filename for the artifact (no extension). */
+  name?: string;
 }
 
 export interface ChatStatusEvent {

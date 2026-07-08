@@ -1,5 +1,5 @@
 import * as React from "react";
-import { SparklesIcon } from "lucide-react";
+import { SparklesIcon, SquarePenIcon } from "lucide-react";
 import { ChatSidebar } from "@/components/chat-sidebar";
 import { DrawingOverlay } from "@/components/drawing-overlay";
 import { FileViewer } from "@/components/file-viewer";
@@ -12,6 +12,7 @@ import type { StrokePoints } from "@/lib/freehand";
 import { frontendLog } from "@/lib/frontend-log";
 import { GenerativeView } from "@/lib/openui";
 import { buildAppSnapshot, type SnapshotInputs } from "@/lib/snapshot";
+import { useStoreValue } from "@/lib/state-store";
 
 /**
  * What the main viewing area shows: a file from the wiki (url null = an
@@ -25,16 +26,39 @@ function isMarkdownUrl(url: string | null): boolean {
   return url !== null && (url.endsWith(".md") || url.endsWith(".markdown"));
 }
 
+/** Saved .oui views get the floating "Edit Artifact" entry point (J4). */
+function isOuiUrl(url: string | null): boolean {
+  return url !== null && url.endsWith(".oui");
+}
+
+/**
+ * The view lives in the state store, so it can be written by the LLM's
+ * set_state tool as well as our own components — tolerate the shapes an LLM
+ * plausibly writes: a bare "/docs/..." string means "open that file".
+ */
+function normalizeView(raw: unknown): MainView {
+  if (typeof raw === "string") return { kind: "doc", url: raw };
+  if (raw && typeof raw === "object") {
+    const v = raw as { kind?: unknown; url?: unknown };
+    if (v.kind === "authoring") return { kind: "authoring" };
+    if (v.kind === "doc" && (typeof v.url === "string" || v.url === null)) {
+      return { kind: "doc", url: v.url };
+    }
+  }
+  return { kind: "doc", url: HOME_URL };
+}
+
 export default function App() {
   const chat = useChat();
-  const [view, setView] = React.useState<MainView>({
+  const [rawView, setView] = useStoreValue<unknown>("app/view", {
     kind: "doc",
     url: HOME_URL,
   });
-  const [drawMode, setDrawMode] = React.useState(false);
+  const view = normalizeView(rawView);
+  const [drawMode, setDrawMode] = useStoreValue("app/draw-mode", false);
   const [strokes, setStrokes] = React.useState<StrokePoints[]>([]);
   const [capturing, setCapturing] = React.useState(false);
-  const [chatOpen, setChatOpen] = React.useState(false);
+  const [chatOpen, setChatOpen] = useStoreValue("app/chat-open", false);
   const scrollerRef = React.useRef<HTMLDivElement>(null);
   const docRef = React.useRef<HTMLDivElement>(null);
 
@@ -118,7 +142,7 @@ export default function App() {
           drawMode={drawMode}
           onToggleDraw={toggleDraw}
           chatOpen={chatOpen}
-          onToggleChat={() => setChatOpen((open) => !open)}
+          onToggleChat={() => setChatOpen(!chatOpen)}
           chatBusy={chat.busy}
         />
         <div className="relative min-h-0 flex-1">

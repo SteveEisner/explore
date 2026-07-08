@@ -1,7 +1,8 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext } from "react";
 import { createLibrary, defineComponent, Renderer } from "@openuidev/react-lang";
 import { z } from "zod";
 import { frontendLog } from "@/lib/frontend-log";
+import { useStoreValue } from "@/lib/state-store";
 import { cn } from "@/lib/utils";
 
 /**
@@ -28,6 +29,39 @@ const contextProp = z
 function useContextVisible(context: number[] | undefined): boolean {
   const level = useContext(ContextLevelContext);
   return !context || context.includes(level);
+}
+
+/**
+ * Selection state for Tabs/Gallery, held in the D3 state store so the LLM's
+ * `set_state` tool can drive it exactly like a click. The key is the
+ * component's `stateKey` prop or `artifact/<type>/<statementId>`. Stored
+ * values may arrive from the LLM as an index or an item label; both resolve.
+ */
+function useStoreSelection(
+  stateKey: string | undefined,
+  type: string,
+  statementId: string | undefined,
+  labels: string[]
+): [number, (index: number) => void] {
+  const key = stateKey ?? `artifact/${type}/${statementId ?? "inline"}`;
+  const [raw, setRaw] = useStoreValue<unknown>(key, 0);
+  return [resolveSelection(raw, labels), setRaw];
+}
+
+function resolveSelection(raw: unknown, labels: string[]): number {
+  const max = Math.max(0, labels.length - 1);
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return Math.min(Math.max(0, Math.trunc(raw)), max);
+  }
+  if (typeof raw === "string") {
+    const byLabel = labels.findIndex(
+      (label) => label.toLowerCase() === raw.trim().toLowerCase()
+    );
+    if (byLabel !== -1) return byLabel;
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isFinite(parsed)) return Math.min(Math.max(0, parsed), max);
+  }
+  return 0;
 }
 
 /**
@@ -141,13 +175,11 @@ const Gallery = defineComponent({
   description:
     "A master-detail board: a vertical nav of items on the left, the selected item's detail pane on the right. Use for glossaries, step-by-step flows, case explorers. Neutral layout only (decisions.md D4): no visual styling beyond an `active` marker class and bold selected label. Hook classes for artifact stylesheets: wrapper `gallery` (plus optional `className`), nav `gallery-nav`, items `gallery-nav-item` (+ `active`), detail pane `gallery-detail`, heading `gallery-title`.",
   props: z.object({
-    // Selection state will move to the hierarchical KV store (decisions.md
-    // D3); the key names the state, e.g. "flow/selected-step".
     stateKey: z
       .string()
       .optional()
       .describe(
-        "Hierarchical state-store key naming this gallery's selection, e.g. 'flow/selected-step'"
+        "Hierarchical state-store key naming this gallery's selection (index or item label), e.g. 'flow/selected-step'; defaults to 'artifact/gallery/<statementId>'"
       ),
     items: z
       .array(
@@ -184,9 +216,14 @@ const Gallery = defineComponent({
       ),
     context: contextProp,
   }),
-  component: ({ props, renderNode }) => {
+  component: ({ props, renderNode, statementId }) => {
     const visible = useContextVisible(props.context);
-    const [selected, setSelected] = useState(0);
+    const [selected, setSelected] = useStoreSelection(
+      props.stateKey,
+      "gallery",
+      statementId,
+      props.items.map((it) => it.label)
+    );
     if (!visible) return null;
     const item = props.items[Math.min(selected, props.items.length - 1)];
     return (
@@ -301,6 +338,12 @@ const Tabs = defineComponent({
         })
       )
       .describe("The tabs, in display order"),
+    stateKey: z
+      .string()
+      .optional()
+      .describe(
+        "Hierarchical state-store key naming the active tab (index or label), e.g. 'report/active-tab'; defaults to 'artifact/tabs/<statementId>'"
+      ),
     className: z
       .string()
       .optional()
@@ -309,9 +352,14 @@ const Tabs = defineComponent({
       ),
     context: contextProp,
   }),
-  component: ({ props, renderNode }) => {
+  component: ({ props, renderNode, statementId }) => {
     const visible = useContextVisible(props.context);
-    const [selected, setSelected] = useState(0);
+    const [selected, setSelected] = useStoreSelection(
+      props.stateKey,
+      "tabs",
+      statementId,
+      props.tabs.map((tab) => tab.label)
+    );
     if (!visible) return null;
     const active = props.tabs[Math.min(selected, props.tabs.length - 1)];
     return (
@@ -377,15 +425,26 @@ export const openuiLibrary = createLibrary({
 export function GenerativeView({
   response,
   isStreaming = false,
-  contextLevel = DEFAULT_CONTEXT_LEVEL,
+  contextLevel,
 }: {
   response: string | null;
   isStreaming?: boolean;
-  /** Active context level; defaults to 0, the always-present base level. */
+  /** Active context level; defaults to the store's `app/context-level`. */
   contextLevel?: number;
 }) {
+  // The store key lets the user's controls and the LLM's set_state tool
+  // switch reader depth app-wide; an explicit prop still overrides.
+  const [storeLevel] = useStoreValue<unknown>(
+    "app/context-level",
+    DEFAULT_CONTEXT_LEVEL
+  );
+  const level =
+    contextLevel ??
+    (typeof storeLevel === "number" && Number.isFinite(storeLevel)
+      ? Math.trunc(storeLevel)
+      : Number.parseInt(String(storeLevel), 10) || DEFAULT_CONTEXT_LEVEL);
   return (
-    <ContextLevelContext.Provider value={contextLevel}>
+    <ContextLevelContext.Provider value={level}>
       <Renderer
         response={response}
         library={openuiLibrary}

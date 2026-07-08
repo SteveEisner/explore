@@ -1,4 +1,5 @@
 import { sourceLineOf, visibleSourceLines } from "@/lib/source-lines";
+import { stateSnapshot } from "@/lib/state-store";
 
 /**
  * Assemble the structured "what is the user looking at" snapshot for the
@@ -45,6 +46,11 @@ export function buildAppSnapshot(inputs: SnapshotInputs): unknown {
       chat: { open: inputs.chatOpen, turnInProgress: inputs.chatBusy },
       drawing: { active: inputs.drawMode, strokeCount: inputs.strokeCount },
     },
+    /**
+     * The D3 state store: every key the app and artifact controls render
+     * from. Each is writable through the set_state tool.
+     */
+    stateStore: stateSnapshot(),
     viewport: { width: window.innerWidth, height: window.innerHeight },
     capturedAt: new Date().toISOString(),
   };
