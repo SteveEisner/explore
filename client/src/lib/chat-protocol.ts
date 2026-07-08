@@ -3,12 +3,37 @@
  * The front end sends commands; the back end publishes "chat:*" events.
  */
 
-export type ClientMessage = ChatCommand | LogCommand;
+export type ClientMessage =
+  | ChatCommand
+  | LogCommand
+  | StateRequestCommand
+  | StateResponseCommand;
+
+/**
+ * Front-end state inspection: the LLM's `state` MCP tool sends
+ * state:request via the back end; the browser answers state:response.
+ */
+export interface StateRequestCommand {
+  type: "state:request";
+  id: string;
+  screenshot?: boolean;
+}
+
+export interface StateResponseCommand {
+  type: "state:response";
+  id: string;
+  state?: unknown;
+  /** PNG data URL of the main window, when requested. */
+  screenshot?: string;
+  error?: string;
+}
 
 export interface ChatCommand {
   type: "chat";
   id?: string;
   text: string;
+  /** Optional image attachment (e.g. a screenshot) as a base64 data URL. */
+  image?: string;
 }
 
 /** Browser-side observability entries, appended to the back end's JSONL log. */
@@ -32,7 +57,15 @@ export type ServerEvent =
   | ChatErrorEvent
   | UiStartEvent
   | UiDeltaEvent
-  | UiSpecEvent;
+  | UiSpecEvent
+  | StateRequestEvent;
+
+/** state:request forwarded from the back end to this browser. */
+export interface StateRequestEvent {
+  type: "state:request";
+  id: string;
+  screenshot?: boolean;
+}
 
 /** The model began a ui tool call. */
 export interface UiStartEvent {
@@ -70,6 +103,8 @@ export interface ChatMessageEvent {
   id?: string;
   role: "user" | "assistant";
   text: string;
+  /** Data-URL image attached to a user turn (echoed to all clients). */
+  image?: string;
 }
 
 export interface ChatDeltaEvent {

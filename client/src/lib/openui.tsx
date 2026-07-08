@@ -3,34 +3,32 @@ import { createLibrary, defineComponent, Renderer } from "@openuidev/react-lang"
 import { z } from "zod";
 import { frontendLog } from "@/lib/frontend-log";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 
 /**
  * Active context level for context-aware rendering (decisions.md D3 will move
  * this into the artifact state store under the "context" key). Levels are
- * artifact-defined strings, e.g. "new" | "billing" | "flow" | "audit".
- * undefined = no active level: every component renders.
+ * small integers: level 0 always exists and is the default; an exploration
+ * may introduce further levels 1, 2, 3, ... and gate its components to them.
+ *
+ * A component without a `context` prop always renders. A component with one
+ * renders only when the active level is in its list.
  */
-export const ContextLevelContext = createContext<string | undefined>(undefined);
+export const DEFAULT_CONTEXT_LEVEL = 0;
+
+export const ContextLevelContext = createContext<number>(DEFAULT_CONTEXT_LEVEL);
 
 const contextProp = z
-  .array(z.string())
+  .array(z.number().int().nonnegative())
   .min(1)
   .optional()
   .describe(
-    "Only render this component when the active context level is one of these strings; omit to always render"
+    "Only render this component when the active context level (an integer) is in this list; omit to always render. Level 0 always exists and is the default; an exploration may introduce levels 1, 2, 3, ... — include 0 on the variant that should show by default."
   );
 
-function useContextVisible(context: string[] | undefined): boolean {
+function useContextVisible(context: number[] | undefined): boolean {
   const level = useContext(ContextLevelContext);
-  return !context || !level || context.includes(level);
+  return !context || context.includes(level);
 }
-import {
-  Tabs as TabsRoot,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
 
 /**
  * OpenUI (openui.com) generative-UI library rendered into the main panel.
@@ -66,12 +64,15 @@ const Content = defineComponent({
 const Comparison = defineComponent({
   name: "Comparison",
   description:
-    "Side-by-side labeled panels for comparing alternatives (before/after, path A vs path B, sequential steps). Panels share the row with equal widths.",
+    "Side-by-side panels in equal-width columns (before/after, path A vs path B, sequential steps). Unstyled by default — no padding, borders, or gap unless requested — so panel content fully controls its own look. The wrapper carries class `comparison` plus the optional `className`; each panel carries `comparison-panel`, and an optional label renders as an h3 with class `comparison-label`, so artifact stylesheets can restyle every part.",
   props: z.object({
     panels: z
       .array(
         z.object({
-          label: z.string().describe("Heading shown above the panel"),
+          label: z
+            .string()
+            .optional()
+            .describe("Optional heading rendered above the panel content"),
           content: z
             .array(Content.ref)
             .describe("Components shown inside the panel"),
@@ -79,20 +80,54 @@ const Comparison = defineComponent({
       )
       .min(2)
       .describe("The panels, left to right"),
+    gap: z
+      .string()
+      .optional()
+      .describe("CSS gap between panels, e.g. '24px' (default: none)"),
+    border: z
+      .boolean()
+      .optional()
+      .describe("Draw a border around the whole comparison"),
+    dividers: z
+      .boolean()
+      .optional()
+      .describe("Draw a vertical rule between adjacent panels"),
+    className: z
+      .string()
+      .optional()
+      .describe(
+        "Extra CSS class on the wrapper so artifact stylesheets can target this instance"
+      ),
     context: contextProp,
   }),
   component: ({ props, renderNode }) => {
     if (!useContextVisible(props.context)) return null;
+    const count = props.panels.length;
     return (
       <div
-        className="grid w-full min-w-0 gap-3"
+        className={cn(
+          "comparison grid w-full min-w-0",
+          props.border && "border",
+          props.className
+        )}
         style={{
-          gridTemplateColumns: `repeat(${props.panels.length}, minmax(0, 1fr))`,
+          gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))`,
+          gap: props.gap,
         }}
       >
         {props.panels.map((panel, i) => (
-          <div key={i} className="min-w-0 rounded-md border p-3">
-            <h3 className="mb-2 text-sm font-semibold">{panel.label}</h3>
+          <div
+            key={i}
+            className={cn(
+              "comparison-panel min-w-0",
+              props.dividers && i < count - 1 && "border-r"
+            )}
+          >
+            {panel.label != null && (
+              <h3 className="comparison-label text-sm font-semibold">
+                {panel.label}
+              </h3>
+            )}
             {renderNode(panel.content)}
           </div>
         ))}
@@ -104,7 +139,7 @@ const Comparison = defineComponent({
 const Gallery = defineComponent({
   name: "Gallery",
   description:
-    "A master-detail board: a vertical nav of items on the left, the selected item's detail pane on the right. Use for glossaries, step-by-step flows, case explorers.",
+    "A master-detail board: a vertical nav of items on the left, the selected item's detail pane on the right. Use for glossaries, step-by-step flows, case explorers. Neutral layout only (decisions.md D4): no visual styling beyond an `active` marker class and bold selected label. Hook classes for artifact stylesheets: wrapper `gallery` (plus optional `className`), nav `gallery-nav`, items `gallery-nav-item` (+ `active`), detail pane `gallery-detail`, heading `gallery-title`.",
   props: z.object({
     // Selection state will move to the hierarchical KV store (decisions.md
     // D3); the key names the state, e.g. "flow/selected-step".
@@ -133,6 +168,20 @@ const Gallery = defineComponent({
       )
       .min(1)
       .describe("The items, in nav order"),
+    navWidth: z
+      .string()
+      .optional()
+      .describe("CSS width of the nav column, e.g. '300px' (default '240px')"),
+    gap: z
+      .string()
+      .optional()
+      .describe("CSS gap between nav and detail (default: none)"),
+    className: z
+      .string()
+      .optional()
+      .describe(
+        "Extra CSS class on the wrapper so artifact stylesheets can target this instance"
+      ),
     context: contextProp,
   }),
   component: ({ props, renderNode }) => {
@@ -141,32 +190,35 @@ const Gallery = defineComponent({
     if (!visible) return null;
     const item = props.items[Math.min(selected, props.items.length - 1)];
     return (
-      <div className="grid w-full min-w-0 grid-cols-[240px_minmax(0,1fr)] gap-4">
-        <nav className="flex flex-col gap-1">
+      <div
+        className={cn("gallery grid w-full min-w-0", props.className)}
+        style={{
+          gridTemplateColumns: `${props.navWidth ?? "240px"} minmax(0, 1fr)`,
+          gap: props.gap,
+        }}
+      >
+        <nav className="gallery-nav flex flex-col">
           {props.items.map((it, i) => (
-            <Button
+            <button
               key={i}
               type="button"
-              variant={i === selected ? "secondary" : "ghost"}
               onClick={() => setSelected(i)}
+              data-active={i === selected}
+              aria-current={i === selected}
               className={cn(
-                "h-auto flex-col items-start gap-0 border px-3 py-2 text-left",
-                i === selected ? "border-primary" : "border-transparent"
+                "gallery-nav-item cursor-pointer text-left",
+                i === selected && "active"
               )}
             >
-              <b className="block">{it.label}</b>
-              {it.description && (
-                <small className="font-normal text-muted-foreground">
-                  {it.description}
-                </small>
-              )}
-            </Button>
+              <b className={cn("block", i === selected && "font-semibold")}>
+                {it.label}
+              </b>
+              {it.description && <small className="block">{it.description}</small>}
+            </button>
           ))}
         </nav>
-        <div className="min-w-0">
-          <h2 className="mb-2 text-lg font-semibold">
-            {item.title ?? item.label}
-          </h2>
+        <div className="gallery-detail min-w-0">
+          <h2 className="gallery-title">{item.title ?? item.label}</h2>
           {renderNode(item.content)}
         </div>
       </div>
@@ -177,7 +229,7 @@ const Gallery = defineComponent({
 const Aside = defineComponent({
   name: "Aside",
   description:
-    "Main content with a narrower side panel of titled context blocks (e.g. what changed / what didn't / file list). The aside stays alongside the main flow.",
+    "Main content with a narrower side panel of titled context blocks (e.g. what changed / what didn't / file list). Neutral layout only (decisions.md D4): no borders, backgrounds, or padding. Hook classes for artifact stylesheets: wrapper `aside-layout` (plus optional `className`), main column `aside-main`, panel `aside-panel`, blocks `aside-block`, block headings `aside-block-title`.",
   props: z.object({
     main: z
       .array(z.union([Content.ref, Comparison.ref, Gallery.ref]))
@@ -192,17 +244,37 @@ const Aside = defineComponent({
         })
       )
       .describe("Titled context blocks in the side panel, top to bottom"),
+    asideWidth: z
+      .string()
+      .optional()
+      .describe("CSS width of the side panel, e.g. '300px' (default '280px')"),
+    gap: z
+      .string()
+      .optional()
+      .describe("CSS gap between main column and side panel (default: none)"),
+    className: z
+      .string()
+      .optional()
+      .describe(
+        "Extra CSS class on the wrapper so artifact stylesheets can target this instance"
+      ),
     context: contextProp,
   }),
   component: ({ props, renderNode }) => {
     if (!useContextVisible(props.context)) return null;
     return (
-      <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_280px] gap-4">
-        <div className="min-w-0">{renderNode(props.main)}</div>
-        <aside className="flex flex-col gap-3">
+      <div
+        className={cn("aside-layout grid w-full min-w-0", props.className)}
+        style={{
+          gridTemplateColumns: `minmax(0, 1fr) ${props.asideWidth ?? "280px"}`,
+          gap: props.gap,
+        }}
+      >
+        <div className="aside-main min-w-0">{renderNode(props.main)}</div>
+        <aside className="aside-panel flex flex-col">
           {props.aside.map((block, i) => (
-            <div key={i} className="rounded-md border bg-muted/30 p-3 text-sm">
-              <b className="mb-1 block">{block.title}</b>
+            <div key={i} className="aside-block">
+              <h3 className="aside-block-title">{block.title}</h3>
               {renderNode(block.content)}
             </div>
           ))}
@@ -215,7 +287,7 @@ const Aside = defineComponent({
 const Tabs = defineComponent({
   name: "Tabs",
   description:
-    "A tabbed view: a row of tab triggers on top, one visible panel below.",
+    "A tabbed view: a row of tab triggers on top, one visible panel below. Neutral layout only (decisions.md D4): no visual styling beyond an `active` marker class and bold active label. Hook classes for artifact stylesheets: wrapper `tabs` (plus optional `className`), trigger row `tabs-nav`, triggers `tabs-trigger` (+ `active`), panel `tabs-panel`.",
   props: z.object({
     tabs: z
       .array(
@@ -229,25 +301,42 @@ const Tabs = defineComponent({
         })
       )
       .describe("The tabs, in display order"),
+    className: z
+      .string()
+      .optional()
+      .describe(
+        "Extra CSS class on the wrapper so artifact stylesheets can target this instance"
+      ),
     context: contextProp,
   }),
   component: ({ props, renderNode }) => {
-    if (!useContextVisible(props.context)) return null;
+    const visible = useContextVisible(props.context);
+    const [selected, setSelected] = useState(0);
+    if (!visible) return null;
+    const active = props.tabs[Math.min(selected, props.tabs.length - 1)];
     return (
-    <TabsRoot defaultValue={0} className="w-full gap-0">
-      <TabsList variant="line" className="w-full border-b p-0">
-        {props.tabs.map((tab, i) => (
-          <TabsTrigger key={i} value={i}>
-            {tab.label}
-          </TabsTrigger>
-        ))}
-      </TabsList>
-      {props.tabs.map((tab, i) => (
-        <TabsContent key={i} value={i} className="w-full">
-          {renderNode(tab.content)}
-        </TabsContent>
-      ))}
-    </TabsRoot>
+      <div className={cn("tabs w-full min-w-0", props.className)}>
+        <div className="tabs-nav flex" role="tablist">
+          {props.tabs.map((tab, i) => (
+            <button
+              key={i}
+              type="button"
+              role="tab"
+              aria-selected={i === selected}
+              onClick={() => setSelected(i)}
+              className={cn(
+                "tabs-trigger cursor-pointer",
+                i === selected && "active font-semibold"
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="tabs-panel w-full min-w-0" role="tabpanel">
+          {renderNode(active.content)}
+        </div>
+      </div>
     );
   },
 });
@@ -255,19 +344,25 @@ const Tabs = defineComponent({
 const Stack = defineComponent({
   name: "Stack",
   description:
-    "Fills the width of its container and stacks its children vertically, edge to edge.",
+    "Fills the width of its container and stacks its children vertically, edge to edge. As the artifact root, its hook class `stack` (plus optional `className`) is the scope for artifact-wide CSS — the host app resets browser element defaults, so artifacts should include a Content <style> block with base typography scoped under `.stack` (e.g. `.stack h2 {...}`, `.stack p {...}`).",
   props: z.object({
     children: z
       .array(
         z.union([Content.ref, Tabs.ref, Comparison.ref, Gallery.ref, Aside.ref])
       )
       .describe("Components stacked top to bottom"),
+    className: z
+      .string()
+      .optional()
+      .describe(
+        "Extra CSS class on the wrapper so artifact stylesheets can target this instance"
+      ),
     context: contextProp,
   }),
   component: ({ props, renderNode }) => {
     if (!useContextVisible(props.context)) return null;
     return (
-      <div className="flex w-full min-w-0 flex-col">
+      <div className={cn("stack flex w-full min-w-0 flex-col", props.className)}>
         {renderNode(props.children)}
       </div>
     );
@@ -282,12 +377,12 @@ export const openuiLibrary = createLibrary({
 export function GenerativeView({
   response,
   isStreaming = false,
-  contextLevel,
+  contextLevel = DEFAULT_CONTEXT_LEVEL,
 }: {
   response: string | null;
   isStreaming?: boolean;
-  /** Active context level for context-gated components; undefined renders everything. */
-  contextLevel?: string;
+  /** Active context level; defaults to 0, the always-present base level. */
+  contextLevel?: number;
 }) {
   return (
     <ContextLevelContext.Provider value={contextLevel}>

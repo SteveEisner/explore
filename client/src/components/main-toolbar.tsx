@@ -1,9 +1,8 @@
 import {
-  FileCodeIcon,
   FileTextIcon,
   HomeIcon,
   MessageSquareIcon,
-  PencilIcon,
+  PenLineIcon,
   SparklesIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,17 +13,24 @@ export const HOME_URL = "/docs/README.md";
 /**
  * Toolbar across the top of the main viewing area, shaped like a filename
  * selector: home on the left, the current document's name in the middle
- * (greyed "New Artifact" while authoring), authoring mode on the right.
+ * (greyed "New Artifact" while authoring), the line-drawing tool and chat
+ * toggle on the right. Authoring mode is entered via the floating "New
+ * Artifact" button over the main pane; screenshots are sent from the chat
+ * pane's composer.
  */
 export function MainToolbar({
   view,
   onView,
+  drawMode,
+  onToggleDraw,
   chatOpen,
   onToggleChat,
   chatBusy,
 }: {
   view: MainView;
   onView: (view: MainView) => void;
+  drawMode: boolean;
+  onToggleDraw: () => void;
   chatOpen: boolean;
   onToggleChat: () => void;
   chatBusy: boolean;
@@ -42,13 +48,16 @@ export function MainToolbar({
 
       <ViewTitle view={view} />
 
+      <div className="mx-1 h-5 w-px bg-border" aria-hidden />
+
       <Button
         size="icon-sm"
-        variant={view.kind === "authoring" ? "secondary" : "ghost"}
-        onClick={() => onView({ kind: "authoring" })}
-        aria-label="Authoring mode"
+        variant={drawMode ? "secondary" : "ghost"}
+        onClick={onToggleDraw}
+        aria-pressed={drawMode}
+        aria-label="Line drawing mode"
       >
-        <PencilIcon />
+        <PenLineIcon />
       </Button>
 
       <div className="mx-1 h-5 w-px bg-border" aria-hidden />
@@ -72,13 +81,14 @@ export function MainToolbar({
 
 /** The filename-selector face: current document name, or the artifact state. */
 function ViewTitle({ view }: { view: MainView }) {
+  // Sparkles = artifact (.oui / authoring), file = ordinary wiki document.
   const face =
     view.kind === "authoring"
       ? { icon: SparklesIcon, name: "New Artifact", muted: true }
       : view.url === null
-        ? { icon: FileCodeIcon, name: "Untitled.oui", muted: true }
+        ? { icon: SparklesIcon, name: "Untitled.oui", muted: true }
         : {
-            icon: view.url.endsWith(".oui") ? FileCodeIcon : FileTextIcon,
+            icon: view.url.endsWith(".oui") ? SparklesIcon : FileTextIcon,
             name: view.url.split("/").pop()!,
             muted: false,
           };

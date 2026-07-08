@@ -1,6 +1,7 @@
 import * as React from "react";
 import { mergeStatements } from "@openuidev/react-lang";
 import type { ServerEvent } from "@/lib/chat-protocol";
+import { collectAppState } from "@/lib/app-state";
 import {
   attachLogSocket,
   frontendLog,
@@ -13,7 +14,7 @@ import {
  * simple marker text for status, tool activity, results, and errors.
  */
 export type ChatItem =
-  | { kind: "user"; id: string; text: string }
+  | { kind: "user"; id: string; text: string; image?: string }
   | { kind: "assistant"; id: string; text: string; streaming: boolean }
   | { kind: "status"; id: string; text: string }
   | { kind: "tool"; id: string; text: string; isError: boolean }
@@ -37,7 +38,8 @@ export interface ChatState {
   busy: boolean;
   sessionId: string | null;
   ui: UiState;
-  send: (text: string) => void;
+  /** Send a user turn; `image` is an optional data-URL attachment. */
+  send: (text: string, image?: string) => void;
 }
 
 let nextId = 0;
@@ -54,7 +56,10 @@ function reduceEvent(items: ChatItem[], event: ServerEvent): ChatItem[] {
 
     case "chat:message": {
       if (event.role === "user") {
-        return [...items, { kind: "user", id: newId(), text: event.text }];
+        return [
+          ...items,
+          { kind: "user", id: newId(), text: event.text, image: event.image },
+        ];
       }
       // A complete assistant message finalizes the in-progress streamed
       // bubble when one exists (the full text supersedes the deltas).
@@ -117,11 +122,32 @@ function reduceEvent(items: ChatItem[], event: ServerEvent): ChatItem[] {
     case "chat:error":
       return [...items, { kind: "error", id: newId(), text: event.message }];
 
-    // ui:* events drive the main panel, not the chat transcript.
+    // ui:* events drive the main panel, and state:request is answered out
+    // of band — neither shows in the chat transcript.
     case "ui:start":
     case "ui:delta":
     case "ui:spec":
+    case "state:request":
       return items;
+  }
+}
+
+/** Answer the LLM's state tool: snapshot the app and ship it back. */
+async function answerStateRequest(
+  socket: WebSocket,
+  id: string,
+  screenshot: boolean
+): Promise<void> {
+  let response: Record<string, unknown>;
+  try {
+    const result = await collectAppState({ screenshot });
+    response = { state: result.state, screenshot: result.screenshot };
+  } catch (err) {
+    response = { error: String(err) };
+  }
+  frontendLog("state:answered", { id, error: response.error });
+  if (socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify({ type: "state:response", id, ...response }));
   }
 }
 
@@ -206,6 +232,9 @@ export function useChat(): ChatState {
         if (event.type === "chat:response" || event.type === "chat:error") {
           setBusy(false);
         }
+        if (event.type === "state:request") {
+          void answerStateRequest(socket, event.id, event.screenshot === true);
+        }
         if (event.type === "ui:start") {
           setUiParts((p) => ({ ...p, patch: "", streaming: true }));
         } else if (event.type === "ui:delta") {
@@ -238,11 +267,11 @@ export function useChat(): ChatState {
     };
   }, []);
 
-  const send = React.useCallback((text: string) => {
+  const send = React.useCallback((text: string, image?: string) => {
     const socket = socketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
-    frontendLog("chat:send", { length: text.length });
-    socket.send(JSON.stringify({ type: "chat", id: newId(), text }));
+    frontendLog("chat:send", { length: text.length, hasImage: image != null });
+    socket.send(JSON.stringify({ type: "chat", id: newId(), text, image }));
     setBusy(true);
   }, []);
 

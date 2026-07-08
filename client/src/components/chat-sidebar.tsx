@@ -2,6 +2,7 @@ import * as React from "react";
 import { Markdown } from "@/components/markdown";
 import {
   AlertCircleIcon,
+  CameraIcon,
   CheckIcon,
   FlagIcon,
   InfoIcon,
@@ -9,7 +10,6 @@ import {
   SendIcon,
   WrenchIcon,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,11 +36,16 @@ import type { ChatItem, ChatState } from "@/hooks/use-chat";
 export function ChatSidebar({
   chat,
   onClose,
+  onScreenshot,
+  screenshotEnabled,
 }: {
   chat: ChatState;
   onClose?: () => void;
+  /** Capture the main view and send it into the chat as an image turn. */
+  onScreenshot?: () => void;
+  screenshotEnabled?: boolean;
 }) {
-  const { items, connected, busy, sessionId, send } = chat;
+  const { items, connected, busy, send } = chat;
   const [draft, setDraft] = React.useState("");
 
   const submit = (e: React.FormEvent) => {
@@ -53,30 +58,18 @@ export function ChatSidebar({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex items-center justify-between gap-2 border-b px-4 py-3">
-        <div className="flex flex-col">
-          <span className="text-sm font-semibold">Chat</span>
-          {sessionId && (
-            <span className="font-mono text-[10px] text-muted-foreground">
-              {sessionId}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          <Badge variant={connected ? "secondary" : "destructive"}>
-            {connected ? "connected" : "offline"}
-          </Badge>
-          {onClose && (
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              onClick={onClose}
-              aria-label="Close chat panel"
-            >
-              <PanelRightCloseIcon />
-            </Button>
-          )}
-        </div>
+      <header className="flex items-center justify-between border-b px-4 py-2">
+        <span className="text-sm font-semibold">Chat</span>
+        {onClose && (
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            onClick={onClose}
+            aria-label="Close chat panel"
+          >
+            <PanelRightCloseIcon />
+          </Button>
+        )}
       </header>
 
       <MessageScrollerProvider autoScroll>
@@ -102,6 +95,18 @@ export function ChatSidebar({
       </MessageScrollerProvider>
 
       <form onSubmit={submit} className="flex gap-2 border-t p-3">
+        {onScreenshot && (
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            onClick={onScreenshot}
+            disabled={!screenshotEnabled}
+            aria-label="Send a screenshot of the main view"
+          >
+            <CameraIcon />
+          </Button>
+        )}
         <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -125,6 +130,13 @@ function ChatRow({ item }: { item: ChatItem }) {
           <MessageContent>
             <Bubble align="end">
               <BubbleContent>
+                {item.image && (
+                  <img
+                    src={item.image}
+                    alt="Screenshot sent to the chat"
+                    className="mb-2 max-h-64 w-full rounded-md border object-contain"
+                  />
+                )}
                 <Markdown text={item.text} invert />
               </BubbleContent>
             </Bubble>
