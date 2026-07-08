@@ -2,12 +2,29 @@
 
 Architecture and design decisions, newest first. Referenced from [ARCHITECTURE.md](ARCHITECTURE.md).
 
+## D4. Structural components are named editing points — no special behavior or styling
+
+**Date:** 2026-07-07
+**Decision:** A specialized component is justified only when it offers an advantage over rendering raw HTML. For structural components (Stack, Tabs, Comparison, Aside, Gallery panels), the advantage is exactly one thing: a **named boundary that contains content and can be edited independently** of the rest of the page. Therefore structural components carry no default styling and no special behavior — they are editing points, not widgets. Appearance comes from the content itself (raw HTML plus artifact stylesheets targeting the components' CSS hook classes).
+
+**Why:**
+
+- Edit-mode revisions (the heart of the product, per D2) work best when the page decomposes into small named statements the LLM can replace one at a time. That decomposition — not visual opinion — is what the vocabulary is for.
+- Component-imposed chrome fights content: the Comparison rework proved that hardcoded borders/padding made the component unable to reproduce designs its children could express on their own. Unstyled defaults can render anything; styled defaults can only render themselves.
+- It keeps the vocabulary honestly small: a new component must claim a *structural or behavioral* advantage (selection state, context gating, host-observable interaction), never "it looks right."
+
+**Consequences:**
+
+- Components render neutral layout only, exposing stable CSS hook classes (e.g. `comparison`, `comparison-panel`, `comparison-label`) plus an optional `className` so artifact stylesheets control the look.
+- Behavior is the exception and must be earned: Gallery keeps selection because navigation state is structural (and becomes a store key per D3); the `context` prop gates rendering; everything else stays inert.
+- Generation guidance should tell the LLM: reach for structural components to create edit boundaries, and raw HTML (`Content`) for appearance.
+
 ## D3. Component state lives in a hierarchical key-value store
 
 **Date:** 2026-07-07
 **Decision:** All interactive state for artifact components is driven from a central, hierarchical key-value store (keys like `flow/selected-step`, `outcomes/selected-case`), not from per-component internal state. Artifacts declare their state keys up front in a manifest (initial value + human-readable description of what the key means). Components subscribe to store keys and render from them; user interactions write to the store.
 
-**Why:** Modeled on the company-hosted conversion of the PR-review explainer (`pr-review.html`), where this pattern proved its worth: because every interaction flows through the store, *a host-driven state change takes exactly the same path as a local click*. (The pre-conversion archetype, `pr-502764-review.html`, uses plain local DOM state — the store was what the hosting conversion added, and it's the part worth keeping.) That property is load-bearing for us:
+**Why:** Modeled on the company-hosted conversion of the PR-review explainer (`pr-review.html`, since removed from the repo — the archetype `pr-502764-review.html` remains), where this pattern proved its worth: because every interaction flows through the store, *a host-driven state change takes exactly the same path as a local click*. (The pre-conversion archetype, `pr-502764-review.html`, uses plain local DOM state — the store was what the hosting conversion added, and it's the part worth keeping.) That property is load-bearing for us:
 
 - **Phase 4 interaction signals** — the session bridge can observe store writes to learn what the user is exploring ("keeps drilling into X").
 - **LLM steering** — the LLM (or chat) can drive the artifact by writing state, e.g. "look at the third flow step" navigates the UI for the user.

@@ -6,6 +6,7 @@
 - `docs/ARCHITECTURE.md` — system design; `docs/decisions.md` — decision log
 - `docs/tasks.md` — phase roadmap
 - `TASKS.md` (root) — live task tracker by component area (description, self-claimed owner, status)
+- `docs/TODO.md` — holding bin for ideas and loose ends not yet real tasks; promote entries to TASKS.md when work starts
 - `docs/worklog-*.md` — dated worklog files
 
 ## Task tracking

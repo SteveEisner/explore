@@ -46,6 +46,12 @@ Raw HTML generation is powerful but inconsistent; pre-created components are dis
 
 The application is part authoring, part exploration/learning — and these are the same person. The author is the intended learner. When the generated application doesn't help the author learn, they don't file a bug — they ask the LLM to **refine or re-do** it. This tight loop is what makes progressive refinement work: the person best positioned to judge the explanation is the one steering it.
 
+### Structural components are named editing points
+
+The only reason to use a specialized component instead of raw HTML is when it offers an advantage over raw HTML being rendered. For structural components, that advantage is precisely one thing: they provide a **boundary that contains content and can be edited independently** — a named point in the page that the LLM (or a collaborator) can revise without touching anything else. There is nothing special about, say, the Comparison component: it's just a side-by-side display hosting children we can independently edit.
+
+So the principle: **OpenUI structural components are just named editing points, and don't need any special behaviors or styling.** They stay unstyled and behavior-free by default; appearance belongs to the content (raw HTML + artifact stylesheets). A component earns extra behavior only when structure alone can't provide it (e.g. a Gallery's selection state, a context gate).
+
 ### OpenUI as the artifact medium (experiment)
 
 [OpenUI](https://www.openui.com/) — the open standard for generative UI — is a promising way to serve the artifact HTML and, more importantly, to make it **quickly and easily editable** compared to raw HTML edits. Its component library is exactly the "vocabulary contract" described above, and its line-oriented format suits incremental LLM edits. In this sense the project is also **an experiment in defining an HTML-editing protocol**: how should an LLM efficiently and reliably revise a live UI in response to feedback?
