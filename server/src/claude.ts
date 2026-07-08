@@ -106,6 +106,7 @@ export class ClaudeSession extends EventEmitter {
       type: "user",
       message: { role: "user", content },
     });
+    // Non-null: either proc existed on entry or start() just spawned it.
     this.proc!.stdin.write(line + "\n");
     return { resumed, started };
   }

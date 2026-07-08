@@ -48,6 +48,13 @@ function useStoreSelection(
   return [resolveSelection(raw, labels), setRaw];
 }
 
+/**
+ * Turn a stored selection value into a valid item index: numbers are
+ * truncated and clamped to the item range, strings resolve by
+ * case-insensitive label match (then as a numeric string), and anything
+ * unrecognized falls back to the first item. Callers can index items with
+ * the result without re-clamping.
+ */
 function resolveSelection(raw: unknown, labels: string[]): number {
   const max = Math.max(0, labels.length - 1);
   if (typeof raw === "number" && Number.isFinite(raw)) {
@@ -225,7 +232,8 @@ const Gallery = defineComponent({
       props.items.map((it) => it.label)
     );
     if (!visible) return null;
-    const item = props.items[Math.min(selected, props.items.length - 1)];
+    // resolveSelection clamped `selected` to the item range.
+    const item = props.items[selected];
     return (
       <div
         className={cn("gallery grid w-full min-w-0", props.className)}
@@ -361,7 +369,8 @@ const Tabs = defineComponent({
       props.tabs.map((tab) => tab.label)
     );
     if (!visible) return null;
-    const active = props.tabs[Math.min(selected, props.tabs.length - 1)];
+    // resolveSelection clamped `selected` to the tab range.
+    const active = props.tabs[selected];
     return (
       <div className={cn("tabs w-full min-w-0", props.className)}>
         <div className="tabs-nav flex" role="tablist">
@@ -422,6 +431,16 @@ export const openuiLibrary = createLibrary({
   root: "Stack",
 });
 
+/**
+ * Coerce a stored context level into an integer: the store is LLM-writable,
+ * so the value may arrive as a numeric string. Unusable values fall back to
+ * the always-present base level.
+ */
+function coerceContextLevel(raw: unknown): number {
+  if (typeof raw === "number" && Number.isFinite(raw)) return Math.trunc(raw);
+  return Number.parseInt(String(raw), 10) || DEFAULT_CONTEXT_LEVEL;
+}
+
 export function GenerativeView({
   response,
   isStreaming = false,
@@ -438,11 +457,7 @@ export function GenerativeView({
     "app/context-level",
     DEFAULT_CONTEXT_LEVEL
   );
-  const level =
-    contextLevel ??
-    (typeof storeLevel === "number" && Number.isFinite(storeLevel)
-      ? Math.trunc(storeLevel)
-      : Number.parseInt(String(storeLevel), 10) || DEFAULT_CONTEXT_LEVEL);
+  const level = contextLevel ?? coerceContextLevel(storeLevel);
   return (
     <ContextLevelContext.Provider value={level}>
       <Renderer

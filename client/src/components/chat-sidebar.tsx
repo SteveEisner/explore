@@ -174,7 +174,7 @@ function ChatRow({ item }: { item: ChatItem }) {
           <MarkerIcon>
             {item.isError ? (
               <AlertCircleIcon className="text-destructive" />
-            ) : item.text === "tool finished" ? (
+            ) : item.finished ? (
               <CheckIcon />
             ) : (
               <WrenchIcon />

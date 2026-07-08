@@ -3,6 +3,11 @@
  * input. The CLI streams tool arguments as partial JSON text (e.g.
  * `{"spec": "root = St` …), and we want to forward the decoded spec to the
  * front end token by token, before the JSON is complete.
+ *
+ * Returns the decoded prefix of the value seen so far — empty until the
+ * value's opening quote has streamed in, never a partially decoded escape
+ * sequence. Calling again with more of the same JSON returns a strict
+ * extension of the previous result, so callers can forward just the delta.
  */
 export function extractSpecSoFar(rawJson: string): string {
   const key = rawJson.indexOf('"spec"');

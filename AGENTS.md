@@ -17,6 +17,10 @@ Before starting work, claim the task in `TASKS.md` (set Owner to your name, stat
 
 **Blitz backlog:** when you notice a small fix (≤ ~30 min, independent, clearly scoped) that is *outside your current task*, do not fix it — add it to the "Blitz backlog" table in `TASKS.md`. These are deliberately banked for a future multi-agent blitz.
 
+## Code clarity
+
+Whenever you edit code, apply the **code-clarity** and **comment-clarity** skills (invoke them via the Skill tool before writing): keep the active problem state small, make implicit proofs explicit (no unexplained non-null assertions or magic marker strings), prefer explicit state over string matching, and give non-obvious blocks intent comments that name the invariant they establish. Docstrings state contracts (entrance invariants, guarantees, failure cases), not mechanics or edit history. After updating a file, reread the whole file for maximum clarity and minimum redundancy. Keep edits behavior-preserving and minimal — no formatting churn, and no style rewrites of coherent vendored code (e.g. `client/src/components/ui/`).
+
 ## Worklog
 
 Whenever a milestone is reached — a task from `docs/tasks.md` completed, a phase finished, a significant architectural decision made, or a notable bug fixed — append a short entry to the current worklog file in `docs/` (named `worklog-YYYY-MM-DD.md`, using today's date; create it if it doesn't exist).

@@ -23,7 +23,8 @@ export type ChatItem =
   | { kind: "user"; id: string; text: string; image?: string }
   | { kind: "assistant"; id: string; text: string; streaming: boolean }
   | { kind: "status"; id: string; text: string }
-  | { kind: "tool"; id: string; text: string; isError: boolean }
+  /** `finished` distinguishes a completed tool call from one being invoked. */
+  | { kind: "tool"; id: string; text: string; isError: boolean; finished: boolean }
   | { kind: "result"; id: string; text: string; isError: boolean }
   | { kind: "error"; id: string; text: string };
 
@@ -109,15 +110,21 @@ function reduceEvent(items: ChatItem[], event: ServerEvent): ChatItem[] {
     }
 
     case "chat:tool": {
-      const text =
-        event.phase === "use"
-          ? `${event.name ?? "tool"}${event.detail ? ` ${event.detail}` : ""}`
-          : event.isError
-            ? "tool failed"
-            : "tool finished";
+      const finished = event.phase === "result";
+      const text = finished
+        ? event.isError
+          ? "tool failed"
+          : "tool finished"
+        : `${event.name ?? "tool"}${event.detail ? ` ${event.detail}` : ""}`;
       return [
         ...items,
-        { kind: "tool", id: newId(), text, isError: event.isError ?? false },
+        {
+          kind: "tool",
+          id: newId(),
+          text,
+          isError: event.isError ?? false,
+          finished,
+        },
       ];
     }
 
@@ -415,6 +422,9 @@ export function useChat(): ChatState {
 
   const saveArtifact = React.useCallback((name: string) => {
     const socket = socketRef.current;
+    // While a ui call streams, programRef holds a partial merge — callers
+    // must not save then. The toolbar enforces it by disabling Save
+    // (canSave requires !ui.streaming), so spec here is a finished program.
     const spec = programRef.current;
     const trimmed = name.trim();
     if (!socket || socket.readyState !== WebSocket.OPEN || !spec || !trimmed) {

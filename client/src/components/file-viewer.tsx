@@ -108,11 +108,16 @@ export function FileViewer({
         </p>
       );
     case "ready": {
+      // "ready" is only ever set for a fetched url, but state lags one
+      // render behind a url change: right after navigating to the empty
+      // document (url null) this frame still holds the old content — render
+      // nothing until the effect resets state to "empty".
+      if (url === null) return null;
       const { text, contentType } = state;
-      if (url!.endsWith(".oui")) {
+      if (url.endsWith(".oui")) {
         return <GenerativeView response={text} />;
       }
-      if (isMarkdown(url!, contentType)) {
+      if (isMarkdown(url, contentType)) {
         return <Markdown text={text} className="p-6" onLinkClick={handleLink} />;
       }
       return <pre className="overflow-x-auto p-6 text-sm">{text}</pre>;

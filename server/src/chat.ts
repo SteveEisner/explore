@@ -29,7 +29,11 @@ export class ChatService {
    * JSON of the tool input, and how much decoded spec was already forwarded.
    */
   private readonly uiBlocks = new Map<number, { raw: string; sent: number }>();
-  /** In-flight state:request ids → the client awaiting the response. */
+  /**
+   * In-flight state exchanges (state:request / state:update), keyed by id:
+   * the requester awaiting a state:response and its timeout. Entries are
+   * created by forwardToFrontEnd and consumed by the state:response case.
+   */
   private readonly pendingState = new Map<
     string,
     { requester: WebSocket; timer: NodeJS.Timeout }
@@ -118,21 +122,10 @@ export class ChatService {
       return;
     }
 
-    // Data URLs are megabytes of base64; log their size, not their content.
-    const loggable =
-      (message.type === "chat" && message.image) ||
-      (message.type === "state:response" && message.screenshot)
-        ? {
-            ...message,
-            ...("image" in message && message.image
-              ? { image: `<data url, ${message.image.length} chars>` }
-              : {}),
-            ...("screenshot" in message && message.screenshot
-              ? { screenshot: `<data url, ${message.screenshot.length} chars>` }
-              : {}),
-          }
-        : message;
-    this.logger.log("client", loggable as unknown as Record<string, unknown>);
+    this.logger.log(
+      "client",
+      redactDataUrls(message) as unknown as Record<string, unknown>
+    );
 
     switch (message.type) {
       case "state:request": {
@@ -260,8 +253,10 @@ export class ChatService {
 
   /**
    * Forward a state exchange (state:request / state:update) to browser
-   * clients (everyone but the requester); the first matching state:response
-   * wins. Times out after 10s so the MCP tool never hangs.
+   * clients (everyone but the requester — the requester is the MCP tool's
+   * own short-lived connection). The reply routes back through pendingState:
+   * the first state:response carrying the same id wins, later ones are
+   * dropped. Times out after 10s so the MCP tool never hangs.
    */
   private forwardToFrontEnd(
     requester: WebSocket,
@@ -358,6 +353,9 @@ export class ChatService {
           }
           return;
         }
+        // The tool call finished streaming; drop its tracking entry. No
+        // event is sent here — the authoritative full spec follows in the
+        // "assistant" message and is broadcast as ui:spec there.
         if (
           streamed?.type === "content_block_stop" &&
           streamed.index !== undefined
@@ -467,6 +465,27 @@ function ensureTrailingNewline(text: string): string {
   return text.endsWith("\n") ? text : `${text}\n`;
 }
 
+/**
+ * Replace data-URL payloads (chat images, state screenshots) with their size
+ * before logging — they are megabytes of base64 that would bloat the JSONL.
+ * Every other message passes through unchanged.
+ */
+function redactDataUrls(message: ClientMessage): ClientMessage {
+  const oversized =
+    (message.type === "chat" && message.image) ||
+    (message.type === "state:response" && message.screenshot);
+  if (!oversized) return message;
+  return {
+    ...message,
+    ...("image" in message && message.image
+      ? { image: `<data url, ${message.image.length} chars>` }
+      : {}),
+    ...("screenshot" in message && message.screenshot
+      ? { screenshot: `<data url, ${message.screenshot.length} chars>` }
+      : {}),
+  };
+}
+
 /** Split a data URL into the media type + base64 payload the API expects. */
 function parseImageDataUrl(
   url: string | undefined
@@ -476,6 +495,7 @@ function parseImageDataUrl(
   return match ? { mediaType: match[1], data: match[2] } : null;
 }
 
+/** One-line JSON preview of a tool call's input for the chat transcript. */
 function summarizeToolInput(input: unknown): string | undefined {
   if (input === null || typeof input !== "object") return undefined;
   const text = JSON.stringify(input);
