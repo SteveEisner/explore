@@ -110,6 +110,22 @@ export default function App() {
     };
   }, []);
 
+  // Reopen a saved .oui for editing: load its program into the authoring
+  // panel (LLM edit patches then merge onto it; re-saving the same name
+  // overwrites the file) and switch to authoring mode.
+  const editArtifact = async () => {
+    if (view.kind !== "doc" || !isOuiUrl(view.url)) return;
+    const url = view.url!;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      chat.loadArtifact(url, await res.text());
+      setView({ kind: "authoring" });
+    } catch (err) {
+      frontendLog("artifact:edit-error", { url, message: String(err) });
+    }
+  };
+
   // Screenshot the content area (annotations are part of the document DOM,
   // so they're captured with it) and send it to the chat as an image turn.
   const screenshot = async () => {
@@ -144,6 +160,12 @@ export default function App() {
           chatOpen={chatOpen}
           onToggleChat={() => setChatOpen(!chatOpen)}
           chatBusy={chat.busy}
+          onSaveArtifact={chat.saveArtifact}
+          canSave={
+            chat.connected && chat.ui.program !== null && !chat.ui.streaming
+          }
+          saving={chat.saving}
+          saveError={chat.saveError}
         />
         <div className="relative min-h-0 flex-1">
           {/* Floating entry into authoring mode, shown over markdown views
@@ -158,6 +180,18 @@ export default function App() {
             >
               <SparklesIcon data-icon="inline-start" />
               New Artifact
+            </Button>
+          )}
+          {/* Floating reopen-for-editing entry, shown over saved .oui views. */}
+          {view.kind === "doc" && isOuiUrl(view.url) && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void editArtifact()}
+              className="absolute top-3 right-4 z-10 shadow-md"
+            >
+              <SquarePenIcon data-icon="inline-start" />
+              Edit Artifact
             </Button>
           )}
           {/* Document content is selectable; the surrounding chrome is not. */}
