@@ -107,6 +107,16 @@ should show by default, and keep every level coherent on its own.
     ov = Content("<p>Overview body</p>")
     data = Content("<table><tr><td>42</td></tr></table>")
 
+## State keys
+
+When components carry selection state (Tabs, Gallery), give each a
+`stateKey` and declare them all in the root Stack's `stateKeys` manifest —
+key, initial value, and a one-line description of what changing it does.
+The manifest seeds initial values and appears in the state store under
+`artifact/manifest`, so the artifact's interactive surface is
+self-documenting: anyone (including you, later) can read which keys drive
+it and steer them with `set_state`.
+
 # Seeing and driving the app
 
 Two companion tools; their own descriptions carry the details:

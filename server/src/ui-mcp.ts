@@ -69,10 +69,10 @@ server.registerTool(
     },
   },
   async ({ screenshot }) => {
-    const reply = await frontEndExchange({
-      type: "state:request",
-      screenshot: screenshot === true,
-    });
+    const reply = await serverExchange(
+      { type: "state:request", screenshot: screenshot === true },
+      "state:response"
+    );
     if (reply.error) {
       return {
         content: [
@@ -113,8 +113,9 @@ server.registerTool(
       "component's active item lives under its stateKey prop, or " +
       "'artifact/tabs/<statementId>' / 'artifact/gallery/<statementId>' " +
       "by default; the value may be the 0-based item index or the item " +
-      "label. Call the `state` tool first to see every current key and " +
-      "value under `stateStore`.",
+      "label, and the artifact's declared keys (with descriptions) appear " +
+      "under 'artifact/manifest'. Call the `state` tool first to see " +
+      "every current key and value under `stateStore`.",
     inputSchema: {
       updates: z
         .record(z.string(), z.unknown())
@@ -122,7 +123,10 @@ server.registerTool(
     },
   },
   async ({ updates }) => {
-    const reply = await frontEndExchange({ type: "state:update", updates });
+    const reply = await serverExchange(
+      { type: "state:update", updates },
+      "state:response"
+    );
     if (reply.error) {
       return {
         content: [
@@ -137,15 +141,62 @@ server.registerTool(
   }
 );
 
+server.registerTool(
+  "edit_artifact",
+  {
+    description:
+      "Edit a saved wiki artifact (.oui file) in place. Pass the file's " +
+      "wiki path (or /docs/<path> URL) and a `spec` of OpenUI Lang edit " +
+      "statements — the same edit-mode semantics as the ui tool: same " +
+      "statement name replaces, new name appends, statements unreachable " +
+      "from root are dropped; send a full program with a new root to " +
+      "replace everything. The file is updated on disk and anyone viewing " +
+      "it sees the change immediately. Use the ui tool for the main " +
+      "panel's artifact; use this for .oui files saved in the wiki. The " +
+      "file must already exist — new artifacts are created by the user " +
+      "saving from the panel.",
+    inputSchema: {
+      file: z
+        .string()
+        .describe("Target .oui file: wiki path or /docs/<path> URL"),
+      spec: z
+        .string()
+        .describe("OpenUI Lang statements (edit patch or full program)"),
+    },
+  },
+  async ({ file, spec }) => {
+    const reply = await serverExchange(
+      { type: "artifact:edit", file, spec },
+      "artifact:edited"
+    );
+    if (reply.error) {
+      return {
+        content: [{ type: "text", text: `edit failed: ${reply.error}` }],
+        isError: true,
+      };
+    }
+    return {
+      content: [
+        { type: "text", text: `Edited ${reply.url} (merged and saved).` },
+      ],
+    };
+  }
+);
+
 /**
- * Run one command/response exchange with the front end through the back
- * end's websocket (the only API surface): send the command with a fresh id,
- * resolve on the state:response carrying the same id. One short-lived
- * connection per request.
+ * Run one command/response exchange with the back end over its websocket
+ * (the only API surface): send the command with a fresh id, resolve on the
+ * `replyType` event carrying the same id. state:request / state:update are
+ * relayed onward to the browser; artifact:edit is answered by the back end
+ * itself. One short-lived connection per request.
  */
-function frontEndExchange(command: Record<string, unknown>): Promise<{
+function serverExchange(
+  command: Record<string, unknown>,
+  replyType: string
+): Promise<{
   state?: unknown;
   screenshot?: string;
+  url?: string;
   error?: string;
 }> {
   const port = process.env.PORT ?? "3001";
@@ -155,6 +206,7 @@ function frontEndExchange(command: Record<string, unknown>): Promise<{
     const finish = (result: {
       state?: unknown;
       screenshot?: string;
+      url?: string;
       error?: string;
     }) => {
       clearTimeout(timer);
@@ -162,14 +214,14 @@ function frontEndExchange(command: Record<string, unknown>): Promise<{
       resolve(result);
     };
     const timer = setTimeout(
-      () => finish({ error: "timed out waiting for the front end" }),
+      () => finish({ error: "timed out waiting for the app" }),
       15_000
     );
     ws.on("open", () => ws.send(JSON.stringify({ ...command, id })));
     ws.on("message", (raw) => {
       try {
         const event = JSON.parse(raw.toString());
-        if (event.type === "state:response" && event.id === id) finish(event);
+        if (event.type === replyType && event.id === id) finish(event);
       } catch {
         // ignore unrelated traffic (status broadcasts etc.)
       }

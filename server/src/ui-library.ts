@@ -206,6 +206,27 @@ const Stack = defineComponent({
         "Extra CSS class on the wrapper so artifact stylesheets can target this instance"
       ),
     context: contextProp,
+    // Last position: adding a positional argument earlier would silently
+    // shift the meaning of existing artifacts' className/context args.
+    stateKeys: z
+      .array(
+        z.object({
+          key: z
+            .string()
+            .describe("Hierarchical store key, e.g. 'flow/selected-step'"),
+          initial: z
+            .union([z.string(), z.number(), z.boolean()])
+            .optional()
+            .describe("Value seeded into the store when the key is unset"),
+          description: z
+            .string()
+            .describe("What the key means and what changing it does"),
+        })
+      )
+      .optional()
+      .describe(
+        "Manifest of the artifact's state keys (decisions.md D3): declare every stateKey your components use, with an initial value and a description, so the state store documents itself"
+      ),
   }),
   component: null,
 });

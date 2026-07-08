@@ -91,7 +91,7 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Context-aware rendering: `context` prop on every component, gated against an app-level context level | 1 | Claude | done |
 | Sandbox the artifact viewer/editor so rendered content can't do anything dangerous: Content injects LLM-authored HTML via dangerouslySetInnerHTML with no sanitization (the markdown path uses rehype-sanitize), so a prompt injection in wiki content could become script execution — sanitize or isolate (iframe/CSP). Explicitly **not high priority** right now (2026-07-07) | 1 | — | todo |
 | Hierarchical KV state store for component state, host-readable/writable (decisions.md D3); Tabs/Gallery selection wired via `stateKey` (default `artifact/<type>/<statementId>`) — landed with the state-parity task | 4 | Worker 1 | done |
-| State-key manifest (D3 second half): artifacts declare their state keys up front (initial value + human-readable description) so the store doubles as documentation the LLM can read | 4 | Worker 1 | in progress |
+| State-key manifest (D3 second half): artifacts declare their state keys up front (initial value + human-readable description) so the store doubles as documentation the LLM can read | 4 | Worker 1 | done |
 | Context/audience switcher component with context-variant text (from pr-review.html analysis) | 4 | — | todo |
 | Artifact runtime API: let artifacts query the wiki on demand (via the Wiki API) | 4 | — | todo |
 | Grow the vocabulary with interactive exploration elements (filters, drill-downs, timelines, diagrams, quizzes), guided by escape-hatch usage | 4 | — | todo |
@@ -113,7 +113,7 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Expose the artifact tool to the LLM: create/update artifacts in the OpenUI representation | 1 | — | todo |
 | Initial generation guidance: system-prompt material and artifact patterns for good explanation apps | 1 | — | todo |
 | Tune the LLM's personality and role awareness: it's an exploration guide / co-author embedded in this app — not a generic coding assistant. It should know what the app is, the panes it's living in, its tools, and its role in each journey (explainer in J1, discussion partner in J2, fast editor in J3). Overlaps the wake-up-prompt audit (see Ideas below) — fold that in or sequence after it | 5 | — | todo |
-| The `ui` tool must be able to edit ANY .oui file in the wiki, not just the one in the "new artifact" pane (needed for J4 reopen-and-continue-editing) | 4 | Worker 1 | in progress |
+| The `ui` tool must be able to edit ANY .oui file in the wiki, not just the one in the "new artifact" pane (needed for J4 reopen-and-continue-editing) | 4 | Worker 1 | done |
 | Feed artifact interaction signals back to the LLM as context ("user keeps drilling into X") | 4 | — | todo |
 | Improve default artifact quality via refined guidance (templates, design prompts) | 5 | — | todo |
 

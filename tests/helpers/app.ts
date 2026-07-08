@@ -14,8 +14,9 @@ import WebSocket from "ws";
  * never in-process reconstructions of it. PORT=0 lets the OS pick a free
  * port; the harness learns the bound port from the server's startup line.
  *
- * The Claude CLI is never spawned: it starts only on the first "chat"
- * command, which these tests never send.
+ * The Claude CLI is never spawned: WARMUP=0 disables the connect-time
+ * pre-warm turn, so the CLI starts only on the first "chat" command, which
+ * these tests never send.
  */
 
 const repoRoot = path.resolve(import.meta.dirname, "../..");
@@ -58,6 +59,9 @@ export async function startApp(
       SANDBOX_DIR: path.join(root, "sandbox"),
       DATA_DIR: path.join(root, "data"),
       EVENTS_LOG: path.join(root, "events.jsonl"),
+      // No paid CLI turns from tests: connecting a websocket must not
+      // trigger the pre-warm.
+      WARMUP: "0",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });

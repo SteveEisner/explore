@@ -89,6 +89,9 @@ httpServer.listen(PORT, () => {
   // the real port only from this line / log entry.
   const address = httpServer.address();
   const port = typeof address === "object" && address ? address.port : PORT;
+  // The ui MCP server dials the app back on this port; hand the CLI session
+  // the bound value (under PORT=0 the env alone would say 0).
+  claude.appPort = port;
   logger.log("server", { type: "server:listen", port });
   console.log(`serving front end + websocket on http://localhost:${port}`);
   console.log(`wiki: ${wikiDir}`);

@@ -1,8 +1,8 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect } from "react";
 import { createLibrary, defineComponent, Renderer } from "@openuidev/react-lang";
 import { z } from "zod";
 import { frontendLog } from "@/lib/frontend-log";
-import { useStoreValue } from "@/lib/state-store";
+import { seedState, setState, useStoreValue } from "@/lib/state-store";
 import { cn } from "@/lib/utils";
 
 /**
@@ -398,6 +398,57 @@ const Tabs = defineComponent({
   },
 });
 
+/**
+ * One declared state key from the artifact's manifest (decisions.md D3):
+ * the artifact's contract for a store key its components read.
+ */
+const stateKeyDeclaration = z.object({
+  key: z
+    .string()
+    .describe("Hierarchical store key, e.g. 'flow/selected-step'"),
+  initial: z
+    .union([z.string(), z.number(), z.boolean()])
+    .optional()
+    .describe("Value seeded into the store when the key is unset"),
+  description: z
+    .string()
+    .describe("What the key means and what changing it does"),
+});
+
+const stateKeysProp = z
+  .array(stateKeyDeclaration)
+  .optional()
+  .describe(
+    "Manifest of the artifact's state keys (decisions.md D3): declare every stateKey your components use, with an initial value and a description, so the state store documents itself"
+  );
+
+/**
+ * Apply the root's state-key manifest. Seeding happens during render —
+ * Stack is the root, and parents render before children, so a declared
+ * initial lands in the store before Tabs/Gallery read (and default-seed)
+ * their own keys; a value someone actually set is never clobbered
+ * (seedState only fills never-set keys). The declarations are then
+ * published under `artifact/manifest` from an effect, where state-tool
+ * snapshots expose them — the store doubles as documentation of the
+ * artifact's contract. Stringified dependency: props are rebuilt on every
+ * parse, so identity would re-run the effect each render; content equality
+ * is what "the manifest changed" means.
+ */
+function useStateKeyManifest(
+  declarations: z.infer<typeof stateKeyDeclaration>[] | undefined
+): void {
+  for (const declared of declarations ?? []) {
+    if (declared.initial !== undefined) seedState(declared.key, declared.initial);
+  }
+  const manifestJson = JSON.stringify(declarations ?? null);
+  useEffect(() => {
+    const manifest = JSON.parse(manifestJson) as
+      | z.infer<typeof stateKeyDeclaration>[]
+      | null;
+    if (manifest?.length) setState("artifact/manifest", manifest);
+  }, [manifestJson]);
+}
+
 const Stack = defineComponent({
   name: "Stack",
   description:
@@ -415,8 +466,12 @@ const Stack = defineComponent({
         "Extra CSS class on the wrapper so artifact stylesheets can target this instance"
       ),
     context: contextProp,
+    // Last position: adding a positional argument earlier would silently
+    // shift the meaning of existing artifacts' className/context args.
+    stateKeys: stateKeysProp,
   }),
   component: function StackComponent({ props, renderNode }) {
+    useStateKeyManifest(props.stateKeys);
     if (!useContextVisible(props.context)) return null;
     return (
       <div className={cn("stack flex w-full min-w-0 flex-col", props.className)}>

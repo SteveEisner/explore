@@ -14,7 +14,24 @@ export type ClientMessage =
   | StateRequestCommand
   | StateUpdateCommand
   | StateResponseCommand
-  | ArtifactSaveCommand;
+  | ArtifactSaveCommand
+  | ArtifactEditCommand;
+
+/**
+ * Apply an OpenUI Lang edit patch to a saved wiki .oui file (the LLM's
+ * `edit_artifact` MCP tool). The back end merges the patch into the file
+ * with the same statement-name semantics as the panel's edit mode and
+ * answers the sender with an artifact:edited event carrying the same id;
+ * viewers of the file learn about the change through wiki:changed.
+ */
+export interface ArtifactEditCommand {
+  type: "artifact:edit";
+  id: string;
+  /** The target .oui file: wiki-relative path or its /docs/<path> URL. */
+  file: string;
+  /** Edit patch (changed/new statements) or a full replacement program. */
+  spec: string;
+}
 
 /**
  * Persist the authoring panel's artifact into the wiki as a .oui file (J4).
@@ -108,13 +125,23 @@ export type ServerEvent =
   | StateUpdateEvent
   | StateResponseEvent
   | WikiChangedEvent
-  | ArtifactSavedEvent;
+  | ArtifactSavedEvent
+  | ArtifactEditedEvent;
 
 /** Outcome of an artifact:save command, sent only to the requester. */
 export interface ArtifactSavedEvent {
   type: "artifact:saved";
   id: string;
   /** Web path of the written file (e.g. "/docs/my-report.oui") on success. */
+  url?: string;
+  error?: string;
+}
+
+/** Outcome of an artifact:edit command, sent only to the requester. */
+export interface ArtifactEditedEvent {
+  type: "artifact:edited";
+  id: string;
+  /** Web path of the edited file on success. */
   url?: string;
   error?: string;
 }

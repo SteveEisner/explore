@@ -1,11 +1,13 @@
 import { existsSync } from "node:fs";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { mergeStatements } from "@openuidev/lang-core";
 import type { WebSocket } from "ws";
 import type { ClaudeSession, ClaudeStreamEvent } from "./claude.js";
 import type { JsonlLogger } from "./logger.js";
 import { extractSpecSoFar } from "./partial-json.js";
 import type {
+  ArtifactEditCommand,
   ArtifactSaveCommand,
   ClientMessage,
   ServerEvent,
@@ -254,6 +256,10 @@ export class ChatService {
         void this.saveArtifact(ws, message);
         return;
       }
+      case "artifact:edit": {
+        void this.editArtifact(ws, message);
+        return;
+      }
       default:
         this.sendTo(ws, {
           type: "chat:error",
@@ -302,6 +308,57 @@ export class ChatService {
       answer({ url: `/docs/${fileName}` });
     } catch (err) {
       answer({ error: `could not write ${fileName}: ${String(err)}` });
+    }
+  }
+
+  /**
+   * Apply an edit patch to an existing wiki .oui file (the LLM's
+   * edit_artifact tool): merge by statement name — same semantics as the
+   * panel's edit mode — and write the merged program back. Answers only the
+   * requester; viewers of the file pick up the change through the wiki
+   * watcher's wiki:changed broadcast. The file must already exist (creating
+   * artifacts stays with artifact:save), so a typo'd path errors instead of
+   * silently spawning a new file.
+   */
+  private async editArtifact(
+    ws: WebSocket,
+    message: ArtifactEditCommand
+  ): Promise<void> {
+    const answer = (result: { url?: string; error?: string }) => {
+      this.logger.log("server", {
+        type: "artifact:edited",
+        id: message.id,
+        ...result,
+      });
+      this.sendTo(ws, { type: "artifact:edited", id: message.id, ...result });
+    };
+
+    const rel = wikiOuiPath(message.file);
+    if (!rel) {
+      answer({
+        error:
+          "invalid file — pass a wiki-relative .oui path (or its /docs/<path> URL) with no traversal",
+      });
+      return;
+    }
+    if (typeof message.spec !== "string" || !message.spec.trim()) {
+      answer({ error: "empty spec — send the changed statements" });
+      return;
+    }
+    const filePath = path.join(this.wikiDir, rel);
+    if (!existsSync(filePath)) {
+      answer({
+        error: `"${rel}" does not exist in the wiki — check list_files; new artifacts are created by the user saving from the panel`,
+      });
+      return;
+    }
+    try {
+      const existing = await readFile(filePath, "utf8");
+      const merged = mergeStatements(existing, message.spec);
+      await writeFile(filePath, ensureTrailingNewline(merged), "utf8");
+      answer({ url: `/docs/${rel}` });
+    } catch (err) {
+      answer({ error: `could not edit ${rel}: ${String(err)}` });
     }
   }
 
@@ -542,6 +599,29 @@ export function artifactFileName(name: unknown): string | null {
 
 function ensureTrailingNewline(text: string): string {
   return text.endsWith("\n") ? text : `${text}\n`;
+}
+
+/**
+ * Normalize an edit target into a safe wiki-relative .oui path, or null if
+ * it can't be one. Accepts the /docs/<path> URL form the model sees
+ * elsewhere. Unlike artifactFileName (single segment, extension appended),
+ * edits may target nested files but every segment must be a plain name —
+ * no traversal, no absolute paths, no hidden files, and the .oui extension
+ * must already be there.
+ */
+export function wikiOuiPath(file: unknown): string | null {
+  if (typeof file !== "string") return null;
+  const rel = file.trim().replace(/^\/docs\//, "");
+  if (!rel.toLowerCase().endsWith(".oui")) return null;
+  // Leading \w rules out "." / ".." / hidden segments; the trailing-dot
+  // check rules out Windows-style "name." tricks ("x.oui" still passes —
+  // it ends in "i").
+  const plainSegment = /^[\w][\w .-]*$/;
+  const segments = rel.split("/");
+  if (!segments.every((s) => plainSegment.test(s) && !s.endsWith("."))) {
+    return null;
+  }
+  return rel;
 }
 
 /**

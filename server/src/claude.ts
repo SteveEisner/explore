@@ -79,6 +79,15 @@ export class ClaudeSession extends EventEmitter {
   private readonly effort: string | undefined;
   private readonly appendSystemPromptFile: string | undefined;
   sessionId: string | null = null;
+  /**
+   * The app server's *bound* HTTP/websocket port, set by index.ts once
+   * listening. The ui MCP server dials the app back on this port (state /
+   * set_state / edit_artifact exchanges), so it must be the real port —
+   * under PORT=0 (eval harness, side instances) the env value would be 0.
+   * The CLI spawns lazily on the first send, long after listen, so this is
+   * always set by the time writeMcpConfig runs in production wiring.
+   */
+  appPort: number | null = null;
 
   constructor(options: ClaudeSessionOptions = {}) {
     super();
@@ -325,7 +334,13 @@ export class ClaudeSession extends EventEmitter {
       ...(env ? { env } : {}),
     });
 
-    const mcpServers: Record<string, unknown> = { ui: localServer("ui-mcp") };
+    // The ui server needs the app's real (bound) port to dial back for its
+    // state/set_state/edit_artifact exchanges — the inherited PORT env can
+    // be 0 (ephemeral) or unset.
+    const appPort = this.appPort ?? Number(process.env.PORT ?? 3001);
+    const mcpServers: Record<string, unknown> = {
+      ui: localServer("ui-mcp", { PORT: String(appPort) }),
+    };
     if (this.wikiDir) {
       // Third-party markdown-note CRUD/search over the wiki, plus our own
       // listing tool covering the non-markdown wiki files it can't see.

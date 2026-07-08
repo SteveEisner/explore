@@ -40,6 +40,15 @@ export function setState(
   emit(key);
 }
 
+/**
+ * Seed a default without notifying or logging: only writes when the key has
+ * never been set, so a real value (user click, server update) always wins.
+ * Safe to call during render — it is idempotent and emits nothing.
+ */
+export function seedState(key: string, value: unknown): void {
+  if (!values.has(key) && value != null) values.set(key, value);
+}
+
 /** Apply a batch of server-driven updates; returns the keys that changed. */
 export function applyServerUpdates(
   updates: Record<string, unknown>
@@ -79,7 +88,7 @@ export function useStoreValue<T>(
   key: string,
   initial: T
 ): [T, (value: T) => void] {
-  if (!values.has(key) && initial != null) values.set(key, initial);
+  seedState(key, initial);
   const subscribe = React.useCallback(
     (listener: () => void) => subscribeState(key, listener),
     [key]
