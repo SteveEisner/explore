@@ -5,6 +5,7 @@ import {
   CheckIcon,
   FlagIcon,
   InfoIcon,
+  PanelRightCloseIcon,
   SendIcon,
   WrenchIcon,
 } from "lucide-react";
@@ -32,7 +33,13 @@ import type { ChatItem, ChatState } from "@/hooks/use-chat";
  * a chat row: user/assistant turns as bubbles, status/tool/result/error
  * events as simple marker text.
  */
-export function ChatSidebar({ chat }: { chat: ChatState }) {
+export function ChatSidebar({
+  chat,
+  onClose,
+}: {
+  chat: ChatState;
+  onClose?: () => void;
+}) {
   const { items, connected, busy, sessionId, send } = chat;
   const [draft, setDraft] = React.useState("");
 
@@ -55,9 +62,21 @@ export function ChatSidebar({ chat }: { chat: ChatState }) {
             </span>
           )}
         </div>
-        <Badge variant={connected ? "secondary" : "destructive"}>
-          {connected ? "connected" : "offline"}
-        </Badge>
+        <div className="flex items-center gap-1">
+          <Badge variant={connected ? "secondary" : "destructive"}>
+            {connected ? "connected" : "offline"}
+          </Badge>
+          {onClose && (
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              onClick={onClose}
+              aria-label="Close chat panel"
+            >
+              <PanelRightCloseIcon />
+            </Button>
+          )}
+        </div>
       </header>
 
       <MessageScrollerProvider autoScroll>

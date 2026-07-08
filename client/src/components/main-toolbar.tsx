@@ -2,6 +2,7 @@ import {
   FileCodeIcon,
   FileTextIcon,
   HomeIcon,
+  MessageSquareIcon,
   PencilIcon,
   SparklesIcon,
 } from "lucide-react";
@@ -18,9 +19,15 @@ export const HOME_URL = "/docs/README.md";
 export function MainToolbar({
   view,
   onView,
+  chatOpen,
+  onToggleChat,
+  chatBusy,
 }: {
   view: MainView;
   onView: (view: MainView) => void;
+  chatOpen: boolean;
+  onToggleChat: () => void;
+  chatBusy: boolean;
 }) {
   return (
     <div className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-3">
@@ -42,6 +49,22 @@ export function MainToolbar({
         aria-label="Authoring mode"
       >
         <PencilIcon />
+      </Button>
+
+      <div className="mx-1 h-5 w-px bg-border" aria-hidden />
+
+      <Button
+        size="icon-sm"
+        variant={chatOpen ? "secondary" : "ghost"}
+        onClick={onToggleChat}
+        aria-pressed={chatOpen}
+        aria-label="Toggle chat panel"
+        className="relative"
+      >
+        <MessageSquareIcon />
+        {chatBusy && !chatOpen && (
+          <span className="absolute top-0.5 right-0.5 size-1.5 animate-pulse rounded-full bg-primary" />
+        )}
       </Button>
     </div>
   );

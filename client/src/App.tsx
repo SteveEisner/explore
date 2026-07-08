@@ -18,11 +18,18 @@ export default function App() {
     kind: "doc",
     url: HOME_URL,
   });
+  const [chatOpen, setChatOpen] = React.useState(false);
 
   return (
     <div className="flex h-screen bg-background text-foreground">
       <main className="flex min-w-0 flex-1 flex-col">
-        <MainToolbar view={view} onView={setView} />
+        <MainToolbar
+          view={view}
+          onView={setView}
+          chatOpen={chatOpen}
+          onToggleChat={() => setChatOpen((open) => !open)}
+          chatBusy={chat.busy}
+        />
         {/* Document content is selectable; the surrounding chrome is not. */}
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-none select-text">
           {view.kind === "authoring" ? (
@@ -39,9 +46,18 @@ export default function App() {
         </div>
       </main>
 
-      {/* Right sidebar: the chat, expressing the whole back-end event stream. */}
-      <aside className="flex w-96 shrink-0 flex-col border-l bg-sidebar">
-        <ChatSidebar chat={chat} />
+      {/* Right chat sidebar: a popup panel that takes layout space when
+          open (the main panel shrinks) and none when closed. The inner
+          wrapper keeps a fixed width so content doesn't reflow mid-slide. */}
+      <aside
+        className={
+          "shrink-0 overflow-hidden bg-sidebar transition-[width] duration-200 " +
+          (chatOpen ? "w-96 border-l" : "w-0")
+        }
+      >
+        <div className="flex h-full w-96 flex-col">
+          <ChatSidebar chat={chat} onClose={() => setChatOpen(false)} />
+        </div>
       </aside>
     </div>
   );
