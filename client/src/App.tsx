@@ -151,7 +151,7 @@ export default function App() {
     // the window a horizontal scrollbar / focus auto-pan. `clip` (not
     // `hidden`) so focus/scrollIntoView can't programmatically pan it either;
     // html/body are pinned the same way in index.css.
-    <div className="flex h-screen overflow-clip bg-background text-foreground">
+    <div className="relative flex h-screen overflow-clip bg-background text-foreground">
       <main className="flex min-w-0 flex-1 flex-col">
         <MainToolbar
           view={view}
@@ -229,18 +229,22 @@ export default function App() {
         </div>
       </main>
 
-      {/* Right chat sidebar: a popup panel that takes layout space when
-          open (the main panel shrinks) and none when closed. The inner
-          wrapper keeps a fixed width so content doesn't reflow mid-slide.
-          overflow-clip (not hidden): focusing elements in the clipped chat
-          must not scroll this box sideways. */}
+      {/* Right chat sidebar: floats above the content pane (the main panel
+          keeps its width) and slides in from the right edge. Stays mounted
+          off-screen when closed so chat state survives; `inert` keeps its
+          controls out of the tab order then. overflow-clip on the shell
+          clips the off-screen panel, and (not `hidden`) focusing elements
+          in the clipped chat must not scroll anything sideways. z-20 rides
+          over the content pane's floating buttons (z-10). */}
       <aside
+        inert={!chatOpen}
         className={
-          "shrink-0 overflow-clip bg-sidebar transition-[width] duration-200 " +
-          (chatOpen ? "w-96 border-l" : "w-0")
+          "absolute inset-y-0 right-0 z-20 w-96 border-l bg-sidebar shadow-lg " +
+          "transition-transform duration-200 " +
+          (chatOpen ? "translate-x-0" : "translate-x-full")
         }
       >
-        <div className="flex h-full w-96 flex-col">
+        <div className="flex h-full flex-col">
           <ChatSidebar
             chat={chat}
             voice={voice}
