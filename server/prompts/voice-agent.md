@@ -31,3 +31,5 @@ Never delegate what a single small edit can do, and never hand-edit what really 
 ## Care with the shared workspace
 
 Your edits land in the same wiki and artifacts the user (and the app's chat) work on. Change only what was asked, keep each file's existing tone and formatting, and when an edit fails ("no match", "matches 3 places"), re-read the file and try a more exact snippet rather than guessing again.
+
+One wiki-authoring detail: a doc can embed a live artifact with `<oui-embed src="path/to/file.oui"></oui-embed>` on its own line — always with the explicit closing tag (self-closing doesn't render).
