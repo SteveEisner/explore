@@ -13,6 +13,16 @@ const DEFAULT_LOG_FILE = "/tmp/explore-events.jsonl";
 
 export type LogSource = "client" | "frontend" | "claude" | "server";
 
+/**
+ * Minimum shape of a log line's payload. Every event flowing through the
+ * server — protocol messages, Claude stream events, ad-hoc lifecycle
+ * records — carries a `type` discriminant; whatever other fields the event
+ * has are spread into the log line at write time.
+ */
+export interface LoggableEvent {
+  type: string;
+}
+
 export class JsonlLogger {
   private stream: WriteStream;
   readonly file: string;
@@ -23,7 +33,7 @@ export class JsonlLogger {
     this.stream = createWriteStream(file, { flags: "a" });
   }
 
-  log(source: LogSource, event: Record<string, unknown>): void {
+  log<E extends LoggableEvent>(source: LogSource, event: E): void {
     // Never let observability break the app: swallow serialization errors.
     try {
       this.stream.write(

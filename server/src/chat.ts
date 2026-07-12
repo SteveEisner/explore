@@ -178,10 +178,7 @@ export class ChatService {
       return;
     }
 
-    this.logger.log(
-      "client",
-      redactDataUrls(message) as unknown as Record<string, unknown>
-    );
+    this.logger.log("client", redactDataUrls(message));
 
     switch (message.type) {
       case "state:request": {
@@ -400,7 +397,7 @@ export class ChatService {
 
   /** Publish a server-originated event to every client (e.g. wiki:changed). */
   publish(event: ServerEvent): void {
-    this.logger.log("server", event as unknown as Record<string, unknown>);
+    this.logger.log("server", event);
     this.broadcast(event);
   }
 
