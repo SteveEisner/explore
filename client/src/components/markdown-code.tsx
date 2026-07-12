@@ -91,7 +91,7 @@ export function MermaidDiagram({ chart }: { chart: string }) {
     case "ready":
       return (
         <div
-          className="not-prose not-typeset my-4 flex justify-center overflow-x-auto"
+          className="not-typeset my-4 flex justify-center overflow-x-auto"
           dangerouslySetInnerHTML={{ __html: state.svg }}
         />
       );

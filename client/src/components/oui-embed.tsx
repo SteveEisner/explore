@@ -78,11 +78,12 @@ export function OuiEmbed({
 
   return (
     <>
-      {/* Artifacts are built for the full panel (fixed nav/aside widths),
-          so the embed breaks out of the reading measure: grow up to 72rem
-          via symmetric negative margins (44rem = the max-w-3xl column minus
-          its px-8 padding), and scroll horizontally rather than squeeze. */}
-      <div className="not-typeset not-prose my-6 overflow-x-auto rounded-lg border mx-[min(0rem,calc((44rem-min(72rem,100vw-6rem))/2))]">
+      {/* Artifacts adapt to narrow containers (fixed columns cap at 40% of
+          the container), but wide ones still benefit from extra room, so the
+          embed breaks out of the reading measure: grow up to 72rem via
+          symmetric negative margins (44rem = the max-w-3xl column minus its
+          px-8 padding), and scroll horizontally rather than squeeze. */}
+      <div className="not-typeset my-6 overflow-x-auto rounded-lg border mx-[min(0rem,calc((44rem-min(72rem,100vw-6rem))/2))]">
         {state.status === "loading" && (
           <p className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
             <LoaderIcon className="size-4 animate-spin" /> Loading {url}…
