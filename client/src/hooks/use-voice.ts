@@ -36,6 +36,13 @@ export interface VoiceState {
   active: boolean;
   /** Why the last session ended abnormally; null after a clean stop. */
   error: string | null;
+  /**
+   * A live-session problem worth telling the user about while the session
+   * stays up — currently "your mic is capturing silence" (the classic
+   * macOS-permission failure, where the recording indicator lights up but
+   * the OS hands the browser a silent stream). Cleared once speech is heard.
+   */
+  warning: string | null;
   /** Open a session if none is live, else close the live one. */
   toggle: () => void;
 }
@@ -56,6 +63,8 @@ type ChatBridge = Pick<ChatState, "callVoiceTool" | "sendVoiceTranscript">;
 interface VoiceSessionHooks {
   chat(): ChatBridge;
   onStatus(status: VoiceStatus): void;
+  /** A mid-session problem to surface (null clears it). */
+  onWarning(message: string | null): void;
   /** Fired exactly once when the session is gone; error set if abnormal. */
   onEnd(error?: string): void;
 }
@@ -80,6 +89,7 @@ class VoiceSession {
   private mic: MediaStream | null = null;
   private audio: HTMLAudioElement | null = null;
   private idleTimer: ReturnType<typeof setTimeout> | undefined;
+  private silenceTimer: ReturnType<typeof setTimeout> | undefined;
   private ended = false;
   /** Tool calls in flight; status shows "tool" while nonzero. */
   private runningTools = 0;
@@ -131,10 +141,29 @@ class VoiceSession {
 
       const pc = new RTCPeerConnection();
       this.pc = pc;
+      // Debug handle: WebRTC internals (RTP stats, track states) are
+      // otherwise unreachable from devtools because everything lives in
+      // this closure. `await __voicePc.getStats()` answers "is audio
+      // actually flowing" in one line.
+      (window as unknown as Record<string, unknown>).__voicePc = pc;
+      pc.onconnectionstatechange = () => {
+        frontendLog("voice:pc-state", { state: pc.connectionState });
+      };
+      // The playback element lives in the DOM (hidden) for the session's
+      // lifetime: detached elements are subject to GC and stricter autoplay
+      // treatment, either of which silences the model with no error.
       this.audio = document.createElement("audio");
       this.audio.autoplay = true;
+      this.audio.style.display = "none";
+      document.body.appendChild(this.audio);
       pc.ontrack = (e) => {
-        if (this.audio) this.audio.srcObject = e.streams[0];
+        if (!this.audio) return;
+        this.audio.srcObject = e.streams[0];
+        // Autoplay can still be refused (policy, output device) — surface
+        // it instead of a silent session.
+        this.audio.play().catch((err: unknown) => {
+          frontendLog("voice:audio-blocked", { error: String(err) });
+        });
       };
       pc.addTrack(mic.getTracks()[0]);
 
@@ -146,10 +175,13 @@ class VoiceSession {
         this.refreshStatus();
         this.bumpIdleTimer();
       };
-      // The remote side closing the channel (secret expiry, network drop)
-      // ends the session — a mic staying hot with no model is the worst
-      // failure mode.
-      dc.onclose = () => this.end();
+      // The remote side closing the channel (secret expiry, media timeout,
+      // network drop) ends the session — a mic staying hot with no model is
+      // the worst failure mode — and the user must hear about it: observed
+      // in the wild when the mic streams silence (OpenAI drops the call
+      // after ~45s of no audio).
+      dc.onclose = () =>
+        this.end("the voice connection was closed by the server");
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
@@ -167,9 +199,45 @@ class VoiceSession {
       const sdp = await answer.text();
       if (this.ended) return;
       await pc.setRemoteDescription({ type: "answer", sdp });
+      this.startSilenceWatchdog(pc);
     } catch (err) {
       this.end(err instanceof Error ? err.message : String(err));
     }
+  }
+
+  /**
+   * Detect the "hot mic, silent stream" failure: browser permission granted
+   * (getUserMedia resolved, recording indicator on) but the OS delivers
+   * digital silence — on macOS this is Chrome missing the system-level
+   * microphone permission. A real room never measures ~zero total energy
+   * after several seconds, so a near-zero reading is a config problem worth
+   * telling the user about, not quiet. The warning clears the moment the
+   * model actually hears speech (speech_started).
+   */
+  private startSilenceWatchdog(pc: RTCPeerConnection): void {
+    this.silenceTimer = setTimeout(async () => {
+      if (this.ended) return;
+      let energy: number | undefined;
+      try {
+        const stats = await pc.getStats();
+        stats.forEach((report: Record<string, unknown>) => {
+          if (report.type === "media-source" && report.kind === "audio") {
+            energy =
+              typeof report.totalAudioEnergy === "number"
+                ? report.totalAudioEnergy
+                : undefined;
+          }
+        });
+      } catch {
+        return; // stats unavailable — nothing trustworthy to report
+      }
+      if (energy !== undefined && energy < 1e-6) {
+        frontendLog("voice:mic-silent", { totalAudioEnergy: energy });
+        this.hooks.onWarning(
+          "The mic is capturing pure silence — I can't hear you. Check the input device and, on macOS, that this browser has Microphone permission (System Settings → Privacy & Security → Microphone)."
+        );
+      }
+    }, 6_000);
   }
 
   /** User-initiated close; also the idle-timeout path. */
@@ -182,11 +250,15 @@ class VoiceSession {
     if (this.ended) return;
     this.ended = true;
     clearTimeout(this.idleTimer);
+    clearTimeout(this.silenceTimer);
     if (this.dc) this.dc.onclose = null;
     this.dc?.close();
     this.pc?.close();
     for (const track of this.mic?.getTracks() ?? []) track.stop();
-    if (this.audio) this.audio.srcObject = null;
+    if (this.audio) {
+      this.audio.srcObject = null;
+      this.audio.remove();
+    }
     frontendLog("voice:end", { error });
     this.hooks.onEnd(error);
   }
@@ -199,11 +271,19 @@ class VoiceSession {
     } catch {
       return;
     }
+    // Every non-delta event type goes to the event log: the session's whole
+    // life is diagnosable from the JSONL alone (deltas are dozens per
+    // second and carry no lifecycle information).
+    if (typeof event.type === "string" && !event.type.endsWith(".delta")) {
+      frontendLog("voice:event", { type: event.type });
+    }
     switch (event.type) {
       // The user spoke: any playing audio was interrupted (barge-in is
-      // handled by the API); this also proves the session isn't idle.
+      // handled by the API); this also proves the session isn't idle —
+      // and that the mic audibly works, so any silence warning is stale.
       case "input_audio_buffer.speech_started":
         this.modelSpeaking = false;
+        this.hooks.onWarning(null);
         this.refreshStatus();
         this.bumpIdleTimer();
         return;
@@ -257,6 +337,7 @@ class VoiceSession {
 
       case "error":
         frontendLog("voice:model-error", { error: event.error });
+        console.error("[voice]", event.error);
         return;
     }
   }
@@ -388,6 +469,7 @@ class VoiceSession {
 export function useVoice(chat: ChatState): VoiceState {
   const [status, setStatus] = React.useState<VoiceStatus>("idle");
   const [error, setError] = React.useState<string | null>(null);
+  const [warning, setWarning] = React.useState<string | null>(null);
   const sessionRef = React.useRef<VoiceSession | null>(null);
   // The session reads chat through this ref, so callbacks stay current
   // across renders without re-creating the session.
@@ -404,12 +486,15 @@ export function useVoice(chat: ChatState): VoiceState {
       return;
     }
     setError(null);
+    setWarning(null);
     const session = new VoiceSession({
       chat: () => chatRef.current,
       onStatus: setStatus,
+      onWarning: setWarning,
       onEnd: (endError) => {
         sessionRef.current = null;
         setError(endError ?? null);
+        setWarning(null);
         setStatus(endError ? "error" : "idle");
       },
     });
@@ -420,6 +505,7 @@ export function useVoice(chat: ChatState): VoiceState {
   return {
     status,
     error,
+    warning,
     active: status !== "idle" && status !== "error",
     toggle,
   };

@@ -101,19 +101,27 @@ export function ChatSidebar({
       </MessageScrollerProvider>
 
       {/* Voice session status strip: the visible listening/speaking/tool
-          states while the mic is live, and the reason when it failed. */}
+          states while the mic is live, plus mid-session warnings (silent
+          mic) and the reason when the session failed. Warnings and errors
+          wrap — they are instructions, not decoration. */}
       {voice && voice.status !== "idle" && (
-        <div className="flex items-center gap-2 border-t px-4 py-1.5 text-xs text-muted-foreground">
+        <div className="flex items-start gap-2 border-t px-4 py-1.5 text-xs text-muted-foreground">
           <span
             className={
-              "size-2 shrink-0 rounded-full " + voiceDotClass(voice.status)
+              "mt-1 size-2 shrink-0 rounded-full " + voiceDotClass(voice.status)
             }
           />
-          <span className="truncate">
-            {voice.status === "error"
-              ? `Voice failed: ${voice.error ?? "unknown error"}`
-              : voiceStatusLabel(voice.status)}
-          </span>
+          {voice.status === "error" ? (
+            <span className="text-destructive">
+              Voice failed: {voice.error ?? "unknown error"}
+            </span>
+          ) : voice.warning ? (
+            <span className="text-amber-600 dark:text-amber-500">
+              {voice.warning}
+            </span>
+          ) : (
+            <span className="truncate">{voiceStatusLabel(voice.status)}</span>
+          )}
         </div>
       )}
 
@@ -128,8 +136,12 @@ export function ChatSidebar({
               voice.active ? "End the voice conversation" : "Start a voice conversation"
             }
             title={`Voice: ${voice.status}`}
+            className={voice.active ? "animate-pulse" : undefined}
           >
-            {voice.active ? <MicOffIcon /> : <MicIcon />}
+            {/* A live mic shows a pulsing mic (recording), not a mic-off
+                glyph — mic-off reads as "muted/disabled", the opposite of
+                what an open session is. */}
+            {voice.status === "error" ? <MicOffIcon /> : <MicIcon />}
           </Button>
         )}
         {onScreenshot && (
