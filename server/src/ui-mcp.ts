@@ -108,7 +108,13 @@ server.registerTool(
       "'app/context-level' (integer) — the active context level gating " +
       "context-aware artifact components; 'app/artifact-name' (string) — " +
       "the filename the authoring panel's artifact saves under; " +
-      "'app/chat-open' and 'app/draw-mode' (booleans). Artifact keys: a " +
+      "'app/chat-open' and 'app/draw-mode' (booleans); 'app/indicate' — " +
+      "point at on-screen content: the app scrolls it into view (if " +
+      "needed) and blinks it. Value is one of {lines:{start,end}} " +
+      "(markdown source lines of the open document, 1-based), " +
+      "{statement:'name'} (an OpenUI statement in the rendered artifact), " +
+      "or {text:'snippet'} (first occurrence, case-insensitive); write it " +
+      "again to blink again. Artifact keys: a " +
       "Tabs/Gallery " +
       "component's active item lives under its stateKey prop, or " +
       "'artifact/tabs/<statementId>' / 'artifact/gallery/<statementId>' " +

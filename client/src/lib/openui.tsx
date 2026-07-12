@@ -90,11 +90,12 @@ const Content = defineComponent({
     html: z.string().describe("Raw HTML markup to display"),
     context: contextProp,
   }),
-  component: function ContentComponent({ props }) {
+  component: function ContentComponent({ props, statementId }) {
     if (!useContextVisible(props.context)) return null;
     return (
       <div
         className="w-full min-w-0 [&_a]:underline"
+        data-statement={statementId}
         // The whole point of Content is trusted LLM-authored markup.
         dangerouslySetInnerHTML={{ __html: props.html }}
       />
@@ -141,7 +142,7 @@ const Comparison = defineComponent({
       ),
     context: contextProp,
   }),
-  component: function ComparisonComponent({ props, renderNode }) {
+  component: function ComparisonComponent({ props, renderNode, statementId }) {
     if (!useContextVisible(props.context)) return null;
     const count = props.panels.length;
     return (
@@ -151,6 +152,7 @@ const Comparison = defineComponent({
           props.border && "border",
           props.className
         )}
+        data-statement={statementId}
         style={{
           gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))`,
           gap: props.gap,
@@ -239,6 +241,7 @@ const Gallery = defineComponent({
     return (
       <div
         className={cn("gallery grid w-full min-w-0", props.className)}
+        data-statement={statementId}
         style={{
           // navWidth is a maximum, not a fixed size: capping the nav at 40%
           // of the container keeps the detail pane readable when the artifact
@@ -313,11 +316,12 @@ const Aside = defineComponent({
       ),
     context: contextProp,
   }),
-  component: function AsideComponent({ props, renderNode }) {
+  component: function AsideComponent({ props, renderNode, statementId }) {
     if (!useContextVisible(props.context)) return null;
     return (
       <div
         className={cn("aside-layout grid w-full min-w-0", props.className)}
+        data-statement={statementId}
         style={{
           // asideWidth is a maximum, not a fixed size: capping the panel at
           // 40% of the container keeps the main column readable in narrow
@@ -383,7 +387,7 @@ const Tabs = defineComponent({
     // resolveSelection clamped `selected` to the tab range.
     const active = props.tabs[selected];
     return (
-      <div className={cn("tabs w-full min-w-0", props.className)}>
+      <div className={cn("tabs w-full min-w-0", props.className)} data-statement={statementId}>
         <div className="tabs-nav flex" role="tablist">
           {props.tabs.map((tab, i) => (
             <button
@@ -481,11 +485,14 @@ const Stack = defineComponent({
     // shift the meaning of existing artifacts' className/context args.
     stateKeys: stateKeysProp,
   }),
-  component: function StackComponent({ props, renderNode }) {
+  component: function StackComponent({ props, renderNode, statementId }) {
     useStateKeyManifest(props.stateKeys);
     if (!useContextVisible(props.context)) return null;
     return (
-      <div className={cn("stack flex w-full min-w-0 flex-col", props.className)}>
+      <div
+        className={cn("stack flex w-full min-w-0 flex-col", props.className)}
+        data-statement={statementId}
+      >
         {renderNode(props.children)}
       </div>
     );

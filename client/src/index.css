@@ -217,6 +217,25 @@
     }
 }
 
+/* Agent "indicate" pointer: a few outline+wash pulses on the element(s) an
+   agent is pointing at (lib/indicate.ts adds the class, removes it after). */
+@keyframes indicate-blink {
+  0%, 100% {
+    background-color: transparent;
+    outline-color: transparent;
+  }
+  50% {
+    background-color: color-mix(in oklab, var(--primary) 14%, transparent);
+    outline-color: color-mix(in oklab, var(--primary) 55%, transparent);
+  }
+}
+.indicate-blink {
+  outline: 3px solid transparent;
+  outline-offset: 2px;
+  border-radius: calc(var(--radius) * 0.6);
+  animation: indicate-blink 0.5s ease-in-out 3;
+}
+
 /* Typeset preset for reading wiki documents: a roomier rhythm than the
    base .typeset defaults. Variables per https://ui.shadcn.com/docs/typeset */
 .typeset-docs {

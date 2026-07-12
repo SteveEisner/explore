@@ -2,6 +2,7 @@ import * as React from "react";
 import type { ChatState } from "@/hooks/use-chat";
 import { collectAppState } from "@/lib/app-state";
 import { frontendLog } from "@/lib/frontend-log";
+import { indicate, type IndicateTarget } from "@/lib/indicate";
 import {
   applyServerUpdates,
   stateSnapshot,
@@ -540,6 +541,11 @@ class VoiceSession {
           updates as Record<string, unknown>
         );
         return JSON.stringify({ applied, store: stateSnapshot() });
+      }
+      case "indicate": {
+        const result = indicate(args as IndicateTarget);
+        if (!result.ok) throw new Error(result.detail);
+        return JSON.stringify(result);
       }
       case "take_screenshot": {
         const { screenshot } = await collectAppState({ screenshot: true });

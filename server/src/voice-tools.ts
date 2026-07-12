@@ -235,6 +235,36 @@ const frontendTools: Array<{
     }),
   },
   {
+    name: "indicate",
+    description:
+      "Point at content in the user's main panel: the app scrolls the " +
+      "target into view (if it isn't already visible) and blinks it a few " +
+      "times. Use it whenever you talk about a specific place — 'this " +
+      "paragraph here', 'that chart'. Pass exactly one target: `lines` " +
+      "(markdown source lines of the open document, as seen in read_doc " +
+      "output or get_app_state's scroll info), `statement` (an OpenUI " +
+      "statement name in the rendered artifact), or `text` (a short " +
+      "verbatim snippet from the document — the first occurrence is " +
+      "indicated).",
+    args: z.object({
+      lines: z
+        .object({
+          start: z.number().describe("First line (1-based)"),
+          end: z.number().optional().describe("Last line (defaults to start)"),
+        })
+        .optional()
+        .describe("Markdown source-line range in the open document"),
+      statement: z
+        .string()
+        .optional()
+        .describe("OpenUI statement name in the rendered artifact"),
+      text: z
+        .string()
+        .optional()
+        .describe("Verbatim snippet to find (case-insensitive)"),
+    }),
+  },
+  {
     name: "take_screenshot",
     description:
       "Capture the app's main panel; the screenshot is attached to the " +
