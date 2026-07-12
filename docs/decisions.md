@@ -5,7 +5,9 @@ Architecture and design decisions, newest first. Referenced from [ARCHITECTURE.m
 ## D5. Realtime voice agent: a second intelligence, browser-direct audio, tools bridged over the existing websocket
 
 **Date:** 2026-07-11
-**Decision:** Realtime voice editing is built on **OpenAI gpt-realtime** as a second intelligence alongside the Claude session — not as a speech front-end to it. Audio flows **browser ⇄ OpenAI directly over WebRTC** (the server only mints ephemeral session tokens; the API key never reaches the browser). Tool calls arrive in the browser on the WebRTC data channel: front-end tools (screenshot, app state) execute locally; server tools are forwarded over the existing `/ws` connection as a `voice:tool` message family, executed server-side against the same internals the HTTP/MCP surfaces use. The voice model edits directly (wiki read/search/edit, artifact edits, state writes) **and** can delegate heavy generation to the Claude session via an `ask_artifact_agent` tool. The mic button opens a toggled live conversation (VAD + barge-in), not push-to-talk.
+**Decision:** Realtime voice editing is built on **OpenAI gpt-realtime** (latest Realtime API version; token supplied by Steve) as a second intelligence alongside the Claude session — not as a speech front-end to it. Audio flows **browser ⇄ OpenAI directly over WebRTC** (the server only mints ephemeral session tokens; the API key never reaches the browser). Tool calls arrive in the browser on the WebRTC data channel: front-end tools (screenshot, app state) execute locally; server tools are forwarded over the existing `/ws` connection as a `voice:tool` message family, executed server-side against the same internals the HTTP/MCP surfaces use. The voice model edits directly (wiki read/search/edit, artifact edits, state writes) **and** can delegate heavy generation to the Claude session via an `ask_artifact_agent` tool with two modes — **FAST** and **SMART** — each selecting an appropriate Claude model for the delegated turn. The mic button opens a toggled live conversation (VAD + barge-in), not push-to-talk.
+
+**Persona:** to the user there is one collaborator. The voice agent knows the back-end agent is more powerful and delegates accordingly, but it presents delegated work as its own — "working on that…" — never as a handoff to another LLM. This behavior (and the rest of its operating doctrine) lives in a **voice-agent guidance document** injected as the session instructions at every session start.
 
 **Why:**
 
@@ -16,7 +18,8 @@ Architecture and design decisions, newest first. Referenced from [ARCHITECTURE.m
 
 **Consequences:**
 
-- Two intelligences share the artifact and wiki. The voice model does not share the Claude session's conversation memory; mitigation: voice utterances and tool actions are logged into the chat transcript so the user and the Claude session can see what voice changed.
+- Two intelligences share the artifact and wiki. The voice model does not share the Claude session's conversation memory; mitigation: voice utterances and tool actions are logged into the chat transcript so the user and the Claude session can see what voice changed. The persona rule keeps this architecture invisible to the user.
+- FAST/SMART delegation requires per-turn (or per-delegation) Claude model selection in the session bridge — the model-selection task's per-session override grows a per-call dimension; the perf eval's model matrix is what calibrates which model each mode picks.
 - The dormant Wiki API rows (read, D1 edit, search) move onto the critical path — the voice agent's core tools need a callable server surface, factored as an internal wiki service shared by HTTP endpoints and the voice tool executor.
 - Realtime audio bills per open-mic minute (order of magnitude above text): sessions need idle auto-close, and cost joins latency as a tracked eval metric.
 
