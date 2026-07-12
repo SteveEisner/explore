@@ -25,15 +25,7 @@ Two corrections to the contemporaneous record:
 
 One open policy question for the budget: the Optimizer's parameter sweep (~45–60 min, deferred to 2026-07-08) is designed to run unattended. The worklog convention so far counts attended time only; decide before the sweep whether unattended agent time draws down the 8 hours.
 
-### Addendum: evening block 4 (2026-07-11 → 07-12, written at close)
-
-| Block | Wall clock | Duration | What |
-|---|---|---|---|
-| 4 | 2026-07-11 ~22:30 – 2026-07-12 00:07 | ~1:35 | Voice agent designed (D5/D6), built, debugged, and proven live end to end; sweep analyzed and D7 shipped (wiki preload + Opus 4.8 default, grounded 4.4s); Explorer identity prompts; blitz backlog emptied twice over; J0 clean-clone verified |
-
-- Block boundaries from prompt/commit timestamps (first tracking commit 22:37, last activity ~00:07); attended time only, per the standing convention.
-- **Chargeable to date ≈ 4h45 + 1h35 ≈ 6h20. Remaining of the 8-hour allotment: ~1h40.**
-- The unattended-time policy question above resolved itself in practice: the sweep and its follow-ups ran *concurrent with* this attended block (Cleaner sessions working while Steve directed other agents), so no separate draw-down was needed. If a future unattended run happens outside an attended block, the question returns.
+*(Continued in [six-hour-review.md](six-hour-review.md), which covers the 2026-07-11 evening block.)*
 
 ## Verdict
 
