@@ -2,6 +2,35 @@
 
 Architecture and design decisions, newest first. Referenced from [ARCHITECTURE.md](ARCHITECTURE.md).
 
+## D6. One feedback envelope for every channel
+
+**Date:** 2026-07-11
+**Decision:** Every feedback channel delivers user input to the LLM (and to the transcript and event log) in **one standard envelope** rather than a per-channel format:
+
+```
+{ text?, screenshot?, statementRef?, stateSnapshot }
+```
+
+- `text` — what was typed or said (chat, voice utterance)
+- `screenshot` — captured image, when the channel produces one (screenshot round-trip, drawing overlay)
+- `statementRef` — the D4 statement name being pointed at, when the gesture targets a component (point-and-comment)
+- `stateSnapshot` — the D3 store state at capture time: open file, selected tabs, context level
+
+Channels fill in only the fields they have; `stateSnapshot` is always attached (it's free — the server already holds the store).
+
+**Why:**
+
+- Four channels were about to mint four ad-hoc formats (typed text, image attachment, `{statementId, comment}`, voice transcript records). One envelope means the LLM, the chat transcript, and the event log understand every kind of feedback the same way.
+- `stateSnapshot` makes feedback **self-locating**: "this table is confusing" is ambiguous across an artifact's tabs unless the message carries what the user was looking at. This wires up the D3 promise ("a screenshot can be tagged with the exact store state that produced the view") that was never implemented.
+- The decision is forced now anyway: voice transcript integration (D5) has to pick a message shape; picking the shared one is a paragraph today versus a four-channel migration later.
+
+**Consequences:**
+
+- Voice transcript integration logs utterances/tool actions as envelopes; P1 point-and-comment emits `{text, statementRef, stateSnapshot}`; the existing screenshot round-trip migrates to `{screenshot, stateSnapshot}` (+ text when accompanied by a message).
+- The chat pane renders one message shape with optional adornments (image thumbnail, "re: <statement>" chip, state summary) instead of per-channel message kinds.
+
+**Revisit if:** a channel genuinely can't fit (e.g. continuous signals like interaction digests may stay a separate stream — they're telemetry, not utterances).
+
 ## D5. Realtime voice agent: a second intelligence, browser-direct audio, tools bridged over the existing websocket
 
 **Date:** 2026-07-11
