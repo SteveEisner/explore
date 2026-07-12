@@ -152,10 +152,12 @@ export default function App() {
   };
 
   return (
-    // overflow-hidden: app-like shell — nothing (e.g. the fixed-width chat
+    // overflow-clip: app-like shell — nothing (e.g. the fixed-width chat
     // wrapper inside the collapsed w-0 aside) may extend the page and give
-    // the window a horizontal scrollbar / focus auto-pan.
-    <div className="flex h-screen overflow-hidden bg-background text-foreground">
+    // the window a horizontal scrollbar / focus auto-pan. `clip` (not
+    // `hidden`) so focus/scrollIntoView can't programmatically pan it either;
+    // html/body are pinned the same way in index.css.
+    <div className="flex h-screen overflow-clip bg-background text-foreground">
       <main className="flex min-w-0 flex-1 flex-col">
         <MainToolbar
           view={view}
@@ -235,10 +237,12 @@ export default function App() {
 
       {/* Right chat sidebar: a popup panel that takes layout space when
           open (the main panel shrinks) and none when closed. The inner
-          wrapper keeps a fixed width so content doesn't reflow mid-slide. */}
+          wrapper keeps a fixed width so content doesn't reflow mid-slide.
+          overflow-clip (not hidden): focusing elements in the clipped chat
+          must not scroll this box sideways. */}
       <aside
         className={
-          "shrink-0 overflow-hidden bg-sidebar transition-[width] duration-200 " +
+          "shrink-0 overflow-clip bg-sidebar transition-[width] duration-200 " +
           (chatOpen ? "w-96 border-l" : "w-0")
         }
       >

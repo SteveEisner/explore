@@ -201,8 +201,31 @@
     }
   html, body {
     overscroll-behavior: none;
+    /* Pin the root scroller: `hidden` still leaves a programmatically
+       scrollable box (focus/scrollIntoView in the clipped chat aside can
+       pan the window sideways); `clip` forbids all scrolling, including
+       programmatic. The `hidden` line is a fallback for engines without
+       `clip` support. Internal panes (main scroller, chat) keep their own
+       overflow and scroll independently. */
+    overflow: hidden;
+    overflow: clip;
     }
   .prose, pre, code, input, textarea {
     @apply select-text;
     }
+}
+
+/* Inline code on prose surfaces (chat): the typography plugin's default
+   renders <code> with literal backtick pseudo-elements and no chip, so
+   `code` reads as unrendered markdown. Drop the fake backticks and give it
+   typeset's chip treatment (currentColor mix, so prose-invert works too).
+   Unlayered on purpose: it must beat the plugin's @layer utilities rules. */
+.prose :where(:not(pre) > code)::before,
+.prose :where(:not(pre) > code)::after {
+  content: none;
+}
+.prose :where(:not(pre) > code) {
+  background-color: color-mix(in oklab, currentColor 10%, transparent);
+  border-radius: min(calc(var(--radius, 0.5em) * 0.6), 0.35em);
+  padding: 0.125em 0.3em;
 }
