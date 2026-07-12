@@ -118,7 +118,16 @@ export function FileViewer({
         return <GenerativeView response={text} />;
       }
       if (isMarkdown(url, contentType)) {
-        return <Markdown text={text} className="p-6" onLinkClick={handleLink} />;
+        // Reading layout: a centered measure with generous margins, styled
+        // by shadcn/typeset rather than the chat sidebar's compact prose.
+        return (
+          <Markdown
+            text={text}
+            typeset
+            className="mx-auto max-w-3xl px-8 py-10"
+            onLinkClick={handleLink}
+          />
+        );
       }
       return <pre className="overflow-x-auto p-6 text-sm">{text}</pre>;
     }

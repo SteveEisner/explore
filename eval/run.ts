@@ -13,7 +13,7 @@
  *
  * "default" in --model/--effort means "don't pass the flag" (CLI default).
  */
-import { appendFileSync, mkdirSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { runOne, type RunConfig, type RunResult } from "./harness.js";
 import { SCENARIOS } from "./scenarios.js";
@@ -73,8 +73,12 @@ function buildMatrix(flags: Flags, resultsDir: string): RunConfig[] {
           for (const speed of flags.speed)
             for (const warm of flags.warm)
               for (let rep = 1; rep <= flags.reps; rep++) {
-                if (prompt !== "full" && prompt !== "slim")
-                  throw new Error(`unknown prompt variant: ${prompt}`);
+                if (prompt !== "full") {
+                  const file = prompt === "slim" ? "slim-ui" : prompt;
+                  const promptPath = path.resolve(import.meta.dirname, "prompts", `${file}.md`);
+                  if (!existsSync(promptPath))
+                    throw new Error(`unknown prompt variant: ${prompt} (no ${promptPath})`);
+                }
                 if (speed !== "off" && speed !== "on")
                   throw new Error(`unknown speed value: ${speed}`);
                 if (warm !== "off" && warm !== "on")

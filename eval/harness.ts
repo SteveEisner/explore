@@ -31,8 +31,12 @@ export interface RunConfig {
   model?: string;
   /** `--effort` for the CLI; undefined = the CLI's default. */
   effort?: string;
-  /** "full" = production system prompt; "slim" = eval/prompts/slim-ui.md. */
-  promptVariant: "full" | "slim";
+  /**
+   * "full" = production system prompt; anything else = the whole appended
+   * prompt is replaced by eval/prompts/<variant>.md ("slim" keeps its
+   * historical mapping to slim-ui.md).
+   */
+  promptVariant: string;
   /** Prepend the hurry-up line to the chat message. */
   speedHint: boolean;
   /**
@@ -142,8 +146,9 @@ export async function runOne(config: RunConfig): Promise<RunResult> {
   };
   if (config.model) env.CLAUDE_MODEL = config.model;
   if (config.effort) env.CLAUDE_EFFORT = config.effort;
-  if (config.promptVariant === "slim") {
-    env.APPEND_PROMPT_FILE = path.resolve(import.meta.dirname, "prompts/slim-ui.md");
+  if (config.promptVariant !== "full") {
+    const file = config.promptVariant === "slim" ? "slim-ui" : config.promptVariant;
+    env.APPEND_PROMPT_FILE = path.resolve(import.meta.dirname, `prompts/${file}.md`);
   }
 
   const server: ChildProcess = spawn(TSX_BIN, [SERVER_ENTRY], {

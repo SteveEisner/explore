@@ -1,9 +1,11 @@
 import * as React from "react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
+import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
 import { MarkdownCode, MermaidDiagram } from "@/components/markdown-code";
+import { OuiEmbed } from "@/components/oui-embed";
 import { rehypeSourceLines } from "@/lib/source-lines";
 import { cn } from "@/lib/utils";
 // The prose code-block surface is dark in both themes, so use the dark scale.
@@ -11,10 +13,12 @@ import "highlight.js/styles/github-dark.css";
 
 /**
  * GitHub's default sanitize schema, plus the fenced-code language class so
- * syntax highlighting and mermaid detection survive sanitization.
+ * syntax highlighting and mermaid detection survive sanitization, plus the
+ * <oui-embed> tag (raw HTML in wiki pages) that mounts an OpenUI app.
  */
 const sanitizeSchema = {
   ...defaultSchema,
+  tagNames: [...(defaultSchema.tagNames ?? []), "oui-embed"],
   attributes: {
     ...defaultSchema.attributes,
     // data-source-line stamps (rehypeSourceLines) survive on any element so
@@ -24,6 +28,7 @@ const sanitizeSchema = {
       ...(defaultSchema.attributes?.code ?? []),
       ["className", /^language-./],
     ],
+    "oui-embed": ["src"],
   },
 };
 
@@ -36,11 +41,17 @@ const sanitizeSchema = {
 export function Markdown({
   text,
   invert,
+  typeset,
   className,
   onLinkClick,
 }: {
   text: string;
   invert?: boolean;
+  /**
+   * Style with shadcn/typeset (the document-reading rhythm) instead of the
+   * compact prose classes used in chat and other tight surfaces.
+   */
+  typeset?: boolean;
   className?: string;
   /**
    * Intercept link clicks (e.g. to load the target into the main panel
@@ -51,33 +62,59 @@ export function Markdown({
   return (
     <div
       className={cn(
-        "prose prose-sm max-w-none break-words",
-        invert && "prose-invert",
+        typeset
+          ? "typeset typeset-docs break-words"
+          : "prose prose-sm max-w-none break-words",
+        !typeset && invert && "prose-invert",
         className
       )}
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[
+          rehypeRaw,
           rehypeSourceLines,
           [rehypeSanitize, sanitizeSchema],
           rehypeSlug,
         ]}
-        components={{
-          code: MarkdownCode,
-          pre: MarkdownPre,
-          ...(onLinkClick && {
-            a: ({ href, children, ...props }) => (
-              <a
-                href={href}
-                {...props}
-                onClick={(e) => href && onLinkClick(href, e)}
-              >
-                {children}
-              </a>
-            ),
-          }),
-        }}
+        components={
+          {
+            code: MarkdownCode,
+            pre: MarkdownPre,
+            // Custom tag: mounts an OpenUI app from a wiki .oui file.
+            "oui-embed": OuiEmbed,
+            // `<oui-embed ...></oui-embed>` on one line is inline HTML to
+            // the markdown parser (an HTML *block* is a single tag alone on
+            // a line), so it lands inside a paragraph; drop that wrapper —
+            // the embed renders divs, which can't nest in <p>.
+            p: ({ node, children, ...props }: React.ComponentProps<"p"> & {
+              node?: { children?: { type: string; tagName?: string }[] };
+            }) => {
+              const hasEmbed = node?.children?.some(
+                (c) => c.type === "element" && c.tagName === "oui-embed"
+              );
+              if (hasEmbed) return <>{children}</>;
+              return <p {...props}>{children}</p>;
+            },
+            ...(onLinkClick && {
+              a: ({
+                href,
+                children,
+                ...props
+              }: React.ComponentProps<"a">) => (
+                <a
+                  href={href}
+                  {...props}
+                  onClick={(e) => href && onLinkClick(href, e)}
+                >
+                  {children}
+                </a>
+              ),
+            }),
+            // Components is keyed by intrinsic tags; the custom-element key
+            // is outside that type but fully supported at runtime.
+          } as Components
+        }
       >
         {text}
       </ReactMarkdown>

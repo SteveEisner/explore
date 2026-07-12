@@ -3,6 +3,9 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+/* shadcn/typeset: styles rendered markdown inside a .typeset container
+   (https://ui.shadcn.com/docs/typeset). Must import after Tailwind. */
+@import "./typeset.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -210,9 +213,24 @@
     overflow: hidden;
     overflow: clip;
     }
-  .prose, pre, code, input, textarea {
+  .prose, .typeset, pre, code, input, textarea {
     @apply select-text;
     }
+}
+
+/* Typeset preset for reading wiki documents: a roomier rhythm than the
+   base .typeset defaults. Variables per https://ui.shadcn.com/docs/typeset */
+.typeset-docs {
+  --typeset-leading: 1.75;
+  --typeset-flow: 1.5em;
+}
+
+/* Code blocks keep a dark surface in both themes because highlight.js uses
+   the github-dark token scale (see markdown.tsx); typeset's default pre
+   background is --color-muted, which is light in the light theme. */
+.typeset pre {
+  background-color: #1f2937;
+  color: #e5e7eb;
 }
 
 /* Inline code on prose surfaces (chat): the typography plugin's default

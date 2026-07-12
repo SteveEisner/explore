@@ -87,6 +87,54 @@ the proxy for "UI on screen." Medians of 2 reps unless noted.
 4. **Next latency target**: the grounded-scenario wiki-read cost (~2.5s).
    Everything else on the critical path is model-side time-to-first-token.
 
+## Follow-up sweep: the five next-knob candidates (2026-07-12)
+
+Five candidate knobs from the sweep findings, each tested or resolved by
+analysis (`eval/results/sweep-preload*/`, ~$3):
+
+### Preload wiki content into the system prompt — **proven, the one real win**
+
+New `preload-wiki` prompt variant (production prompt + `journeys.md` inlined
+with a "use this copy, don't re-read" instruction; generated file at
+`eval/prompts/preload-wiki.md` — regenerate after prompt edits). Grounded
+scenario, 3 reps, byte-exact throughout:
+
+| model | grounded `full` | grounded `preload` | turns | cost |
+|---|---|---|---|---|
+| opus-4-8 | 7.7s (5.4–8.4) | **4.4s** (4.0–4.4) | 3 → **2** | $0.152 → $0.143 |
+| sonnet-5 | 5.2s (5.0–5.3) | **4.4s** (3.7s×2, one 14.5s API stall) | 3 → **2** | $0.116 → $0.109 |
+
+The mechanism is visible in `numTurns`: every preload run skipped the wiki
+read entirely (3 turns → 2). Grounded latency lands near fixed-scenario
+levels, cost drops slightly (fewer turns beats the bigger prompt), and the
+fixed scenario shows no regression (2.7→2.9s opus, 3.4→3.1s sonnet — noise).
+Productionizing means choosing *what* to preload for a real wiki (connect-time
+injection of likely pages, or a digest) — the fixture proves the ceiling.
+
+### The other four, resolved without new runs
+
+- **Fast mode** — blocked: the CLI exposes no `--fast`/speed flag in
+  headless `--print` mode. Re-check on CLI upgrades; it remains the biggest
+  untapped lever (up to 2.5× output speed, same model).
+- **Progressive spec rendering (client)** — win quantified from existing
+  data: first-spec-byte → complete-spec is 0.8–0.9s (fixed) / 1.1–1.4s
+  (grounded) on Opus 4.8 / Sonnet 5. A streaming renderer reclaims up to
+  ~30% of perceived time-to-UI. Client work; the harness already records
+  `uiFirstDeltaMs` to measure it when built.
+- **Prompt-cache audit** — confirmed healthy, nothing to fix: across all 59
+  measured turns, median 226 cache-write / ~17.6K cache-read / **2**
+  uncached input tokens, zero misses. First-token latency is API-side.
+- **Suppress post-UI wrap-up** — disproven by event-log decomposition: the
+  tail is ~10ms tool execution + ~0.8s mandatory tool-result round trip
+  (5 output tokens) + ~0.65s CLI result bookkeeping. Nothing for a prompt
+  to cut; the app already surfaces the UI at `ui:spec`.
+
+Ops note: 3 of 24 sweep runs died mid-flight when a concurrent edit to
+`server/src/index.ts` (voice-session work) briefly broke server startup in
+the shared checkout; re-ran those cells (`sweep-preload-topup`). Serial
+eval runs are exposed to in-flight server edits — run sweeps from a clean
+side instance if this recurs.
+
 ## Caveats
 
 n=2 per cell — fine for the large effects above (model gaps are 2×), too
