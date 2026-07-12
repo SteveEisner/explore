@@ -2,6 +2,30 @@
 
 Architecture and design decisions, newest first. Referenced from [ARCHITECTURE.md](ARCHITECTURE.md).
 
+## D7. Generation latency: preload the wiki into the prompt; Opus 4.8 as the default model
+
+**Date:** 2026-07-12
+**Decision:** Two production changes and a set of recorded nulls, all from the UI-generation timing sweeps ([eval/sweep-report.md](../eval/sweep-report.md), 56 + 28 runs, every run byte-exact):
+
+1. **Wiki preload.** At CLI spawn, small root-level wiki `.md` pages are inlined verbatim into the appended system prompt (smallest-first, whole files only, 24KB budget; `WIKI_PRELOAD_BYTES` overrides, `0` disables), with an instruction to use the inlined copy instead of re-reading — and to re-read any page edited during the session. Measured: grounded ask→UI **7.7s→4.4s** (Opus 4.8) / 5.2s→4.4s (Sonnet 5); the wiki-read turn disappears (3→2 turns); slightly *cheaper* per session; no regression on non-wiki generations.
+2. **Default generation model: `claude-opus-4-8`** (explicit in `server/src/index.ts` instead of inheriting the machine's CLI config). Fastest to UI in the model sweep (2.8s fixed / 5.5s grounded) at the same ~$0.12/session as Sonnet 5, which is the equal-fast fallback. `CLAUDE_MODEL` still overrides.
+
+**Why:**
+
+- The sweep showed model choice and the wiki-read round trip are the only levers that matter server-side; everything else measured is noise or structural.
+- Preloading moves the read from a mid-turn tool round trip (~2.5s + a full model turn) to prompt bytes the cache absorbs — same content reaches the model, so grounding quality is unchanged by construction (verified byte-exact).
+- Whole-files-only because a truncated page is a grounding hazard; smallest-first maximizes pages covered under the budget.
+
+**Recorded nulls (don't re-litigate without new data):** `--effort` has zero latency/cost effect on this task; speed-hint prompting is noise; the prompt cache is already healthy (~2 uncached input tokens/turn across 59 runs); the post-UI tail is a structural tool-result round trip, not suppressible verbosity; slim prompt saves ~25% cost but no latency (pending a quality pass). Fast mode is untestable headless (no CLI flag) — recheck on CLI upgrades. The next real lever is client-side progressive spec rendering, worth 0.8–1.4s of perceived latency.
+
+**Consequences:**
+
+- Grounded generation now lands near pure-pipeline latency; the eval's `grounded`/`full` cell is the regression watchdog (expect ~4.4s, `numTurns: 2`).
+- The preload section makes the appended prompt content-dependent on the wiki; prompt-byte-stability audits must treat the wiki as a prompt input. Pre-warm writes the (bigger) cache entry while the user types, so perceived latency is unaffected.
+- A wiki whose root `.md` pages are all larger than the budget gets no preload — behavior degrades gracefully to tool reads.
+
+**Revisit if:** real wikis need smarter page selection than smallest-first-at-root (likely: relevance or recency ranking, or a digest); or fast mode ships a headless flag (biggest untapped lever, up to 2.5× output speed); or mid-session wiki edits by external writers make spawn-time copies too stale.
+
 ## D6. One feedback envelope for every channel
 
 **Date:** 2026-07-11

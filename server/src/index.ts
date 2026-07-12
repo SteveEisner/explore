@@ -64,8 +64,10 @@ const claude = new ClaudeSession({
   cwd: envDir("SANDBOX_DIR", path.resolve(import.meta.dirname, "../../sandbox")),
   dataDir: envDir("DATA_DIR", path.resolve(import.meta.dirname, "../data")),
   wikiDir,
-  // Session knobs for the perf/cost evals; production defaults when unset.
-  model: process.env.CLAUDE_MODEL,
+  // Session knobs, overridable for the perf/cost evals. The model default
+  // is the timing sweep's pick — fastest to UI at Sonnet-tier cost, rather
+  // than whatever the machine's CLI config happens to say (decisions.md D7).
+  model: process.env.CLAUDE_MODEL ?? "claude-opus-4-8",
   effort: process.env.CLAUDE_EFFORT,
   appendSystemPromptFile: process.env.APPEND_PROMPT_FILE,
 });

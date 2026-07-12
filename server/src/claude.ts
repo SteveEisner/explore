@@ -188,7 +188,7 @@ export class ClaudeSession extends EventEmitter {
     }
     // The appended prompt is authored in server/prompts/*.md and read at
     // every spawn, so prompt edits apply on the next session start.
-    let systemPrompt = buildSystemPrompt({ wiki: this.wikiDir !== undefined });
+    let systemPrompt = buildSystemPrompt({ wikiDir: this.wikiDir });
     // Eval override: swap the whole appended prompt for the file's contents
     // so prompt-size experiments can vary this layer without code changes.
     if (this.appendSystemPromptFile) {

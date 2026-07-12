@@ -45,7 +45,7 @@ Dimensions (comma lists, full cross product, run serially):
 | `--scenario` | `fixed`, `grounded` | what the model must produce |
 | `--model` | `default` or any CLI model id | `--model` passed to the Claude CLI |
 | `--effort` | `default`, `low`, `medium`, `high` | `--effort` passed to the CLI (reasoning depth) |
-| `--prompt` | `full`, `slim` | production ~11 KB appended system prompt vs. ~1 KB `prompts/slim-ui.md` |
+| `--prompt` | `full`, `slim`, or any `<name>` with a `prompts/<name>.md` | `full` = production built prompt (incl. wiki preload); anything else replaces the whole appended prompt with that file (`slim` keeps its historical mapping to `slim-ui.md`) |
 | `--speed` | `off`, `on` | prepend a "time is critical, minimal thinking" line to the user message |
 | `--warm` | `on` (default), `off` | connect-time CLI pre-warm (production behavior). When on, the harness waits for the "ready" status before sending, so the measured turn starts against a warm session; `warmupMs` and `warmLeaks` land in runs.jsonl |
 | `--reps` | integer | repetitions per cell |
@@ -60,5 +60,6 @@ per run for post-hoc breakdowns. A summary table prints at the end.
 
 Set as environment variables on the server (see `server/src/index.ts`):
 `PORT` (0 = ephemeral), `WIKI_DIR`, `SANDBOX_DIR`, `DATA_DIR`, `EVENTS_LOG`,
-`CLAUDE_MODEL`, `CLAUDE_EFFORT`, `APPEND_PROMPT_FILE`. The same knobs power
+`CLAUDE_MODEL`, `CLAUDE_EFFORT`, `APPEND_PROMPT_FILE`, `WIKI_PRELOAD_BYTES`
+(wiki-preload budget, 0 disables — decisions.md D7). The same knobs power
 `scripts/side-instance.sh` (interactive isolated instance).
