@@ -1,4 +1,4 @@
-import { watch } from "node:fs";
+import { existsSync, watch } from "node:fs";
 import { createServer } from "node:http";
 import path from "node:path";
 import { WebSocketServer } from "ws";
@@ -6,7 +6,15 @@ import { ChatService } from "./chat.js";
 import { ClaudeSession } from "./claude.js";
 import { JsonlLogger } from "./logger.js";
 import { createFilesHandler, createStaticHandler } from "./static.js";
+import { createVoiceSessionHandler } from "./voice.js";
 import { listWikiFiles } from "./wiki-files.js";
+
+// Local secrets (.env.local at the repo root, gitignored — currently the
+// OpenAI key for the voice agent). Loaded before any config is read; vars
+// already present in the real environment win over file values, and a
+// missing file (CI, tests) is simply no extra vars.
+const envFile = path.resolve(import.meta.dirname, "../../.env.local");
+if (existsSync(envFile)) process.loadEnvFile(envFile);
 
 const PORT = Number(process.env.PORT ?? 3001);
 
@@ -26,10 +34,14 @@ const clientDist = path.resolve(import.meta.dirname, "../../client/dist");
 // The wiki: the repo's docs/ directory unless WIKI_DIR points elsewhere.
 const wikiDir = envDir("WIKI_DIR", path.resolve(import.meta.dirname, "../../docs"));
 
+// Observability: every event reaching the back end, one JSON object per line.
+const logger = new JsonlLogger();
+
 // Web serving engine: the front-end application, plus the wiki served
 // verbatim at /docs so the viewer can load .md/.oui files directly.
 const staticHandler = createStaticHandler(clientDist);
 const docsHandler = createFilesHandler(wikiDir, "/docs/");
+const voiceSessionHandler = createVoiceSessionHandler(logger);
 const httpServer = createServer((req, res) => {
   if (req.url?.startsWith("/docs/")) return docsHandler(req, res);
   // Wiki file inventory (the Wiki API list endpoint): the home view's
@@ -39,6 +51,8 @@ const httpServer = createServer((req, res) => {
     res.end(JSON.stringify(listWikiFiles(wikiDir)));
     return;
   }
+  // Ephemeral OpenAI Realtime credentials for the browser's voice session.
+  if (req.url === "/api/voice/session") return voiceSessionHandler(req, res);
   staticHandler(req, res);
 });
 
@@ -55,8 +69,6 @@ const claude = new ClaudeSession({
   effort: process.env.CLAUDE_EFFORT,
   appendSystemPromptFile: process.env.APPEND_PROMPT_FILE,
 });
-// Observability: every event reaching the back end, one JSON object per line.
-const logger = new JsonlLogger();
 // WARMUP=0 disables the pre-warm turn on first client connect (tests, cost-
 // sensitive experiments); anything else leaves it on.
 const chat = new ChatService(claude, logger, wikiDir, process.env.WARMUP !== "0");

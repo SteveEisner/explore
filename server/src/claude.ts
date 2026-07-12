@@ -78,6 +78,12 @@ export class ClaudeSession extends EventEmitter {
   private readonly model: string | undefined;
   private readonly effort: string | undefined;
   private readonly appendSystemPromptFile: string | undefined;
+  /**
+   * Model the running CLI was spawned with (undefined = CLI default).
+   * Compared against per-send overrides to decide whether a model switch —
+   * and therefore a respawn — is needed.
+   */
+  private activeModel: string | undefined;
   sessionId: string | null = null;
   /**
    * The app server's *bound* HTTP/websocket port, set by index.ts once
@@ -109,15 +115,28 @@ export class ClaudeSession extends EventEmitter {
   /**
    * Send one user turn, optionally with an image content block (base64);
    * starts (or resumes) the CLI if it isn't running.
+   *
+   * `options.model` runs this turn on a specific model (FAST/SMART voice
+   * delegation): --model is a spawn flag, so a different model means
+   * killing the CLI and respawning with --resume — the conversation
+   * survives, only the process restarts. Restarting kills anything the CLI
+   * is doing, so the switch happens only when the caller vouches for
+   * idleness via `options.allowRestart`; otherwise the turn runs on
+   * whatever model is active.
    */
   send(
     text: string,
-    image?: { mediaType: string; data: string }
+    image?: { mediaType: string; data: string },
+    options?: { model?: string; allowRestart?: boolean }
   ): { resumed: boolean; started: boolean } {
+    const model = options?.model ?? this.model;
+    if (this.proc && options?.allowRestart && model !== this.activeModel) {
+      this.stop();
+    }
     let started = false;
     let resumed = false;
     if (!this.proc) {
-      resumed = this.start();
+      resumed = this.start(model);
       started = true;
     }
     const content: Array<Record<string, unknown>> = [];
@@ -142,10 +161,11 @@ export class ClaudeSession extends EventEmitter {
   }
 
   /**
-   * Spawn the CLI. Returns true when it is resuming a previous session
-   * rather than beginning a fresh one.
+   * Spawn the CLI on `model` (the session default when omitted). Returns
+   * true when it is resuming a previous session rather than beginning a
+   * fresh one.
    */
-  private start(): boolean {
+  private start(model: string | undefined = this.model): boolean {
     // MCP tools the model may call without prompting. Everything else an MCP
     // server exposes still needs permission, which --print mode auto-denies.
     // Bare "Skill" pre-approves loading any of our shipped skills (the only
@@ -229,8 +249,9 @@ export class ClaudeSession extends EventEmitter {
       "Task",
       "mcp__vault__workflow",
     ];
-    if (this.model) args.push("--model", this.model);
+    if (model) args.push("--model", model);
     if (this.effort) args.push("--effort", this.effort);
+    this.activeModel = model;
     const resuming = this.sessionId !== null;
     if (this.sessionId) {
       args.push("--resume", this.sessionId);
@@ -268,9 +289,18 @@ export class ClaudeSession extends EventEmitter {
     return resuming;
   }
 
+  /**
+   * Kill the CLI without emitting "exit": intentional stops (server
+   * shutdown, model-switch restarts) must not look like crashes — the
+   * "exit" event is reserved for deaths the session didn't ask for, which
+   * is what lets listeners treat every "exit" as a failure.
+   */
   stop(): void {
-    this.proc?.kill();
+    const proc = this.proc;
     this.proc = null;
+    if (!proc) return;
+    proc.removeAllListeners("exit");
+    proc.kill();
   }
 
   private consumeStdout(chunk: string): void {

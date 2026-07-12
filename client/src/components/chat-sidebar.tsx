@@ -6,6 +6,8 @@ import {
   CheckIcon,
   FlagIcon,
   InfoIcon,
+  MicIcon,
+  MicOffIcon,
   PanelRightCloseIcon,
   SendIcon,
   WrenchIcon,
@@ -27,6 +29,7 @@ import {
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller";
 import type { ChatItem, ChatState } from "@/hooks/use-chat";
+import type { VoiceState, VoiceStatus } from "@/hooks/use-voice";
 
 /**
  * Right-sidebar chat. Every event published by the back end is expressed as
@@ -35,11 +38,14 @@ import type { ChatItem, ChatState } from "@/hooks/use-chat";
  */
 export function ChatSidebar({
   chat,
+  voice,
   onClose,
   onScreenshot,
   screenshotEnabled,
 }: {
   chat: ChatState;
+  /** The realtime voice session behind the mic toggle. */
+  voice?: VoiceState;
   onClose?: () => void;
   /** Capture the main view and send it into the chat as an image turn. */
   onScreenshot?: () => void;
@@ -94,7 +100,38 @@ export function ChatSidebar({
         </MessageScroller>
       </MessageScrollerProvider>
 
+      {/* Voice session status strip: the visible listening/speaking/tool
+          states while the mic is live, and the reason when it failed. */}
+      {voice && voice.status !== "idle" && (
+        <div className="flex items-center gap-2 border-t px-4 py-1.5 text-xs text-muted-foreground">
+          <span
+            className={
+              "size-2 shrink-0 rounded-full " + voiceDotClass(voice.status)
+            }
+          />
+          <span className="truncate">
+            {voice.status === "error"
+              ? `Voice failed: ${voice.error ?? "unknown error"}`
+              : voiceStatusLabel(voice.status)}
+          </span>
+        </div>
+      )}
+
       <form onSubmit={submit} className="flex gap-2 border-t p-3">
+        {voice && (
+          <Button
+            type="button"
+            size="icon"
+            variant={voice.active ? "destructive" : "ghost"}
+            onClick={voice.toggle}
+            aria-label={
+              voice.active ? "End the voice conversation" : "Start a voice conversation"
+            }
+            title={`Voice: ${voice.status}`}
+          >
+            {voice.active ? <MicOffIcon /> : <MicIcon />}
+          </Button>
+        )}
         {onScreenshot && (
           <Button
             type="button"
@@ -120,6 +157,39 @@ export function ChatSidebar({
       </form>
     </div>
   );
+}
+
+function voiceStatusLabel(status: VoiceStatus): string {
+  switch (status) {
+    case "connecting":
+      return "Connecting voice…";
+    case "listening":
+      return "Listening…";
+    case "speaking":
+      return "Speaking…";
+    case "tool":
+      return "Working on it…";
+    default:
+      return status;
+  }
+}
+
+/** Status dot: pulsing while something is happening, red on failure. */
+function voiceDotClass(status: VoiceStatus): string {
+  switch (status) {
+    case "connecting":
+      return "animate-pulse bg-muted-foreground";
+    case "listening":
+      return "animate-pulse bg-green-500";
+    case "speaking":
+      return "animate-pulse bg-blue-500";
+    case "tool":
+      return "animate-pulse bg-amber-500";
+    case "error":
+      return "bg-destructive";
+    default:
+      return "bg-muted-foreground";
+  }
 }
 
 function ChatRow({ item }: { item: ChatItem }) {

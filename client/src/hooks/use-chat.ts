@@ -59,6 +59,15 @@ export interface ChatState {
    * same name overwrites the file (J4 reopen-and-continue-editing).
    */
   loadArtifact: (url: string, spec: string) => void;
+  /**
+   * Bridge a voice-session tool call to the back end (voice:tool) and
+   * resolve with the executor's result string. Rejects with the server's
+   * teaching error (or a timeout/disconnect) — the message is meant to be
+   * fed back to the voice model verbatim.
+   */
+  callVoiceTool: (name: string, args: Record<string, unknown>) => Promise<string>;
+  /** Fold one finished voice utterance into the shared chat transcript. */
+  sendVoiceTranscript: (role: "user" | "assistant", text: string) => void;
 }
 
 let nextId = 0;
@@ -78,6 +87,15 @@ function reduceEvent(items: ChatItem[], event: ServerEvent): ChatItem[] {
         return [
           ...items,
           { kind: "user", id: newId(), text: event.text, image: event.image },
+        ];
+      }
+      // A voice transcript is its own finished utterance — it must never
+      // finalize a streaming bubble, which belongs to the Claude session
+      // (e.g. a delegated turn streaming while the voice model talks).
+      if (event.via === "voice") {
+        return [
+          ...items,
+          { kind: "assistant", id: newId(), text: event.text, streaming: false },
         ];
       }
       // A complete assistant message finalizes the in-progress streamed
@@ -149,8 +167,9 @@ function reduceEvent(items: ChatItem[], event: ServerEvent): ChatItem[] {
 
     // ui:* events drive the main panel; state:request/state:update are
     // answered out of band; wiki:changed reloads the content pane;
-    // artifact:saved feeds the toolbar's save state — none of them show in
-    // the chat transcript.
+    // artifact:saved feeds the toolbar's save state; voice:tool-result
+    // answers a pending voice bridge call — none of them show in the chat
+    // transcript.
     case "ui:start":
     case "ui:delta":
     case "ui:spec":
@@ -158,6 +177,7 @@ function reduceEvent(items: ChatItem[], event: ServerEvent): ChatItem[] {
     case "state:update":
     case "wiki:changed":
     case "artifact:saved":
+    case "voice:tool-result":
       return items;
   }
 }
@@ -316,6 +336,17 @@ export function useChat(): ChatState {
     error: string | null;
   }>({ saving: false, error: null });
   const socketRef = React.useRef<WebSocket | null>(null);
+  /** Voice bridge calls awaiting their voice:tool-result, keyed by id. */
+  const pendingVoiceToolsRef = React.useRef(
+    new Map<
+      string,
+      {
+        resolve: (result: string) => void;
+        reject: (err: Error) => void;
+        timer: ReturnType<typeof setTimeout>;
+      }
+    >()
+  );
   /** Wiki URL the authoring program was loaded from or last saved to. */
   const loadedFromRef = React.useRef<string | null>(null);
   /** Latest merged program, so saveArtifact stays a stable callback. */
@@ -350,6 +381,15 @@ export function useChat(): ChatState {
         }
         if (event.type === "chat:response" || event.type === "chat:error") {
           setBusy(false);
+        }
+        if (event.type === "voice:tool-result") {
+          const pending = pendingVoiceToolsRef.current.get(event.id);
+          if (pending) {
+            pendingVoiceToolsRef.current.delete(event.id);
+            clearTimeout(pending.timer);
+            if (event.error) pending.reject(new Error(event.error));
+            else pending.resolve(event.result ?? "");
+          }
         }
         if (event.type === "state:request") {
           void answerStateRequest(socket, event.id, event.screenshot === true);
@@ -401,6 +441,13 @@ export function useChat(): ChatState {
       socket.onclose = () => {
         setConnected(false);
         attachLogSocket(null);
+        // Bridge calls can't outlive their socket — the answer routes back
+        // on this exact connection, so fail them now instead of timing out.
+        for (const [id, pending] of pendingVoiceToolsRef.current) {
+          pendingVoiceToolsRef.current.delete(id);
+          clearTimeout(pending.timer);
+          pending.reject(new Error("lost the connection to the app server"));
+        }
         frontendLog("ws:close", { willRetry: !disposed });
         if (disposed) return;
         retryTimer = setTimeout(connect, retryDelay);
@@ -451,6 +498,50 @@ export function useChat(): ChatState {
     setSaveState({ saving: true, error: null });
   }, []);
 
+  const callVoiceTool = React.useCallback(
+    (name: string, args: Record<string, unknown>): Promise<string> => {
+      const socket = socketRef.current;
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        return Promise.reject(
+          new Error("not connected to the app server right now")
+        );
+      }
+      const id = newId();
+      frontendLog("voice:tool", { id, name });
+      return new Promise<string>((resolve, reject) => {
+        // Ceiling above the server's 5-minute delegation cap: the server
+        // always answers first unless the bridge itself is broken.
+        const timer = setTimeout(() => {
+          pendingVoiceToolsRef.current.delete(id);
+          reject(new Error(`the app did not answer the ${name} call in time`));
+        }, 330_000);
+        pendingVoiceToolsRef.current.set(id, { resolve, reject, timer });
+        socket.send(JSON.stringify({ type: "voice:tool", id, name, args }));
+      });
+    },
+    []
+  );
+
+  const sendVoiceTranscript = React.useCallback(
+    (role: "user" | "assistant", text: string) => {
+      const socket = socketRef.current;
+      if (!socket || socket.readyState !== WebSocket.OPEN || !text.trim()) {
+        return;
+      }
+      // D6 feedback envelope: every utterance carries the store state that
+      // produced the view, so the logged transcript is self-locating.
+      socket.send(
+        JSON.stringify({
+          type: "voice:transcript",
+          role,
+          text,
+          stateSnapshot: stateSnapshot(),
+        })
+      );
+    },
+    []
+  );
+
   const loadArtifact = React.useCallback((url: string, spec: string) => {
     loadedFromRef.current = url;
     setUiParts({ base: spec, patch: "", streaming: false });
@@ -478,5 +569,7 @@ export function useChat(): ChatState {
     saveError: saveState.error,
     saveArtifact,
     loadArtifact,
+    callVoiceTool,
+    sendVoiceTranscript,
   };
 }

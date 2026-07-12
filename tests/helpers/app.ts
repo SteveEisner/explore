@@ -39,10 +39,15 @@ export interface TestApp {
 
 /**
  * Start the app against a fresh temp wiki seeded with `seedFiles`
- * (relative path → content; nested paths create directories).
+ * (relative path → content; nested paths create directories). `env` adds or
+ * overrides server environment variables — including forcing one *empty*
+ * (e.g. OPENAI_API_KEY: "") to mask a secret the developer's gitignored
+ * .env.local would otherwise supply, since the server treats present-but-
+ * empty vars as authoritative over that file.
  */
 export async function startApp(
-  seedFiles: Record<string, string> = {}
+  seedFiles: Record<string, string> = {},
+  env: Record<string, string> = {}
 ): Promise<TestApp> {
   const root = await mkdtemp(path.join(tmpdir(), "explore-test-"));
   const wikiDir = path.join(root, "wiki");
@@ -62,6 +67,7 @@ export async function startApp(
       // No paid CLI turns from tests: connecting a websocket must not
       // trigger the pre-warm.
       WARMUP: "0",
+      ...env,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });

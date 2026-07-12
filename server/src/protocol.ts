@@ -15,7 +15,44 @@ export type ClientMessage =
   | StateUpdateCommand
   | StateResponseCommand
   | ArtifactSaveCommand
-  | ArtifactEditCommand;
+  | ArtifactEditCommand
+  | VoiceToolCommand
+  | VoiceTranscriptCommand;
+
+/**
+ * A server-side tool call from the browser's realtime voice session
+ * (decisions.md D5): the voice model requested tool `name` over its WebRTC
+ * data channel and the browser bridges it here. The back end executes it
+ * against the voice tool registry and answers the sender with a
+ * voice:tool-result event carrying the same id.
+ */
+export interface VoiceToolCommand {
+  type: "voice:tool";
+  id: string;
+  /** Registry tool name, e.g. "read_doc" or "ask_artifact_agent". */
+  name: string;
+  /** The model's arguments, already JSON-parsed by the browser. */
+  args: Record<string, unknown>;
+}
+
+/**
+ * One finished voice utterance (user speech transcription or the model's
+ * spoken reply). The back end broadcasts it to every client as a
+ * chat:message with `via: "voice"`, so the shared transcript records what
+ * voice said and changed (D5's two-intelligences mitigation).
+ */
+export interface VoiceTranscriptCommand {
+  type: "voice:transcript";
+  role: "user" | "assistant";
+  text: string;
+  /**
+   * The D3 store at capture time — the D6 feedback envelope's self-locating
+   * field, so a logged utterance records what the user was looking at.
+   * Recorded in the event log; the chat pane renders it only once the D6
+   * envelope rendering (Multimodal section) lands.
+   */
+  stateSnapshot?: Record<string, unknown>;
+}
 
 /**
  * Apply an OpenUI Lang edit patch to a saved wiki .oui file (the LLM's
@@ -126,7 +163,21 @@ export type ServerEvent =
   | StateResponseEvent
   | WikiChangedEvent
   | ArtifactSavedEvent
-  | ArtifactEditedEvent;
+  | ArtifactEditedEvent
+  | VoiceToolResultEvent;
+
+/**
+ * Outcome of a voice:tool command, sent only to the requesting client (the
+ * browser voice session, which forwards it to the model as the function
+ * call's output). Exactly one of result/error is set; `error` text is
+ * written for the model — it explains how to correct the call.
+ */
+export interface VoiceToolResultEvent {
+  type: "voice:tool-result";
+  id: string;
+  result?: string;
+  error?: string;
+}
 
 /** Outcome of an artifact:save command, sent only to the requester. */
 export interface ArtifactSavedEvent {
@@ -233,6 +284,8 @@ export interface ChatMessageEvent {
   text: string;
   /** Data-URL image attached to a user turn (echoed to all clients). */
   image?: string;
+  /** Set when the turn came through the realtime voice session. */
+  via?: "voice";
 }
 
 /** Incremental streamed text from the assistant's in-progress turn. */

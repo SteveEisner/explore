@@ -8,7 +8,37 @@ export type ClientMessage =
   | LogCommand
   | StateRequestCommand
   | StateResponseCommand
-  | ArtifactSaveCommand;
+  | ArtifactSaveCommand
+  | VoiceToolCommand
+  | VoiceTranscriptCommand;
+
+/**
+ * A server-side tool call bridged from the realtime voice session: the
+ * voice model asked for tool `name` over its WebRTC data channel. The back
+ * end answers with a voice:tool-result event carrying the same id.
+ */
+export interface VoiceToolCommand {
+  type: "voice:tool";
+  id: string;
+  name: string;
+  /** The model's arguments, JSON-parsed before bridging. */
+  args: Record<string, unknown>;
+}
+
+/**
+ * One finished voice utterance (user transcription or the model's spoken
+ * reply); the back end folds it into every client's chat transcript.
+ */
+export interface VoiceTranscriptCommand {
+  type: "voice:transcript";
+  role: "user" | "assistant";
+  text: string;
+  /**
+   * The D3 store at capture time (D6 envelope's self-locating field);
+   * recorded in the back end's event log with the utterance.
+   */
+  stateSnapshot?: Record<string, unknown>;
+}
 
 /**
  * Persist the authoring panel's artifact into the wiki as a .oui file (J4).
@@ -77,7 +107,20 @@ export type ServerEvent =
   | StateRequestEvent
   | StateUpdateEvent
   | WikiChangedEvent
-  | ArtifactSavedEvent;
+  | ArtifactSavedEvent
+  | VoiceToolResultEvent;
+
+/**
+ * Outcome of a voice:tool command, sent only to the requester. Exactly one
+ * of result/error is set; error text is written for the voice model — it
+ * explains how to correct the call.
+ */
+export interface VoiceToolResultEvent {
+  type: "voice:tool-result";
+  id: string;
+  result?: string;
+  error?: string;
+}
 
 /** Outcome of an artifact:save command, sent only to the requester. */
 export interface ArtifactSavedEvent {
@@ -153,6 +196,8 @@ export interface ChatMessageEvent {
   text: string;
   /** Data-URL image attached to a user turn (echoed to all clients). */
   image?: string;
+  /** Set when the turn came through the realtime voice session. */
+  via?: "voice";
 }
 
 export interface ChatDeltaEvent {

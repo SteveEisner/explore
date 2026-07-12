@@ -1,7 +1,6 @@
 import { existsSync } from "node:fs";
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { mergeStatements } from "@openuidev/lang-core";
 import type { WebSocket } from "ws";
 import type { ClaudeSession, ClaudeStreamEvent } from "./claude.js";
 import type { JsonlLogger } from "./logger.js";
@@ -11,7 +10,14 @@ import type {
   ArtifactSaveCommand,
   ClientMessage,
   ServerEvent,
+  VoiceToolCommand,
 } from "./protocol.js";
+import { executeVoiceTool } from "./voice-tools.js";
+import {
+  editArtifactSpec,
+  ensureTrailingNewline,
+  wikiDocPath,
+} from "./wiki-service.js";
 
 /** The `ui` MCP tool as the model sees it (mcp__<server>__<tool>). */
 const UI_TOOL_NAME = "mcp__ui__ui";
@@ -25,6 +31,20 @@ const UI_TOOL_NAME = "mcp__ui__ui";
 const WARMUP_PROMPT =
   'Session warm-up ping (not from the user). Reply with only "ok" — ' +
   "no tools, no other text.";
+
+/**
+ * Longest a voice delegation waits for the Claude session's final answer.
+ * On expiry the voice model gets a "still working" message rather than an
+ * error — the work itself continues and lands in the panel/wiki as usual.
+ */
+const DELEGATION_TIMEOUT_MS = 5 * 60_000;
+
+/** Model tier each ask_artifact_agent mode selects (perf-eval calibrated). */
+function delegationModel(mode: "fast" | "smart"): string {
+  return mode === "smart"
+    ? process.env.VOICE_SMART_MODEL || "opus"
+    : process.env.VOICE_FAST_MODEL || "haiku";
+}
 
 /**
  * Chat service: bridges websocket clients and the Claude CLI session.
@@ -59,6 +79,25 @@ export class ChatService {
    */
   private warmupActive = false;
   private warmupStartedAt = 0;
+  /**
+   * One entry per CLI turn sent but not yet answered, in send order. The
+   * CLI processes turns strictly serially, so the head entry always owns
+   * the next "result" event — that pairing is what lets a voice delegation
+   * await *its* answer while typed turns interleave freely. Entries are
+   * null for turns nobody awaits (typed chat, warm-up).
+   */
+  private readonly turnResolvers: Array<{
+    resolve: (finalText: string) => void;
+    reject: (err: Error) => void;
+  } | null> = [];
+  /** Callbacks fired when turnResolvers drains (see whenIdle). */
+  private idleWaiters: Array<() => void> = [];
+  /**
+   * Serializes voice delegations: each waits for the previous one to finish
+   * before choosing its model, so two delegations can't race the
+   * model-switch decision.
+   */
+  private delegationChain: Promise<unknown> = Promise.resolve();
 
   constructor(
     private readonly claude: ClaudeSession,
@@ -87,6 +126,15 @@ export class ChatService {
       // A CLI death ends any in-flight warm turn — clear the flag so real
       // conversation events are never swallowed by a stale warm-up.
       this.warmupActive = false;
+      // A dead CLI can never answer queued turns: fail every awaited one
+      // loudly (voice delegations turn this into a spoken error) and let
+      // idle waiters proceed — the session is trivially idle now.
+      for (const resolver of this.turnResolvers.splice(0)) {
+        resolver?.reject(
+          new Error(`claude exited (code ${code ?? "unknown"}) mid-turn`)
+        );
+      }
+      this.notifyIfIdle();
       this.logger.log("server", { type: "claude:exit", code });
       this.broadcast({
         type: "chat:status",
@@ -142,7 +190,7 @@ export class ChatService {
     this.warmupStartedAt = Date.now();
     this.logger.log("server", { type: "warmup:start" });
     try {
-      this.claude.send(WARMUP_PROMPT);
+      this.sendTurn(WARMUP_PROMPT);
       this.broadcast({
         type: "chat:status",
         status: "warming",
@@ -242,7 +290,7 @@ export class ChatService {
           image: message.image,
         });
         try {
-          this.claude.send(text, image ?? undefined);
+          this.sendTurn(text, image ?? undefined);
           this.broadcast({ type: "chat:status", status: "thinking" });
         } catch (err) {
           this.broadcast({ type: "chat:error", message: String(err) });
@@ -255,6 +303,24 @@ export class ChatService {
       }
       case "artifact:edit": {
         void this.editArtifact(ws, message);
+        return;
+      }
+      case "voice:tool": {
+        void this.runVoiceTool(ws, message);
+        return;
+      }
+      case "voice:transcript": {
+        // One finished voice utterance: fold it into the shared transcript
+        // (every client) so voice and typed chat read as one conversation;
+        // the JSONL log already recorded the raw command above (D5 row 8).
+        const text = message.text?.trim();
+        if (!text) return;
+        this.broadcast({
+          type: "chat:message",
+          role: message.role === "assistant" ? "assistant" : "user",
+          text,
+          via: "voice",
+        });
         return;
       }
       default:
@@ -350,13 +416,130 @@ export class ChatService {
       return;
     }
     try {
-      const existing = await readFile(filePath, "utf8");
-      const merged = mergeStatements(existing, message.spec);
-      await writeFile(filePath, ensureTrailingNewline(merged), "utf8");
+      await editArtifactSpec(this.wikiDir, rel, message.spec);
       answer({ url: `/docs/${rel}` });
     } catch (err) {
       answer({ error: `could not edit ${rel}: ${String(err)}` });
     }
+  }
+
+  /**
+   * Execute one server-side tool call from the browser's voice session.
+   * The result answers only the requester (which forwards it to the voice
+   * model), while a chat:tool marker pair is broadcast to every client so
+   * the shared transcript shows what voice touched (D5 row 8). Errors are
+   * teaching text for the model, never a dropped reply.
+   */
+  private async runVoiceTool(
+    ws: WebSocket,
+    message: VoiceToolCommand
+  ): Promise<void> {
+    this.broadcast({
+      type: "chat:tool",
+      phase: "use",
+      name: `voice:${message.name}`,
+      detail: summarizeToolInput(message.args),
+    });
+    let result: { result: string } | { error: string };
+    try {
+      result = {
+        result: await executeVoiceTool(message.name, message.args, {
+          wikiDir: this.wikiDir,
+          delegate: (request, mode) => this.delegate(request, mode),
+        }),
+      };
+    } catch (err) {
+      result = { error: err instanceof Error ? err.message : String(err) };
+    }
+    this.logger.log("server", {
+      type: "voice:tool-result",
+      id: message.id,
+      name: message.name,
+      ...result,
+    });
+    this.broadcast({
+      type: "chat:tool",
+      phase: "result",
+      isError: "error" in result,
+    });
+    this.sendTo(ws, { type: "voice:tool-result", id: message.id, ...result });
+  }
+
+  /**
+   * ask_artifact_agent: run one delegated turn on the Claude session and
+   * resolve with its final response text. Waits for every in-flight turn to
+   * finish first — the fast/smart model switch respawns the CLI, which must
+   * never kill a typed turn mid-generation — then sends with the mode's
+   * model. The turn's streamed events broadcast normally, so every client
+   * watches the work happen in the panel/chat like any other turn.
+   */
+  private delegate(request: string, mode: "fast" | "smart"): Promise<string> {
+    const run = this.delegationChain.then(async () => {
+      await this.whenIdle();
+      return await new Promise<string>((resolve, reject) => {
+        // On timeout the delegation "succeeds" with a still-working note:
+        // the CLI turn keeps running and its output still lands in the
+        // panel, so the voice model should reassure, not apologize.
+        let settled = false;
+        const timer = setTimeout(() => {
+          settled = true;
+          resolve(
+            "The work is taking longer than expected but is still running — its results will appear in the app when done."
+          );
+        }, DELEGATION_TIMEOUT_MS);
+        const settle = (outcome: () => void) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          outcome();
+        };
+        this.sendTurn(request, undefined, {
+          model: delegationModel(mode),
+          resolver: {
+            resolve: (finalText) => settle(() => resolve(finalText)),
+            reject: (err) => settle(() => reject(err)),
+          },
+        });
+        this.broadcast({ type: "chat:status", status: "thinking" });
+      });
+    });
+    // The chain must survive a failed delegation, or every later one would
+    // inherit the rejection.
+    this.delegationChain = run.catch(() => {});
+    return run;
+  }
+
+  /**
+   * Send one turn to the CLI, registering it for serial result pairing
+   * (see turnResolvers). A model switch is only allowed when no turn is in
+   * flight — with turns outstanding the CLI must not restart, so the turn
+   * runs on whatever model is active (delegations guarantee idleness via
+   * whenIdle; typed turns never ask for a model and simply follow along).
+   */
+  private sendTurn(
+    text: string,
+    image?: { mediaType: string; data: string },
+    options?: {
+      model?: string;
+      resolver?: { resolve: (finalText: string) => void; reject: (err: Error) => void };
+    }
+  ): void {
+    this.claude.send(text, image, {
+      model: options?.model,
+      allowRestart: this.turnResolvers.length === 0,
+    });
+    this.turnResolvers.push(options?.resolver ?? null);
+  }
+
+  /** Resolves once no CLI turn is in flight (immediately when idle now). */
+  private whenIdle(): Promise<void> {
+    if (this.turnResolvers.length === 0) return Promise.resolve();
+    return new Promise((resolve) => this.idleWaiters.push(resolve));
+  }
+
+  private notifyIfIdle(): void {
+    if (this.turnResolvers.length > 0) return;
+    for (const waiter of this.idleWaiters.splice(0)) waiter();
   }
 
   /**
@@ -403,6 +586,14 @@ export class ChatService {
 
   /** Translate one raw Claude CLI stream event into chat:* events. */
   private onClaudeEvent(event: ClaudeStreamEvent): void {
+    // Every "result" closes exactly one turn, in send order (the CLI is
+    // strictly serial), so the head resolver — when a delegation is
+    // awaiting this turn — gets the final text before any broadcasting.
+    if (event.type === "result") {
+      const resolver = this.turnResolvers.shift();
+      resolver?.resolve(typeof event.result === "string" ? event.result : "");
+      this.notifyIfIdle();
+    }
     // Warm-turn traffic is lifecycle, not conversation. While the warm turn
     // runs, only "system" events pass through (so clients still get the
     // session-started status); its message/tool/ui events are swallowed, and
@@ -594,31 +785,15 @@ export function artifactFileName(name: unknown): string | null {
   return `${base}.oui`;
 }
 
-function ensureTrailingNewline(text: string): string {
-  return text.endsWith("\n") ? text : `${text}\n`;
-}
-
 /**
  * Normalize an edit target into a safe wiki-relative .oui path, or null if
- * it can't be one. Accepts the /docs/<path> URL form the model sees
- * elsewhere. Unlike artifactFileName (single segment, extension appended),
- * edits may target nested files but every segment must be a plain name —
- * no traversal, no absolute paths, no hidden files, and the .oui extension
- * must already be there.
+ * it can't be one. Path safety (traversal, hidden files, /docs/ URL form)
+ * is the wiki service's shared rule; this adds only the .oui requirement —
+ * unlike artifactFileName the extension must already be there.
  */
 export function wikiOuiPath(file: unknown): string | null {
-  if (typeof file !== "string") return null;
-  const rel = file.trim().replace(/^\/docs\//, "");
-  if (!rel.toLowerCase().endsWith(".oui")) return null;
-  // Leading \w rules out "." / ".." / hidden segments; the trailing-dot
-  // check rules out Windows-style "name." tricks ("x.oui" still passes —
-  // it ends in "i").
-  const plainSegment = /^[\w][\w .-]*$/;
-  const segments = rel.split("/");
-  if (!segments.every((s) => plainSegment.test(s) && !s.endsWith("."))) {
-    return null;
-  }
-  return rel;
+  const rel = wikiDocPath(file);
+  return rel !== null && rel.toLowerCase().endsWith(".oui") ? rel : null;
 }
 
 /**
