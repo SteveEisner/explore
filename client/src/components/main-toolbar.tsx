@@ -2,7 +2,6 @@ import {
   FileTextIcon,
   HomeIcon,
   MessageSquareIcon,
-  PanelRightCloseIcon,
   PenLineIcon,
   SaveIcon,
   SparklesIcon,
@@ -101,7 +100,7 @@ export function MainToolbar({
         aria-label={chatOpen ? "Close chat panel" : "Open chat panel"}
         className="relative"
       >
-        {chatOpen ? <PanelRightCloseIcon /> : <MessageSquareIcon />}
+        <MessageSquareIcon />
         {chatBusy && !chatOpen && (
           <span className="absolute top-0.5 right-0.5 size-1.5 animate-pulse rounded-full bg-primary" />
         )}
