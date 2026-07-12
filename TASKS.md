@@ -44,12 +44,8 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 
 | Task | Area | Notes |
 |---|---|---|
-| Teach the generation prompts about `<oui-embed src="file.oui">` | prompts | wiki markdown can embed live OpenUI apps (2026-07-11); the LLM doesn't know — add to server/prompts wiki guidance. Note: always use an explicit closing tag |
-| Refresh eval prompt snapshots after Gallery/Aside width-cap change | eval | `eval/prompts/preload-wiki.md` and `slim-ui.md` mirror the component descriptions now updated in ui-library.ts (widths are maxima with a 40% container cap); left untouched 2026-07-11 because a sweep was running against eval |
-| Soften the stale "built for the full panel" rationale comment in oui-embed.tsx | client | the 72rem breakout stays (still a win for wide artifacts) but Gallery/Aside now degrade gracefully, so it's no longer load-bearing for defaults |
-| Drop dead Tailwind typography remnants | client | nothing renders `.prose` since chat moved to typeset (2026-07-11): remove the `@plugin "@tailwindcss/typography"` line and the inert `not-prose` markers in markdown-code.tsx / oui-embed.tsx |
 
-*2026-07-11 blitz (Cleaner): five items cleared — docs/meta untracking, JSONL logger typing, client README rewrite, inline-backtick rendering, horizontal window pan. See the worklog.*
+*The backlog is empty (2026-07-12, Cleaner): rounds one to three cleared everything banked — see the worklog. The eval-snapshot refresh closed as invalid: the width-cap change only touched prop-level zod descriptions, which never appeared in the prompt snapshots (verified byte-identical against componentSignatures()); the model sees the new wording via the ui tool's MCP schema.*
 
 ## Crunch tracks (non-interactive; run unattended once the isolated instance exists)
 
@@ -141,7 +137,7 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Chat header cleanup: drop the session id and connected badge from the chat pane | 5 | Worker 2 | done |
 | Markdown viewer upgrades: rehype-sanitize, rehype-slug, highlight.js, mermaid diagrams | 5 | Worker 2 | done |
 | Home is a folder view, not README.md: excerpt of README.md at top with a &lt;more&gt; link that opens the full README, then a hierarchical list of the wiki's folders, markdown files, and .oui files, each linked to open the doc/OUI (subsumes the phase-6 "wiki browser" stretch task) | 5 | Worker 1 | done |
-| Browser back-button navigation: pressing back currently loses the entire app (SPA state gone). Integrate in-app navigation (doc/OUI views, home) with browser history so back/forward move between views instead of leaving the app | 5 | — | todo |
+| Browser back-button navigation: pressing back currently loses the entire app (SPA state gone). Integrate in-app navigation (doc/OUI views, home) with browser history so back/forward move between views instead of leaving the app — hash-based history synced with the `app/view` store key (client/src/lib/view-history.ts); deep links and reload land on the hashed view | 5 | Cleaner | done |
 | Usability pass on the core loop: open wiki → generate → chat → refine | 5 | — | todo |
 | Visual design pass on the app shell (layout, theming, dark mode) | 5 | — | todo |
 
