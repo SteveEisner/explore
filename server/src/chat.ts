@@ -9,6 +9,7 @@ import type {
   ArtifactEditCommand,
   ArtifactSaveCommand,
   ClientMessage,
+  FeedbackEnvelope,
   ServerEvent,
   VoiceToolCommand,
 } from "./protocol.js";
@@ -269,11 +270,14 @@ export class ChatService {
       }
       case "chat": {
         const text = message.text?.trim() ?? "";
-        const image = parseImageDataUrl(message.image);
-        if (message.image && !image) {
+        // The D6 envelope's field wins; `image` is the pre-envelope alias
+        // old clients may still send.
+        const screenshotUrl = message.screenshot ?? message.image;
+        const image = parseImageDataUrl(screenshotUrl);
+        if (screenshotUrl && !image) {
           this.sendTo(ws, {
             type: "chat:error",
-            message: "image must be a base64 image/* data URL",
+            message: "screenshot must be a base64 image/* data URL",
           });
           return;
         }
@@ -281,16 +285,19 @@ export class ChatService {
           this.sendTo(ws, { type: "chat:error", message: "empty chat text" });
           return;
         }
-        // Echo the user's turn to everyone so all clients share one view.
+        // Echo the user's turn — with the envelope's adornments — to
+        // everyone so all clients share one view.
         this.broadcast({
           type: "chat:message",
           id: message.id,
           role: "user",
           text,
-          image: message.image,
+          image: screenshotUrl,
+          statementRef: message.statementRef,
+          stateSnapshot: message.stateSnapshot,
         });
         try {
-          this.sendTurn(text, image ?? undefined);
+          this.sendTurn(withEnvelopeContext(text, message), image ?? undefined);
           this.broadcast({ type: "chat:status", status: "thinking" });
         } catch (err) {
           this.broadcast({ type: "chat:error", message: String(err) });
@@ -313,12 +320,15 @@ export class ChatService {
         // One finished voice utterance: fold it into the shared transcript
         // (every client) so voice and typed chat read as one conversation;
         // the JSONL log already recorded the raw command above (D5 row 8).
+        // The envelope's stateSnapshot rides along so rows can render the
+        // D6 state chip.
         const text = message.text?.trim();
         if (!text) return;
         this.broadcast({
           type: "chat:message",
           role: message.role === "assistant" ? "assistant" : "user",
           text,
+          stateSnapshot: message.stateSnapshot,
           via: "voice",
         });
         return;
@@ -803,7 +813,7 @@ export function wikiOuiPath(file: unknown): string | null {
  */
 function redactDataUrls(message: ClientMessage): ClientMessage {
   const oversized =
-    (message.type === "chat" && message.image) ||
+    (message.type === "chat" && (message.image || message.screenshot)) ||
     (message.type === "state:response" && message.screenshot);
   if (!oversized) return message;
   return {
@@ -815,6 +825,32 @@ function redactDataUrls(message: ClientMessage): ClientMessage {
       ? { screenshot: `<data url, ${message.screenshot.length} chars>` }
       : {}),
   };
+}
+
+/**
+ * Prefix a user turn with the D6 envelope's locating context: what the
+ * feedback points at (statementRef) and the D3 store at capture time
+ * (stateSnapshot). The block is capture-time context, not user words, so it
+ * is fenced and labeled; a bare typed turn with no context passes through
+ * unchanged. This is the single formatting point for envelope context —
+ * every channel that reaches the LLM goes through it.
+ */
+export function withEnvelopeContext(
+  text: string,
+  envelope: FeedbackEnvelope
+): string {
+  const lines: string[] = [];
+  if (envelope.statementRef) {
+    lines.push(`regarding statement: ${envelope.statementRef}`);
+  }
+  if (envelope.stateSnapshot && Object.keys(envelope.stateSnapshot).length > 0) {
+    lines.push(
+      `state store at capture: ${JSON.stringify(envelope.stateSnapshot)}`
+    );
+  }
+  if (lines.length === 0) return text;
+  const block = `<feedback-context>\n${lines.join("\n")}\n</feedback-context>`;
+  return text ? `${block}\n\n${text}` : block;
 }
 
 /** Split a data URL into the media type + base64 payload the API expects. */

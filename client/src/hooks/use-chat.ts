@@ -20,8 +20,23 @@ import {
  * simple marker text for status, tool activity, results, and errors.
  */
 export type ChatItem =
-  | { kind: "user"; id: string; text: string; image?: string }
-  | { kind: "assistant"; id: string; text: string; streaming: boolean }
+  | {
+      kind: "user";
+      id: string;
+      text: string;
+      /** D6 envelope adornments echoed with the user turn. */
+      image?: string;
+      statementRef?: string;
+      stateSnapshot?: Record<string, unknown>;
+    }
+  | {
+      kind: "assistant";
+      id: string;
+      text: string;
+      streaming: boolean;
+      /** Attached on voice transcript rows (D6 state chip). */
+      stateSnapshot?: Record<string, unknown>;
+    }
   | { kind: "status"; id: string; text: string }
   /** `finished` distinguishes a completed tool call from one being invoked. */
   | { kind: "tool"; id: string; text: string; isError: boolean; finished: boolean }
@@ -45,8 +60,11 @@ export interface ChatState {
   busy: boolean;
   sessionId: string | null;
   ui: UiState;
-  /** Send a user turn; `image` is an optional data-URL attachment. */
-  send: (text: string, image?: string) => void;
+  /**
+   * Send a user turn as a D6 feedback envelope; `screenshot` is an optional
+   * data-URL capture. The store snapshot is attached automatically.
+   */
+  send: (text: string, screenshot?: string) => void;
   /** True from saveArtifact until the back end answers artifact:saved. */
   saving: boolean;
   /** Message from the last failed save; cleared by the next save. */
@@ -86,7 +104,14 @@ function reduceEvent(items: ChatItem[], event: ServerEvent): ChatItem[] {
       if (event.role === "user") {
         return [
           ...items,
-          { kind: "user", id: newId(), text: event.text, image: event.image },
+          {
+            kind: "user",
+            id: newId(),
+            text: event.text,
+            image: event.image,
+            statementRef: event.statementRef,
+            stateSnapshot: event.stateSnapshot,
+          },
         ];
       }
       // A voice transcript is its own finished utterance — it must never
@@ -95,7 +120,13 @@ function reduceEvent(items: ChatItem[], event: ServerEvent): ChatItem[] {
       if (event.via === "voice") {
         return [
           ...items,
-          { kind: "assistant", id: newId(), text: event.text, streaming: false },
+          {
+            kind: "assistant",
+            id: newId(),
+            text: event.text,
+            streaming: false,
+            stateSnapshot: event.stateSnapshot,
+          },
         ];
       }
       // A complete assistant message finalizes the in-progress streamed
@@ -463,11 +494,24 @@ export function useChat(): ChatState {
     };
   }, []);
 
-  const send = React.useCallback((text: string, image?: string) => {
+  const send = React.useCallback((text: string, screenshot?: string) => {
     const socket = socketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
-    frontendLog("chat:send", { length: text.length, hasImage: image != null });
-    socket.send(JSON.stringify({ type: "chat", id: newId(), text, image }));
+    frontendLog("chat:send", {
+      length: text.length,
+      hasImage: screenshot != null,
+    });
+    // D6 feedback envelope: every channel ships the one shape, and the D3
+    // store at capture time is always attached so the turn is self-locating.
+    socket.send(
+      JSON.stringify({
+        type: "chat",
+        id: newId(),
+        text,
+        screenshot,
+        stateSnapshot: stateSnapshot(),
+      })
+    );
     setBusy(true);
   }, []);
 

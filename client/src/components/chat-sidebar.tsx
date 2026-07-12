@@ -2,16 +2,19 @@ import * as React from "react";
 import { Markdown } from "@/components/markdown";
 import {
   AlertCircleIcon,
+  AtSignIcon,
   CameraIcon,
   CheckIcon,
   FlagIcon,
   InfoIcon,
+  MapPinIcon,
   MicIcon,
   MicOffIcon,
   PanelRightCloseIcon,
   SendIcon,
   WrenchIcon,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -236,6 +239,68 @@ function voiceDotClass(status: VoiceStatus): string {
   }
 }
 
+/**
+ * One-phrase summary of a D6 stateSnapshot for the chat's state chip: where
+ * the user was (derived from "app/view") when there is a view, otherwise
+ * just the store size. Null when the snapshot is empty — no chip then.
+ */
+function summarizeSnapshot(
+  snapshot: Record<string, unknown>
+): string | null {
+  const keyCount = Object.keys(snapshot).length;
+  if (keyCount === 0) return null;
+  const view = snapshot["app/view"] as
+    | { kind?: string; url?: string | null }
+    | undefined;
+  if (view?.kind === "doc") return view.url?.split("/").pop() ?? "untitled";
+  if (view?.kind === "authoring" || view?.kind === "home") return view.kind;
+  return `${keyCount} state ${keyCount === 1 ? "key" : "keys"}`;
+}
+
+/**
+ * The D6 envelope adornments under a bubble: a "re: <statement>" chip when
+ * the feedback targets a component, and a compact state chip when a store
+ * snapshot rode along (full snapshot inspectable via the tooltip). Renders
+ * nothing when the message carried neither.
+ */
+function EnvelopeChips({
+  statementRef,
+  stateSnapshot,
+  align,
+}: {
+  statementRef?: string;
+  stateSnapshot?: Record<string, unknown>;
+  align?: "start" | "end";
+}) {
+  const summary = stateSnapshot ? summarizeSnapshot(stateSnapshot) : null;
+  if (!statementRef && !summary) return null;
+  return (
+    <div
+      className={
+        "mt-1 flex flex-wrap gap-1 " +
+        (align === "end" ? "justify-end" : "justify-start")
+      }
+    >
+      {statementRef && (
+        <Badge variant="outline" className="text-muted-foreground">
+          <AtSignIcon data-icon="inline-start" />
+          re: {statementRef}
+        </Badge>
+      )}
+      {summary && (
+        <Badge
+          variant="outline"
+          className="text-muted-foreground"
+          title={`State at capture: ${JSON.stringify(stateSnapshot)}`}
+        >
+          <MapPinIcon data-icon="inline-start" />
+          {summary}
+        </Badge>
+      )}
+    </div>
+  );
+}
+
 function ChatRow({ item }: { item: ChatItem }) {
   switch (item.kind) {
     case "user":
@@ -254,6 +319,11 @@ function ChatRow({ item }: { item: ChatItem }) {
                 <Markdown text={item.text} invert />
               </BubbleContent>
             </Bubble>
+            <EnvelopeChips
+              statementRef={item.statementRef}
+              stateSnapshot={item.stateSnapshot}
+              align="end"
+            />
           </MessageContent>
         </Message>
       );
@@ -268,6 +338,7 @@ function ChatRow({ item }: { item: ChatItem }) {
                 {item.streaming && <span className="shimmer"> ▍</span>}
               </BubbleContent>
             </Bubble>
+            <EnvelopeChips stateSnapshot={item.stateSnapshot} />
           </MessageContent>
         </Message>
       );

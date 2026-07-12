@@ -125,7 +125,8 @@ export default function App() {
   };
 
   // Screenshot the content area (annotations are part of the document DOM,
-  // so they're captured with it) and send it to the chat as an image turn.
+  // so they're captured with it) and send it to the chat as a D6 feedback
+  // envelope: text + screenshot (+ the store snapshot chat.send attaches).
   const screenshot = async () => {
     if (!scrollerRef.current || !docRef.current || capturing) return;
     setCapturing(true);

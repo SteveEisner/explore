@@ -26,18 +26,34 @@ export interface VoiceToolCommand {
 }
 
 /**
- * One finished voice utterance (user transcription or the model's spoken
- * reply); the back end folds it into every client's chat transcript.
+ * The D6 feedback envelope (decisions.md D6): the one shape every feedback
+ * channel uses — typed chat, screenshot round-trip, point-and-comment,
+ * voice transcripts. Channels fill in only the fields they have; producers
+ * always attach `stateSnapshot` so the feedback is self-locating.
  */
-export interface VoiceTranscriptCommand {
+export interface FeedbackEnvelope {
+  /** What was typed or said. */
+  text?: string;
+  /** Captured image (screenshot round-trip, drawing overlay) as a base64 data URL. */
+  screenshot?: string;
+  /**
+   * The D4 statement name the feedback points at (point-and-comment).
+   * No producer emits it yet (P1); consumers must already handle it.
+   */
+  statementRef?: string;
+  /** The D3 state store at capture time. */
+  stateSnapshot?: Record<string, unknown>;
+}
+
+/**
+ * One finished voice utterance (user transcription or the model's spoken
+ * reply) — a D6 envelope filling `text` (+ `stateSnapshot`); the back end
+ * folds it into every client's chat transcript.
+ */
+export interface VoiceTranscriptCommand extends FeedbackEnvelope {
   type: "voice:transcript";
   role: "user" | "assistant";
   text: string;
-  /**
-   * The D3 store at capture time (D6 envelope's self-locating field);
-   * recorded in the back end's event log with the utterance.
-   */
-  stateSnapshot?: Record<string, unknown>;
 }
 
 /**
@@ -74,11 +90,14 @@ export interface StateResponseCommand {
   error?: string;
 }
 
-export interface ChatCommand {
+/**
+ * A user feedback turn for the LLM: the D6 envelope plus routing fields.
+ * At least one of text/screenshot must be filled.
+ */
+export interface ChatCommand extends FeedbackEnvelope {
   type: "chat";
   id?: string;
-  text: string;
-  /** Optional image attachment (e.g. a screenshot) as a base64 data URL. */
+  /** Pre-envelope alias for `screenshot`; this client no longer sends it. */
   image?: string;
 }
 
@@ -189,13 +208,21 @@ export interface ChatStatusEvent {
   detail?: string;
 }
 
+/**
+ * A complete message in the conversation. User echoes carry the D6
+ * envelope's adornments (thumbnail, "re: statement" chip, state chip).
+ */
 export interface ChatMessageEvent {
   type: "chat:message";
   id?: string;
   role: "user" | "assistant";
   text: string;
-  /** Data-URL image attached to a user turn (echoed to all clients). */
+  /** The envelope's screenshot (data URL), echoed to all clients. */
   image?: string;
+  /** The envelope's statementRef — what the feedback points at (D4 name). */
+  statementRef?: string;
+  /** The envelope's stateSnapshot — the D3 store at capture time. */
+  stateSnapshot?: Record<string, unknown>;
   /** Set when the turn came through the realtime voice session. */
   via?: "voice";
 }
