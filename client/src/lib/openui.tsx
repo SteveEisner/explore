@@ -210,7 +210,9 @@ const Gallery = defineComponent({
     navWidth: z
       .string()
       .optional()
-      .describe("CSS width of the nav column, e.g. '300px' (default '240px')"),
+      .describe(
+        "Maximum CSS width of the nav column, e.g. '300px' (default '240px'); in narrow containers the nav shrinks so the detail pane keeps at least 60% of the width"
+      ),
     gap: z
       .string()
       .optional()
@@ -238,7 +240,11 @@ const Gallery = defineComponent({
       <div
         className={cn("gallery grid w-full min-w-0", props.className)}
         style={{
-          gridTemplateColumns: `${props.navWidth ?? "240px"} minmax(0, 1fr)`,
+          // navWidth is a maximum, not a fixed size: capping the nav at 40%
+          // of the container keeps the detail pane readable when the artifact
+          // renders in a narrow container (e.g. <oui-embed> in the 48rem
+          // reading column) instead of crushing it to one-word lines.
+          gridTemplateColumns: `min(${props.navWidth ?? "240px"}, 40%) minmax(0, 1fr)`,
           gap: props.gap,
         }}
       >
@@ -292,7 +298,9 @@ const Aside = defineComponent({
     asideWidth: z
       .string()
       .optional()
-      .describe("CSS width of the side panel, e.g. '300px' (default '280px')"),
+      .describe(
+        "Maximum CSS width of the side panel, e.g. '300px' (default '280px'); in narrow containers the panel shrinks so the main column keeps at least 60% of the width"
+      ),
     gap: z
       .string()
       .optional()
@@ -311,7 +319,10 @@ const Aside = defineComponent({
       <div
         className={cn("aside-layout grid w-full min-w-0", props.className)}
         style={{
-          gridTemplateColumns: `minmax(0, 1fr) ${props.asideWidth ?? "280px"}`,
+          // asideWidth is a maximum, not a fixed size: capping the panel at
+          // 40% of the container keeps the main column readable in narrow
+          // containers (see the matching Gallery nav cap above).
+          gridTemplateColumns: `minmax(0, 1fr) min(${props.asideWidth ?? "280px"}, 40%)`,
           gap: props.gap,
         }}
       >

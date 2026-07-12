@@ -102,7 +102,9 @@ const Gallery = defineComponent({
     navWidth: z
       .string()
       .optional()
-      .describe("CSS width of the nav column, e.g. '300px' (default '240px')"),
+      .describe(
+        "Maximum CSS width of the nav column, e.g. '300px' (default '240px'); in narrow containers the nav shrinks so the detail pane keeps at least 60% of the width"
+      ),
     gap: z
       .string()
       .optional()
@@ -139,7 +141,9 @@ const Aside = defineComponent({
     asideWidth: z
       .string()
       .optional()
-      .describe("CSS width of the side panel, e.g. '300px' (default '280px')"),
+      .describe(
+        "Maximum CSS width of the side panel, e.g. '300px' (default '280px'); in narrow containers the panel shrinks so the main column keeps at least 60% of the width"
+      ),
     gap: z
       .string()
       .optional()
