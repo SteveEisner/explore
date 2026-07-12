@@ -46,6 +46,9 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 |---|---|---|
 | Vite dev proxy hardcodes `:3001` — make it follow `PORT` (e.g. read `process.env.PORT` in `client/vite.config.ts`) so a dev instance on a nonstandard port still gets /ws, /docs, /api proxied | client | Found during J0 clean-clone verification (Cleaner): `PORT=3100 npm run dev` boots both servers but the client proxy still dials 3001 |
 | Voice front-end screenshot tool: "snapshot send was too large for the channel" | voice | seen live 2026-07-12 during D6 verification — the WebRTC data-channel payload path needs chunking or downscaling; unrelated to the envelope change |
+| Home page gets the same gutters as the Markdown view | client | home-view still centers symmetrically; apply file-viewer's left-biased clamp (`ml-[clamp(0px,100%-72rem,(100%-48rem)/2)]`) so the floating chat panel opens over gutter, not content — consider extracting the class to a shared constant instead of copying it |
+| Teach the voice agent that "this"/"that"/other deictic referents mean what's on screen | voice/prompts | from Steve 2026-07-12. The state snapshot names the doc but not what's visible; guidance in voice-agent.md should say referents resolve against the current view — and consider the stronger option: attach a screenshot to every voice turn (gpt-realtime takes image input; weigh tokens/latency, and it collides with the payload-size nit above) |
+| Progress indication for voice→Claude delegation (`ask_artifact_agent`) | voice/web app | from Steve 2026-07-12. The tool call can run many seconds with nothing visible beyond the amber "tool" dot; surface delegation progress in the chat pane / status strip (the bridge already streams Claude-turn events — render them, and it gives the voice model something concrete to narrate) |
 
 ## Crunch tracks (non-interactive; run unattended once the isolated instance exists)
 
