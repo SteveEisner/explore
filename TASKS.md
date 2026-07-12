@@ -44,7 +44,6 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 
 | Task | Area | Notes |
 |---|---|---|
-| Align TypeScript versions across workspaces (client `~6.0.2` vs server `^5.8.0`) | build | from the Cleaner's review; deferred from the 2026-07-11 blitz — needs `npm install` + `client/package.json`/lockfile edits, which were carrying in-flight typeset/oui-embed work at the time (now committed) |
 | Teach the generation prompts about `<oui-embed src="file.oui">` | prompts | wiki markdown can embed live OpenUI apps (2026-07-11); the LLM doesn't know — add to server/prompts wiki guidance. Note: always use an explicit closing tag |
 | Refresh eval prompt snapshots after Gallery/Aside width-cap change | eval | `eval/prompts/preload-wiki.md` and `slim-ui.md` mirror the component descriptions now updated in ui-library.ts (widths are maxima with a 40% container cap); left untouched 2026-07-11 because a sweep was running against eval |
 | Soften the stale "built for the full panel" rationale comment in oui-embed.tsx | client | the 72rem breakout stays (still a win for wide artifacts) but Gallery/Aside now degrade gracefully, so it's no longer load-bearing for defaults |
