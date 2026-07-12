@@ -10,7 +10,7 @@ The declared focus for the next two-hour session: interactive exploration elemen
 
 - **(a) Faster prompt loops** — the Optimizer's perf instrumentation + latency grind (J3 crunch track).
 - **(b) A better understanding of clear explaining** — J1/J2 guidance findings (what makes generated explanations actually land).
-- **(c) A voice model** — expected to take significant time; start early. (Elevated from the Multimodal backlog.)
+- **(c) A voice model** — expected to take significant time; start early. (Elevated from the Multimodal backlog; now specced and broken down in the [Voice agent (realtime editing)](#voice-agent-realtime-editing) section, decisions.md D5.)
 
 ## Priority: customer journeys ([docs/journeys.md](docs/journeys.md))
 
@@ -73,10 +73,10 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 |---|---|---|---|
 | Wiki API test suite: `tests/` harness spawns the real server against a temp wiki; covers /docs retrieval (content, MIME, 404s, traversal), artifact:save creation/edits (normalization, overwrite protection, hostile-name rejection), wiki:changed hot-reload (debounce, dotfiles, save→notify), and wiki-MCP list_files — `npm test` | bar | Worker 2 | done |
 | List endpoint: enumerate wiki files with paths + basic metadata | 1 | Worker 1 | done |
-| Read endpoint: chunked line reads (offset + limit), never whole-doc | 1 | — | todo |
+| Read endpoint: chunked line reads (offset + limit), never whole-doc. Now on the voice-agent critical path — implemented via the wiki service layer (Voice agent row 2) | 1 | — | todo |
 | Create endpoint: new file with given content | 1 | — | todo |
 | Rename endpoint: rename/move within the wiki | 1 | — | todo |
-| Edit endpoint: `str_replace`-style exact search/replace per decisions.md D1, with loud, distinguishable errors | 1 | — | todo |
+| Edit endpoint: `str_replace`-style exact search/replace per decisions.md D1, with loud, distinguishable errors. Now on the voice-agent critical path — implemented via the wiki service layer (Voice agent row 2) | 1 | — | todo |
 
 ## Artifacts & OpenUI
 
@@ -141,8 +141,24 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Chat header cleanup: drop the session id and connected badge from the chat pane | 5 | Worker 2 | done |
 | Markdown viewer upgrades: rehype-sanitize, rehype-slug, highlight.js, mermaid diagrams | 5 | Worker 2 | done |
 | Home is a folder view, not README.md: excerpt of README.md at top with a &lt;more&gt; link that opens the full README, then a hierarchical list of the wiki's folders, markdown files, and .oui files, each linked to open the doc/OUI (subsumes the phase-6 "wiki browser" stretch task) | 5 | Worker 1 | done |
+| Browser back-button navigation: pressing back currently loses the entire app (SPA state gone). Integrate in-app navigation (doc/OUI views, home) with browser history so back/forward move between views instead of leaving the app | 5 | — | todo |
 | Usability pass on the core loop: open wiki → generate → chat → refine | 5 | — | todo |
 | Visual design pass on the app shell (layout, theming, dark mode) | 5 | — | todo |
+
+## Voice agent (realtime editing)
+
+The realtime voice collaborator (decisions.md D5): a mic button in the chat sidebar opens a live conversation with OpenAI gpt-realtime; the model gets the server APIs as tools (read/search/edit wiki docs, edit artifacts, get/set app state, request a screenshot) plus an `ask_artifact_agent` delegation tool to the Claude session. Audio is browser⇄OpenAI over WebRTC; server tools bridge over the existing `/ws`. Rows ordered roughly by dependency; 1–3 are the critical path, 4–7 can proceed in parallel once the tool registry (row 3) has a skeleton.
+
+| Task | Journey | Owner | Status |
+|---|---|---|---|
+| 1. Voice session endpoint: `POST /api/voice/session` mints an ephemeral gpt-realtime client secret from `OPENAI_API_KEY` (key never reaches the browser); session config lives server-side — model, voice, instructions, and the tool schemas from the registry (row 3); include the idle-timeout policy (open mic bills per minute) | J3 | — | todo |
+| 2. Wiki service layer: extract read/search/edit into an internal server module shared by the HTTP endpoints and the voice tool executor — this implements the dormant Wiki API rows (chunked read; D1 `str_replace` edit with loud no-match/multi-match errors). Search: decide grep-based vs. driving the vault MCP from the server (vault search is currently reachable only from the CLI session, and untested) | J3/bar | — | todo |
+| 3. `voice:tool` bridge: ws message family (call/result/error with correlation ids); a single tool registry drives both the schemas sent to OpenAI (row 1) and the server executor mapping tool names → wiki service, state store, artifact edit/save internals | J3 | — | todo |
+| 4. Mic button + WebRTC session (client): toggle in the chat sidebar; getUserMedia + WebRTC to OpenAI using the ephemeral token; open conversation with VAD and barge-in; visible session states (listening / speaking / running a tool); idle auto-close | J3 | — | todo |
+| 5. Front-end tools (client): screenshot (reuse the existing round-trip; gpt-realtime accepts image input) and app-state read — these execute locally on the data channel, no server hop; state *writes* go through the D3 chain like everything else | J3 | — | todo |
+| 6. Delegation: `ask_artifact_agent` hands a prompt to the Claude session via ChatService and narrates progress; define sequencing vs. user-typed chat (CLI turns are serial — a queued voice request must not silently swallow a typed one) and how completion is announced | J3/J2 | — | todo |
+| 7. Transcript integration: voice utterances and tool actions logged into the chat pane and event log, so the user and the Claude session can see what voice changed (mitigates the two-intelligences memory split, D5) | J2 | — | todo |
+| 8. Voice latency + cost eval: harness scenario timing speech-end → tool-complete → first response audio, plus $/audio-minute; extends the perf program | J3 | The Optimizer | todo |
 
 ## Multimodal collaboration
 
@@ -151,7 +167,7 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Point-and-comment: select an artifact region and attach feedback | 3 | — | todo |
 | Drawing/annotation overlay on the rendered artifact | 3 | Worker 2 | done |
 | Screenshot round-trip: send the rendered (or marked-up) view back to the LLM | 3 | Worker 2 | done |
-| Voice agent: spoken conversation about the content or the application | 3 | — | todo |
+| Voice agent: spoken conversation about the content or the application — expanded into the [Voice agent (realtime editing)](#voice-agent-realtime-editing) section above (decisions.md D5) | 3 | — | in progress |
 | Represent multimodal feedback in the LLM conversation (images, structured regions, transcripts) | 3 | — | todo |
 | Keep text chat working as the universal fallback for every mode | 3 | — | todo |
 
