@@ -1,32 +1,27 @@
-# React + TypeScript + Vite
+# client
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The web app shell: a Vite + React + TypeScript front end with two panes — the
+**artifact view** (renders the LLM-generated explanation app via OpenUI,
+hot-reloading as the model edits it) and the **chat pane** (streaming feedback
+channel to the Claude Code session). Wiki browsing is served through the same
+back end. Styling is Tailwind CSS v4 + shadcn/ui; all server communication
+happens over the websocket at `/ws` (no HTTP API).
 
-Currently, two official plugins are available:
+## Scripts
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```sh
+npm run dev        # Vite dev server (proxies /ws to the back end on :3001)
+npm run build      # tsc -b && vite build → dist/
+npm run typecheck  # tsc -b
+npm run lint       # oxlint
+npm run preview    # preview the production build
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+In practice, run `npm run dev` from the repo root to start the back end and
+this dev server together.
+
+## More
+
+See the root [README](../README.md) for the full system (server, protocol,
+observability) and [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) for how the
+wiki, artifacts, and session bridge fit together.
