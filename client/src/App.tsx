@@ -12,10 +12,16 @@ import { registerAppStateProvider } from "@/lib/app-state";
 import { captureMainView } from "@/lib/capture";
 import type { StrokePoints } from "@/lib/freehand";
 import { frontendLog } from "@/lib/frontend-log";
+import {
+  indicate,
+  indicateInPanel,
+  registerIndicateProvider,
+  type IndicateTarget,
+} from "@/lib/indicate";
 import { GenerativeView } from "@/lib/openui";
 import { buildAppSnapshot, type SnapshotInputs } from "@/lib/snapshot";
 import { useServerEventSounds, useVoiceSounds } from "@/lib/sound-cues";
-import { useStoreValue } from "@/lib/state-store";
+import { getState, subscribeState, useStoreValue } from "@/lib/state-store";
 import { normalizeView, useViewHistory } from "@/lib/view-history";
 
 /**
@@ -66,6 +72,19 @@ export default function App() {
     setDrawMode(!drawMode);
   };
 
+  // Voice follows the chat panel: opening the sidebar starts a live voice
+  // session, closing it always releases the mic — a hot mic whose controls
+  // are hidden is never acceptable. Edge-triggered on chat-open transitions
+  // (not status changes), so manually stopping the mic mid-session doesn't
+  // fight an auto-restart, and a failed start doesn't retry-loop.
+  const prevChatOpen = React.useRef(chatOpen);
+  React.useEffect(() => {
+    if (chatOpen === prevChatOpen.current) return;
+    prevChatOpen.current = chatOpen;
+    if (chatOpen && voice.status === "idle") voice.toggle();
+    if (!chatOpen && voice.active) voice.toggle();
+  }, [chatOpen, voice]);
+
   // ---- App-state snapshots for the LLM's `state` tool ----
   // Latest inputs live in a ref so the provider (registered once) always
   // reads current values; the pointer is tracked document-wide.
@@ -102,9 +121,29 @@ export default function App() {
       }
       return { state, screenshot: image };
     });
+    // Agents point at on-screen content (scroll into view + blink): the
+    // voice hook's `indicate` tool calls the provider directly; the Claude
+    // session drives the same provider by writing the `app/indicate` store
+    // key through set_state. The raw subscription (not useStoreValue) fires
+    // on every write, so pointing at the same target twice blinks twice.
+    const unregisterIndicate = registerIndicateProvider((target) => {
+      const { scroller, doc } = snapshotInputsRef.current;
+      if (!scroller || !doc) {
+        return { ok: false, matched: 0, detail: "main panel not mounted" };
+      }
+      const result = indicateInPanel(scroller, doc, target);
+      frontendLog("indicate", { target, ...result });
+      return result;
+    });
+    const unsubscribeIndicate = subscribeState("app/indicate", () => {
+      const target = getState("app/indicate") as IndicateTarget | null;
+      if (target && typeof target === "object") indicate(target);
+    });
     return () => {
       document.removeEventListener("mousemove", track);
       unregister();
+      unregisterIndicate();
+      unsubscribeIndicate();
     };
   }, []);
 

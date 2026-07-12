@@ -64,9 +64,46 @@ export function ChatSidebar({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {/* Closing lives in the toolbar's chat button; no control here. */}
-      <header className="flex items-center border-b px-4 py-2">
-        <span className="text-sm font-semibold">Chat</span>
+      {/* Closing lives in the toolbar's chat button; no control here.
+          Voice lives here: the session auto-starts with the panel (App
+          wires chat-open → voice), so the header carries its always-visible
+          controls — a live input level bar (if it doesn't move while you
+          talk, the model can't hear you) and the mic toggle, pulsing red
+          while the session is live. */}
+      <header className="flex items-center gap-2 border-b px-4 py-1.5">
+        <span className="flex-1 text-sm font-semibold">Chat</span>
+        {voice?.active && (
+          <span
+            aria-label="Microphone input level"
+            title={`Mic level — device: ${voice.micLabel ?? "unknown"}`}
+            className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted"
+          >
+            <span
+              className="block h-full rounded-full bg-green-500 transition-[width] duration-150"
+              style={{ width: `${Math.round(Math.min(1, voice.inputLevel) * 100)}%` }}
+            />
+          </span>
+        )}
+        {voice && (
+          <Button
+            type="button"
+            size="icon-sm"
+            variant={voice.active ? "destructive" : "ghost"}
+            onClick={voice.toggle}
+            aria-label={
+              voice.active
+                ? "End the voice conversation"
+                : "Start a voice conversation"
+            }
+            title={voiceStatusLabel(voice.status)}
+            className={voice.active ? "animate-pulse" : undefined}
+          >
+            {/* A live mic shows a pulsing mic (recording), not a mic-off
+                glyph — mic-off reads as "muted/disabled", the opposite of
+                what an open session is. */}
+            {voice.status === "error" ? <MicOffIcon /> : <MicIcon />}
+          </Button>
+        )}
       </header>
 
       <MessageScrollerProvider autoScroll>
@@ -91,82 +128,41 @@ export function ChatSidebar({
         </MessageScroller>
       </MessageScrollerProvider>
 
-      {/* Voice session status strip: the visible listening/speaking/tool
-          states while the mic is live, plus mid-session warnings (silent
-          mic) and the reason when the session failed. Warnings and errors
-          wrap — they are instructions, not decoration. While live it is
-          also the mic debugging surface: a real-time input level bar
-          (if it doesn't move while you talk, the model can't hear you)
-          and a device picker that switches the capture mid-call. */}
-      {voice && voice.status !== "idle" && (
+      {/* Voice problem strip: shown only when something needs the user —
+          a mid-session warning (silent mic) or the reason the session
+          failed. Text wraps — these are instructions, not decoration. The
+          device picker rides along while live so a silent mic can be fixed
+          in place (each switch re-verifies within seconds). */}
+      {voice && (voice.warning || voice.status === "error") && (
         <div className="flex flex-col gap-1.5 border-t px-4 py-2 text-xs text-muted-foreground">
-          <div className="flex items-start gap-2">
-            <span
-              className={
-                "mt-1 size-2 shrink-0 rounded-full " + voiceDotClass(voice.status)
-              }
-            />
-            {voice.status === "error" ? (
-              <span className="text-destructive">
-                Voice failed: {voice.error ?? "unknown error"}
-              </span>
-            ) : voice.warning ? (
-              <span className="text-amber-600 dark:text-amber-500">
-                {voice.warning}
-              </span>
-            ) : (
-              <span className="truncate">{voiceStatusLabel(voice.status)}</span>
-            )}
-          </div>
+          {voice.status === "error" ? (
+            <span className="text-destructive">
+              Voice failed: {voice.error ?? "unknown error"}
+            </span>
+          ) : (
+            <span className="text-amber-600 dark:text-amber-500">
+              {voice.warning}
+            </span>
+          )}
           {voice.active && (
-            <div className="flex items-center gap-2">
-              <span
-                aria-label="Microphone input level"
-                title={`Mic level — device: ${voice.micLabel ?? "unknown"}`}
-                className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted"
-              >
-                <span
-                  className="block h-full rounded-full bg-green-500 transition-[width] duration-150"
-                  style={{ width: `${Math.round(Math.min(1, voice.inputLevel) * 100)}%` }}
-                />
-              </span>
-              <select
-                value={voice.inputDevice}
-                onChange={(e) => voice.setInputDevice(e.target.value)}
-                aria-label="Microphone device"
-                className="min-w-0 flex-1 truncate rounded border bg-transparent px-1 py-0.5 text-xs"
-              >
-                <option value="">Default microphone</option>
-                {voice.inputDevices.map((device) => (
-                  <option key={device.deviceId} value={device.deviceId}>
-                    {device.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              value={voice.inputDevice}
+              onChange={(e) => voice.setInputDevice(e.target.value)}
+              aria-label="Microphone device"
+              className="min-w-0 truncate rounded border bg-transparent px-1 py-0.5 text-xs"
+            >
+              <option value="">Default microphone</option>
+              {voice.inputDevices.map((device) => (
+                <option key={device.deviceId} value={device.deviceId}>
+                  {device.label}
+                </option>
+              ))}
+            </select>
           )}
         </div>
       )}
 
       <form onSubmit={submit} className="flex gap-2 border-t p-3">
-        {voice && (
-          <Button
-            type="button"
-            size="icon"
-            variant={voice.active ? "destructive" : "ghost"}
-            onClick={voice.toggle}
-            aria-label={
-              voice.active ? "End the voice conversation" : "Start a voice conversation"
-            }
-            title={`Voice: ${voice.status}`}
-            className={voice.active ? "animate-pulse" : undefined}
-          >
-            {/* A live mic shows a pulsing mic (recording), not a mic-off
-                glyph — mic-off reads as "muted/disabled", the opposite of
-                what an open session is. */}
-            {voice.status === "error" ? <MicOffIcon /> : <MicIcon />}
-          </Button>
-        )}
         {onScreenshot && (
           <Button
             type="button"
@@ -194,6 +190,7 @@ export function ChatSidebar({
   );
 }
 
+/** Human phrasing of the session state, for the mic button's tooltip. */
 function voiceStatusLabel(status: VoiceStatus): string {
   switch (status) {
     case "connecting":
@@ -204,26 +201,10 @@ function voiceStatusLabel(status: VoiceStatus): string {
       return "Speaking…";
     case "tool":
       return "Working on it…";
-    default:
-      return status;
-  }
-}
-
-/** Status dot: pulsing while something is happening, red on failure. */
-function voiceDotClass(status: VoiceStatus): string {
-  switch (status) {
-    case "connecting":
-      return "animate-pulse bg-muted-foreground";
-    case "listening":
-      return "animate-pulse bg-green-500";
-    case "speaking":
-      return "animate-pulse bg-blue-500";
-    case "tool":
-      return "animate-pulse bg-amber-500";
     case "error":
-      return "bg-destructive";
-    default:
-      return "bg-muted-foreground";
+      return "Voice failed";
+    case "idle":
+      return "Voice off";
   }
 }
 
