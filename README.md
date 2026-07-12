@@ -49,12 +49,41 @@ The LLM can construct the main panel's UI:
   - `Stack(children)` — full-width vertical stack, edge to edge
   - `Tabs(tabs: [{label, content}])` — tab row on top, panels below
 
-## Development
+## Quickstart
+
+Prerequisites:
+
+- **Node 20.12+** — the server uses `process.loadEnvFile` and
+  `import.meta.dirname`, so older 20.x versions fail at startup.
+- **Claude Code CLI** (`claude`) installed and authenticated — the back end
+  spawns it for every chat session. Everything else (dev servers, tests,
+  build) works without it; only real LLM sessions need it.
+- No API keys for the core app. `OPENAI_API_KEY` enables the optional voice
+  agent — see [.env.example](.env.example) for it and every other knob.
 
 ```sh
-npm install
-npm run dev        # back end on :3001, Vite dev server on :5173 (proxies /ws)
+git clone <repo> && cd explore
+npm install                   # also wires up the pre-commit hook (core.hooksPath)
+cp .env.example .env.local    # optional — only needed to configure voice etc.
+scripts/warm-vault.sh         # one-time: embedding model download + wiki search index
+npm run dev                   # back end on :3001, Vite dev server on :5173 (proxies /ws)
 ```
+
+Open http://localhost:5173. The wiki is the repo's own `docs/` directory by
+default, so a fresh clone has real content to explore; point `WIKI_DIR` at
+another folder of notes to explore your own. `npm run check` (typecheck +
+lint) and `npm test` should both pass on a clean clone.
+
+### Semantic-search warm-up
+
+The wiki's semantic search (the markdown-vault MCP server) indexes the whole
+wiki the first time it starts, which includes downloading a local embedding
+model — roughly 100 MB and 20 seconds on a fresh clone. Left alone that cost
+lands when the first chat session spawns the MCP servers, i.e. mid-demo, so
+`scripts/warm-vault.sh` pays it at setup time and persists the index in
+`docs/.markdown_vault_mcp/`. Re-running it is a cheap incremental pass. The
+model cache lives in `node_modules/@huggingface/transformers/.cache`, so
+deleting `node_modules` re-pays the download.
 
 ## Production
 
@@ -63,8 +92,8 @@ npm run build      # builds client/dist and server/dist
 npm start          # serves the front end + websocket on :3001
 ```
 
-Requires the `claude` CLI on PATH. The active session id is persisted in
-`server/data/claude-session.json`; delete it to start a fresh session.
+The active session id is persisted in `server/data/claude-session.json`;
+delete it to start a fresh session.
 
 ## Observability
 
