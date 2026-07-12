@@ -77,9 +77,11 @@ export function MainToolbar({
 
       <div className="mx-1 h-5 w-px bg-border" aria-hidden />
 
+      {/* Toggles read filled-primary when ON, ghost when off — the same
+          on = filled language as the mic button's destructive fill. */}
       <Button
         size="icon-sm"
-        variant={drawMode ? "secondary" : "ghost"}
+        variant={drawMode ? "default" : "ghost"}
         onClick={onToggleDraw}
         aria-pressed={drawMode}
         aria-label="Line drawing mode"
@@ -93,7 +95,7 @@ export function MainToolbar({
           sidebar has no close control of its own. */}
       <Button
         size="icon-sm"
-        variant={chatOpen ? "secondary" : "ghost"}
+        variant={chatOpen ? "default" : "ghost"}
         onClick={onToggleChat}
         aria-pressed={chatOpen}
         aria-label={chatOpen ? "Close chat panel" : "Open chat panel"}
