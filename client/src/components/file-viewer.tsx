@@ -118,14 +118,17 @@ export function FileViewer({
         return <GenerativeView response={text} />;
       }
       if (isMarkdown(url, contentType)) {
-        // Reading layout: a centered measure with generous margins, using
-        // the roomy typeset-docs preset rather than the chat sidebar's
-        // compact typeset-chat.
+        // Reading layout: a readable measure using the roomy typeset-docs
+        // preset rather than the chat sidebar's compact typeset-chat.
+        // Left-biased centering: the left margin caps at true center but
+        // shrinks first so the right gutter stays >= 24rem where space
+        // allows — the floating chat panel (w-96) then opens over gutter,
+        // not text. Clamp floor 0: px-8 still pads narrow windows.
         return (
           <Markdown
             text={text}
             typeset
-            className="mx-auto max-w-3xl px-8 py-10"
+            className="mr-auto ml-[clamp(0px,100%-72rem,(100%-48rem)/2)] max-w-3xl px-8 py-10"
             onLinkClick={handleLink}
           />
         );

@@ -10,7 +10,6 @@ import {
   MapPinIcon,
   MicIcon,
   MicOffIcon,
-  PanelRightCloseIcon,
   SendIcon,
   WrenchIcon,
 } from "lucide-react";
@@ -42,14 +41,12 @@ import type { VoiceState, VoiceStatus } from "@/hooks/use-voice";
 export function ChatSidebar({
   chat,
   voice,
-  onClose,
   onScreenshot,
   screenshotEnabled,
 }: {
   chat: ChatState;
   /** The realtime voice session behind the mic toggle. */
   voice?: VoiceState;
-  onClose?: () => void;
   /** Capture the main view and send it into the chat as an image turn. */
   onScreenshot?: () => void;
   screenshotEnabled?: boolean;
@@ -67,18 +64,9 @@ export function ChatSidebar({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex items-center justify-between border-b px-4 py-2">
+      {/* Closing lives in the toolbar's chat button; no control here. */}
+      <header className="flex items-center border-b px-4 py-2">
         <span className="text-sm font-semibold">Chat</span>
-        {onClose && (
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            onClick={onClose}
-            aria-label="Close chat panel"
-          >
-            <PanelRightCloseIcon />
-          </Button>
-        )}
       </header>
 
       <MessageScrollerProvider autoScroll>

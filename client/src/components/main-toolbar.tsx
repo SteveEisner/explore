@@ -2,6 +2,7 @@ import {
   FileTextIcon,
   HomeIcon,
   MessageSquareIcon,
+  PanelRightCloseIcon,
   PenLineIcon,
   SaveIcon,
   SparklesIcon,
@@ -45,7 +46,15 @@ export function MainToolbar({
   saveError: string | null;
 }) {
   return (
-    <div className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-3">
+    // mr-96 tracks the floating chat panel (same width and duration as its
+    // slide in App.tsx) so the right-side buttons never sit under it.
+    <div
+      className={
+        "flex h-12 shrink-0 items-center gap-2 border-b bg-background px-3 " +
+        "transition-[margin] duration-200 " +
+        (chatOpen ? "mr-96" : "")
+      }
+    >
       <Button
         size="icon-sm"
         variant="ghost"
@@ -80,15 +89,17 @@ export function MainToolbar({
 
       <div className="mx-1 h-5 w-px bg-border" aria-hidden />
 
+      {/* Doubles as the panel's close button while chat is open — the
+          sidebar has no close control of its own. */}
       <Button
         size="icon-sm"
         variant={chatOpen ? "secondary" : "ghost"}
         onClick={onToggleChat}
         aria-pressed={chatOpen}
-        aria-label="Toggle chat panel"
+        aria-label={chatOpen ? "Close chat panel" : "Open chat panel"}
         className="relative"
       >
-        <MessageSquareIcon />
+        {chatOpen ? <PanelRightCloseIcon /> : <MessageSquareIcon />}
         {chatBusy && !chatOpen && (
           <span className="absolute top-0.5 right-0.5 size-1.5 animate-pulse rounded-full bg-primary" />
         )}

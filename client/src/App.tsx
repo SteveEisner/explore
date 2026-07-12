@@ -248,7 +248,6 @@ export default function App() {
           <ChatSidebar
             chat={chat}
             voice={voice}
-            onClose={() => setChatOpen(false)}
             onScreenshot={screenshot}
             screenshotEnabled={chat.connected && !capturing}
           />
