@@ -103,24 +103,56 @@ export function ChatSidebar({
       {/* Voice session status strip: the visible listening/speaking/tool
           states while the mic is live, plus mid-session warnings (silent
           mic) and the reason when the session failed. Warnings and errors
-          wrap — they are instructions, not decoration. */}
+          wrap — they are instructions, not decoration. While live it is
+          also the mic debugging surface: a real-time input level bar
+          (if it doesn't move while you talk, the model can't hear you)
+          and a device picker that switches the capture mid-call. */}
       {voice && voice.status !== "idle" && (
-        <div className="flex items-start gap-2 border-t px-4 py-1.5 text-xs text-muted-foreground">
-          <span
-            className={
-              "mt-1 size-2 shrink-0 rounded-full " + voiceDotClass(voice.status)
-            }
-          />
-          {voice.status === "error" ? (
-            <span className="text-destructive">
-              Voice failed: {voice.error ?? "unknown error"}
-            </span>
-          ) : voice.warning ? (
-            <span className="text-amber-600 dark:text-amber-500">
-              {voice.warning}
-            </span>
-          ) : (
-            <span className="truncate">{voiceStatusLabel(voice.status)}</span>
+        <div className="flex flex-col gap-1.5 border-t px-4 py-2 text-xs text-muted-foreground">
+          <div className="flex items-start gap-2">
+            <span
+              className={
+                "mt-1 size-2 shrink-0 rounded-full " + voiceDotClass(voice.status)
+              }
+            />
+            {voice.status === "error" ? (
+              <span className="text-destructive">
+                Voice failed: {voice.error ?? "unknown error"}
+              </span>
+            ) : voice.warning ? (
+              <span className="text-amber-600 dark:text-amber-500">
+                {voice.warning}
+              </span>
+            ) : (
+              <span className="truncate">{voiceStatusLabel(voice.status)}</span>
+            )}
+          </div>
+          {voice.active && (
+            <div className="flex items-center gap-2">
+              <span
+                aria-label="Microphone input level"
+                title={`Mic level — device: ${voice.micLabel ?? "unknown"}`}
+                className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted"
+              >
+                <span
+                  className="block h-full rounded-full bg-green-500 transition-[width] duration-150"
+                  style={{ width: `${Math.round(Math.min(1, voice.inputLevel) * 100)}%` }}
+                />
+              </span>
+              <select
+                value={voice.inputDevice}
+                onChange={(e) => voice.setInputDevice(e.target.value)}
+                aria-label="Microphone device"
+                className="min-w-0 flex-1 truncate rounded border bg-transparent px-1 py-0.5 text-xs"
+              >
+                <option value="">Default microphone</option>
+                {voice.inputDevices.map((device) => (
+                  <option key={device.deviceId} value={device.deviceId}>
+                    {device.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
         </div>
       )}

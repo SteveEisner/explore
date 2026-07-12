@@ -2,7 +2,11 @@ import * as React from "react";
 import type { ChatState } from "@/hooks/use-chat";
 import { collectAppState } from "@/lib/app-state";
 import { frontendLog } from "@/lib/frontend-log";
-import { applyServerUpdates, stateSnapshot } from "@/lib/state-store";
+import {
+  applyServerUpdates,
+  stateSnapshot,
+  useStoreValue,
+} from "@/lib/state-store";
 
 /**
  * The realtime voice collaborator (decisions.md D5): a toggled live
@@ -30,6 +34,11 @@ export type VoiceStatus =
   | "tool"
   | "error";
 
+export interface MicDevice {
+  deviceId: string;
+  label: string;
+}
+
 export interface VoiceState {
   status: VoiceStatus;
   /** A live session exists (listening/speaking/tool) or is being opened. */
@@ -38,11 +47,30 @@ export interface VoiceState {
   error: string | null;
   /**
    * A live-session problem worth telling the user about while the session
-   * stays up — currently "your mic is capturing silence" (the classic
-   * macOS-permission failure, where the recording indicator lights up but
-   * the OS hands the browser a silent stream). Cleared once speech is heard.
+   * stays up — currently "your mic is capturing silence" (wrong input
+   * device, OS-level permission, routing tools). Cleared once speech is
+   * actually heard.
    */
   warning: string | null;
+  /**
+   * Live capture level from the local mic, 0..1, updated a few times per
+   * second while a session is up (0 when idle). The debugging surface for
+   * "is the mic hearing me at all": if this never moves while you talk,
+   * the model can't hear you either.
+   */
+  inputLevel: number;
+  /** Label of the device actually being captured (null when idle). */
+  micLabel: string | null;
+  /** Every available input device, for the picker (labels need an active
+   * or previously granted mic permission to be non-empty). */
+  inputDevices: MicDevice[];
+  /** The picked deviceId ("" = browser default). */
+  inputDevice: string;
+  /**
+   * Choose the capture device. Applies immediately to a live session
+   * (replaceTrack — the call stays up) and to every later session.
+   */
+  setInputDevice: (deviceId: string) => void;
   /** Open a session if none is live, else close the live one. */
   toggle: () => void;
 }
@@ -62,9 +90,15 @@ type ChatBridge = Pick<ChatState, "callVoiceTool" | "sendVoiceTranscript">;
 
 interface VoiceSessionHooks {
   chat(): ChatBridge;
+  /** deviceId to capture from at session start ("" = browser default). */
+  preferredDevice(): string;
   onStatus(status: VoiceStatus): void;
   /** A mid-session problem to surface (null clears it). */
   onWarning(message: string | null): void;
+  /** Live local capture level, 0..1 (a few times per second). */
+  onLevel(level: number): void;
+  /** Label of the device currently being captured. */
+  onMicLabel(label: string | null): void;
   /** Fired exactly once when the session is gone; error set if abnormal. */
   onEnd(error?: string): void;
 }
@@ -90,6 +124,9 @@ class VoiceSession {
   private audio: HTMLAudioElement | null = null;
   private idleTimer: ReturnType<typeof setTimeout> | undefined;
   private silenceTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Local level meter: WebAudio analyser over the current mic stream. */
+  private meterCtx: AudioContext | null = null;
+  private meterTimer: ReturnType<typeof setInterval> | undefined;
   private ended = false;
   /** Tool calls in flight; status shows "tool" while nonzero. */
   private runningTools = 0;
@@ -127,17 +164,12 @@ class VoiceSession {
 
       // The mic prompt can sit open indefinitely; a denial is a normal,
       // explainable outcome — not a crash.
-      let mic: MediaStream;
-      try {
-        mic = await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch {
-        throw new Error("microphone access was denied or unavailable");
-      }
+      const mic = await this.acquireMic(this.hooks.preferredDevice());
       if (this.ended) {
         for (const track of mic.getTracks()) track.stop();
         return;
       }
-      this.mic = mic;
+      this.adoptMicStream(mic);
 
       const pc = new RTCPeerConnection();
       this.pc = pc;
@@ -207,14 +239,16 @@ class VoiceSession {
 
   /**
    * Detect the "hot mic, silent stream" failure: browser permission granted
-   * (getUserMedia resolved, recording indicator on) but the OS delivers
-   * digital silence — on macOS this is Chrome missing the system-level
-   * microphone permission. A real room never measures ~zero total energy
-   * after several seconds, so a near-zero reading is a config problem worth
-   * telling the user about, not quiet. The warning clears the moment the
-   * model actually hears speech (speech_started).
+   * (getUserMedia resolved, recording indicator on) but the track delivers
+   * digital silence — wrong input device (clamshell laptop, virtual routing
+   * device), OS-level permission, or a muted interface. A real room never
+   * measures ~zero total energy after several seconds, so a near-zero
+   * reading is a config problem worth telling the user about, not quiet.
+   * The warning clears when speech is actually heard (speech_started) and
+   * the check re-arms on a device switch so a fix is confirmed or re-flagged.
    */
   private startSilenceWatchdog(pc: RTCPeerConnection): void {
+    clearTimeout(this.silenceTimer);
     this.silenceTimer = setTimeout(async () => {
       if (this.ended) return;
       let energy: number | undefined;
@@ -234,10 +268,104 @@ class VoiceSession {
       if (energy !== undefined && energy < 1e-6) {
         frontendLog("voice:mic-silent", { totalAudioEnergy: energy });
         this.hooks.onWarning(
-          "The mic is capturing pure silence — I can't hear you. Check the input device and, on macOS, that this browser has Microphone permission (System Settings → Privacy & Security → Microphone)."
+          "This mic is capturing pure silence — I can't hear you. Watch the level bar while you talk and try another input device from the picker."
         );
       }
     }, 6_000);
+  }
+
+  /** getUserMedia for the chosen device, with a user-explainable failure. */
+  private async acquireMic(deviceId: string): Promise<MediaStream> {
+    const constraints: MediaStreamConstraints = {
+      audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+    };
+    try {
+      return await navigator.mediaDevices.getUserMedia(constraints);
+    } catch {
+      throw new Error(
+        deviceId
+          ? "could not open the selected microphone"
+          : "microphone access was denied or unavailable"
+      );
+    }
+  }
+
+  /**
+   * Make `stream` the session's capture source: remember it, report its
+   * device label, and point the level meter at it. The stream is not yet
+   * attached to the peer connection — start() adds the track, and
+   * setInputDevice replaces it.
+   */
+  private adoptMicStream(stream: MediaStream): void {
+    this.mic = stream;
+    const label = stream.getTracks()[0]?.label ?? null;
+    this.hooks.onMicLabel(label);
+    frontendLog("voice:mic-device", { label });
+    this.attachMeter(stream);
+  }
+
+  /**
+   * Switch the live capture device without dropping the call: open the new
+   * device, swap it into the RTP sender (replaceTrack — no renegotiation),
+   * then release the old one. Re-arms the silence watchdog so the picker
+   * doubles as a mic tester: pick a device, watch the level bar, get
+   * re-warned within seconds if it is silent too. No-op after end().
+   */
+  async setInputDevice(deviceId: string): Promise<void> {
+    if (this.ended || !this.pc) return;
+    let stream: MediaStream;
+    try {
+      stream = await this.acquireMic(deviceId);
+    } catch (err) {
+      this.hooks.onWarning(err instanceof Error ? err.message : String(err));
+      return;
+    }
+    if (this.ended) {
+      for (const track of stream.getTracks()) track.stop();
+      return;
+    }
+    const sender = this.pc.getSenders().find((s) => s.track?.kind === "audio");
+    await sender?.replaceTrack(stream.getTracks()[0]);
+    for (const track of this.mic?.getTracks() ?? []) track.stop();
+    this.hooks.onWarning(null);
+    this.adoptMicStream(stream);
+    this.startSilenceWatchdog(this.pc);
+  }
+
+  /**
+   * Live input-level meter over the local mic — the "can it hear me at
+   * all" debugging surface. WebAudio analyser, peak amplitude sampled a
+   * few times per second, reported through onLevel for the UI to draw.
+   */
+  private attachMeter(stream: MediaStream): void {
+    this.detachMeter();
+    try {
+      const ctx = new AudioContext();
+      this.meterCtx = ctx;
+      // Capturing pages may still get a suspended context; resuming is
+      // best-effort — a dead meter must never kill the session.
+      void ctx.resume().catch(() => {});
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      ctx.createMediaStreamSource(stream).connect(analyser);
+      const samples = new Uint8Array(analyser.fftSize);
+      this.meterTimer = setInterval(() => {
+        analyser.getByteTimeDomainData(samples);
+        let peak = 0;
+        for (const value of samples) {
+          peak = Math.max(peak, Math.abs(value - 128) / 128);
+        }
+        this.hooks.onLevel(peak);
+      }, 150);
+    } catch (err) {
+      frontendLog("voice:meter-failed", { error: String(err) });
+    }
+  }
+
+  private detachMeter(): void {
+    clearInterval(this.meterTimer);
+    void this.meterCtx?.close().catch(() => {});
+    this.meterCtx = null;
   }
 
   /** User-initiated close; also the idle-timeout path. */
@@ -251,6 +379,9 @@ class VoiceSession {
     this.ended = true;
     clearTimeout(this.idleTimer);
     clearTimeout(this.silenceTimer);
+    this.detachMeter();
+    this.hooks.onLevel(0);
+    this.hooks.onMicLabel(null);
     if (this.dc) this.dc.onclose = null;
     this.dc?.close();
     this.pc?.close();
@@ -470,14 +601,58 @@ export function useVoice(chat: ChatState): VoiceState {
   const [status, setStatus] = React.useState<VoiceStatus>("idle");
   const [error, setError] = React.useState<string | null>(null);
   const [warning, setWarning] = React.useState<string | null>(null);
+  const [inputLevel, setInputLevel] = React.useState(0);
+  const [micLabel, setMicLabel] = React.useState<string | null>(null);
+  const [inputDevices, setInputDevices] = React.useState<MicDevice[]>([]);
+  // The picked device lives in the D3 store: visible in state snapshots and
+  // settable like any other app state ("" = browser default).
+  const [inputDevice, setStoredDevice] = useStoreValue("app/voice-mic", "");
   const sessionRef = React.useRef<VoiceSession | null>(null);
-  // The session reads chat through this ref, so callbacks stay current
-  // across renders without re-creating the session.
+  // The session reads chat and the picked device through refs, so callbacks
+  // stay current across renders without re-creating the session.
   const chatRef = React.useRef(chat);
   chatRef.current = chat;
+  const deviceRef = React.useRef(inputDevice);
+  deviceRef.current = inputDevice;
 
   // Unmount must never leave a hot mic behind.
   React.useEffect(() => () => sessionRef.current?.stop(), []);
+
+  // The input-device inventory, refreshed when hardware comes and goes.
+  // Labels are only populated once mic permission has been granted; the
+  // picker degrades to "Default microphone" alone until then.
+  React.useEffect(() => {
+    let disposed = false;
+    const refresh = async () => {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        if (disposed) return;
+        setInputDevices(
+          devices
+            .filter((d) => d.kind === "audioinput" && d.deviceId)
+            .map((d) => ({ deviceId: d.deviceId, label: d.label || "Microphone" }))
+        );
+      } catch {
+        // No device API (insecure context) — the picker just stays empty.
+      }
+    };
+    void refresh();
+    navigator.mediaDevices?.addEventListener("devicechange", refresh);
+    return () => {
+      disposed = true;
+      navigator.mediaDevices?.removeEventListener("devicechange", refresh);
+    };
+  }, []);
+
+  const setInputDevice = React.useCallback(
+    (deviceId: string) => {
+      setStoredDevice(deviceId);
+      // A live session switches in place (replaceTrack keeps the call up);
+      // otherwise the choice simply applies to the next session.
+      void sessionRef.current?.setInputDevice(deviceId);
+    },
+    [setStoredDevice]
+  );
 
   const toggle = React.useCallback(() => {
     const live = sessionRef.current;
@@ -489,8 +664,11 @@ export function useVoice(chat: ChatState): VoiceState {
     setWarning(null);
     const session = new VoiceSession({
       chat: () => chatRef.current,
+      preferredDevice: () => deviceRef.current,
       onStatus: setStatus,
       onWarning: setWarning,
+      onLevel: setInputLevel,
+      onMicLabel: setMicLabel,
       onEnd: (endError) => {
         sessionRef.current = null;
         setError(endError ?? null);
@@ -506,6 +684,11 @@ export function useVoice(chat: ChatState): VoiceState {
     status,
     error,
     warning,
+    inputLevel,
+    micLabel,
+    inputDevices,
+    inputDevice,
+    setInputDevice,
     active: status !== "idle" && status !== "error",
     toggle,
   };
