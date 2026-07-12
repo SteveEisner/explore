@@ -118,8 +118,9 @@ export function FileViewer({
         return <GenerativeView response={text} />;
       }
       if (isMarkdown(url, contentType)) {
-        // Reading layout: a centered measure with generous margins, styled
-        // by shadcn/typeset rather than the chat sidebar's compact prose.
+        // Reading layout: a centered measure with generous margins, using
+        // the roomy typeset-docs preset rather than the chat sidebar's
+        // compact typeset-chat.
         return (
           <Markdown
             text={text}

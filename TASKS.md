@@ -46,8 +46,9 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 |---|---|---|
 | Align TypeScript versions across workspaces (client `~6.0.2` vs server `^5.8.0`) | build | from the Cleaner's review; deferred from the 2026-07-11 blitz — needs `npm install` + `client/package.json`/lockfile edits, which were carrying in-flight typeset/oui-embed work at the time (now committed) |
 | Teach the generation prompts about `<oui-embed src="file.oui">` | prompts | wiki markdown can embed live OpenUI apps (2026-07-11); the LLM doesn't know — add to server/prompts wiki guidance. Note: always use an explicit closing tag |
-| Container-responsive artifact components | openui | Gallery/Aside fixed pixel nav/aside widths collapse to one-word lines in narrow containers (found via oui-embed in a 48rem column; worked around with a 72rem breakout). Consider container queries or minmax() so artifacts degrade gracefully at any width |
-| Chat markdown vs typeset consistency check | web app | chat keeps `prose prose-sm` while file viewing moved to `typeset typeset-docs`; the Cleaner's backtick-chip override targets `.prose` only — decide whether chat migrates to a `typeset-chat` preset |
+| Refresh eval prompt snapshots after Gallery/Aside width-cap change | eval | `eval/prompts/preload-wiki.md` and `slim-ui.md` mirror the component descriptions now updated in ui-library.ts (widths are maxima with a 40% container cap); left untouched 2026-07-11 because a sweep was running against eval |
+| Soften the stale "built for the full panel" rationale comment in oui-embed.tsx | client | the 72rem breakout stays (still a win for wide artifacts) but Gallery/Aside now degrade gracefully, so it's no longer load-bearing for defaults |
+| Drop dead Tailwind typography remnants | client | nothing renders `.prose` since chat moved to typeset (2026-07-11): remove the `@plugin "@tailwindcss/typography"` line and the inert `not-prose` markers in markdown-code.tsx / oui-embed.tsx |
 
 *2026-07-11 blitz (Cleaner): five items cleared — docs/meta untracking, JSONL logger typing, client README rewrite, inline-backtick rendering, horizontal window pan. See the worklog.*
 

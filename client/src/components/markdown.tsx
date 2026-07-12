@@ -8,7 +8,8 @@ import { MarkdownCode, MermaidDiagram } from "@/components/markdown-code";
 import { OuiEmbed } from "@/components/oui-embed";
 import { rehypeSourceLines } from "@/lib/source-lines";
 import { cn } from "@/lib/utils";
-// The prose code-block surface is dark in both themes, so use the dark scale.
+// The typeset code-block surface is dark in both themes (see index.css
+// `.typeset pre`), so use the dark scale.
 import "highlight.js/styles/github-dark.css";
 
 /**
@@ -33,10 +34,11 @@ const sanitizeSchema = {
 };
 
 /**
- * GitHub-flavored markdown with prose styling; invert for dark surfaces.
- * Pipeline: GFM → sanitize → heading slugs (slugs run after sanitize so the
- * generated ids aren't stripped or clobber-prefixed). Fenced code blocks get
- * highlight.js coloring; ```mermaid blocks render as diagrams.
+ * GitHub-flavored markdown styled with shadcn/typeset; invert for colored
+ * surfaces like the primary user bubble. Pipeline: GFM → sanitize → heading
+ * slugs (slugs run after sanitize so the generated ids aren't stripped or
+ * clobber-prefixed). Fenced code blocks get highlight.js coloring;
+ * ```mermaid blocks render as diagrams.
  */
 export function Markdown({
   text,
@@ -46,10 +48,15 @@ export function Markdown({
   onLinkClick,
 }: {
   text: string;
+  /**
+   * Recolor for a non-surface background (e.g. the primary user bubble):
+   * typeset derives all its colors from currentColor instead of the theme
+   * tokens, so the content follows the bubble's text color.
+   */
   invert?: boolean;
   /**
-   * Style with shadcn/typeset (the document-reading rhythm) instead of the
-   * compact prose classes used in chat and other tight surfaces.
+   * Use the document-reading rhythm (.typeset-docs) instead of the compact
+   * chat preset (.typeset-chat) used in chat and other tight surfaces.
    */
   typeset?: boolean;
   className?: string;
@@ -62,10 +69,9 @@ export function Markdown({
   return (
     <div
       className={cn(
-        typeset
-          ? "typeset typeset-docs break-words"
-          : "prose prose-sm max-w-none break-words",
-        !typeset && invert && "prose-invert",
+        "typeset break-words",
+        typeset ? "typeset-docs" : "typeset-chat",
+        invert && "typeset-invert",
         className
       )}
     >
@@ -124,7 +130,7 @@ export function Markdown({
 
 /**
  * Block-code wrapper: a ```mermaid fence renders as a diagram instead of a
- * <pre> box, so the prose code-block chrome doesn't frame the SVG.
+ * <pre> box, so the typeset code-block chrome doesn't frame the SVG.
  */
 function MarkdownPre({ children, ...props }: React.ComponentProps<"pre">) {
   const child = React.isValidElement(children)
