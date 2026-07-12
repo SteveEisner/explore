@@ -7,12 +7,14 @@ import { HomeView } from "@/components/home-view";
 import { MainToolbar } from "@/components/main-toolbar";
 import { Button } from "@/components/ui/button";
 import { useChat } from "@/hooks/use-chat";
+import { useVoice } from "@/hooks/use-voice";
 import { registerAppStateProvider } from "@/lib/app-state";
 import { captureMainView } from "@/lib/capture";
 import type { StrokePoints } from "@/lib/freehand";
 import { frontendLog } from "@/lib/frontend-log";
 import { GenerativeView } from "@/lib/openui";
 import { buildAppSnapshot, type SnapshotInputs } from "@/lib/snapshot";
+import { useServerEventSounds, useVoiceSounds } from "@/lib/sound-cues";
 import { useStoreValue } from "@/lib/state-store";
 
 /**
@@ -56,10 +58,15 @@ function normalizeView(raw: unknown): MainView {
 
 export default function App() {
   const chat = useChat();
+  const voice = useVoice(chat);
   const [rawView, setView] = useStoreValue<unknown>("app/view", {
     kind: "home",
   });
   const view = normalizeView(rawView);
+  // Audio cues for what the user can't see happen: server-pushed edits to
+  // the viewed document, and the voice mic going live / closing.
+  useServerEventSounds(view);
+  useVoiceSounds(voice?.status);
   const [drawMode, setDrawMode] = useStoreValue("app/draw-mode", false);
   const [strokes, setStrokes] = React.useState<StrokePoints[]>([]);
   const [capturing, setCapturing] = React.useState(false);
@@ -249,6 +256,7 @@ export default function App() {
         <div className="flex h-full w-96 flex-col">
           <ChatSidebar
             chat={chat}
+            voice={voice}
             onClose={() => setChatOpen(false)}
             onScreenshot={screenshot}
             screenshotEnabled={chat.connected && !capturing}
