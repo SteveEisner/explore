@@ -16,6 +16,7 @@ import { GenerativeView } from "@/lib/openui";
 import { buildAppSnapshot, type SnapshotInputs } from "@/lib/snapshot";
 import { useServerEventSounds, useVoiceSounds } from "@/lib/sound-cues";
 import { useStoreValue } from "@/lib/state-store";
+import { normalizeView, useViewHistory } from "@/lib/view-history";
 
 /**
  * What the main viewing area shows: the Home folder view of the wiki, a
@@ -38,24 +39,6 @@ function isOuiUrl(url: string | null): boolean {
   return url !== null && url.endsWith(".oui");
 }
 
-/**
- * The view lives in the state store, so it can be written by the LLM's
- * set_state tool as well as our own components — tolerate the shapes an LLM
- * plausibly writes: a bare "/docs/..." string means "open that file".
- */
-function normalizeView(raw: unknown): MainView {
-  if (typeof raw === "string") return { kind: "doc", url: raw };
-  if (raw && typeof raw === "object") {
-    const v = raw as { kind?: unknown; url?: unknown };
-    if (v.kind === "home") return { kind: "home" };
-    if (v.kind === "authoring") return { kind: "authoring" };
-    if (v.kind === "doc" && (typeof v.url === "string" || v.url === null)) {
-      return { kind: "doc", url: v.url };
-    }
-  }
-  return { kind: "home" };
-}
-
 export default function App() {
   const chat = useChat();
   const voice = useVoice(chat);
@@ -63,6 +46,9 @@ export default function App() {
     kind: "home",
   });
   const view = normalizeView(rawView);
+  // Mirror "app/view" into browser history (hash URLs) so Back/Forward
+  // navigate between views instead of unloading the SPA.
+  useViewHistory();
   // Audio cues for what the user can't see happen: server-pushed edits to
   // the viewed document, and the voice mic going live / closing.
   useServerEventSounds(view);
