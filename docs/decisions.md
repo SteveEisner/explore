@@ -62,6 +62,8 @@ Channels fill in only the fields they have; `stateSnapshot` is always attached (
 
 **Persona:** to the user there is one collaborator. The voice agent knows the back-end agent is more powerful and delegates accordingly, but it presents delegated work as its own — "working on that…" — never as a handoff to another LLM. This behavior (and the rest of its operating doctrine) lives in a **voice-agent guidance document** injected as the session instructions at every session start.
 
+**Status (2026-07-12):** shipped and validated live end to end (speech → VAD → transcription → `list_docs` over the ws bridge → spoken answer → panel navigation via `set_app_state`, D6 envelopes in the transcript throughout). Wiki edits, screenshots, and delegation by voice are built but not yet exercised live. One observed wrinkle for later: speaker playback of the agent's own audio can re-enter the mic as user speech and trigger barge-in against itself.
+
 **Why:**
 
 - Anthropic has no speech-to-speech realtime API, so voice is necessarily a second vendor; a STT→Claude→TTS pipeline was rejected because multi-second turns and no barge-in defeat the point of *realtime* editing (J3).
