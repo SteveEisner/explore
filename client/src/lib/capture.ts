@@ -5,7 +5,8 @@ import { toCanvas } from "html-to-image";
  * clones the DOM, which loses inner scroll positions, so instead of capturing
  * the clipped scroller we render the document at full size (freehand
  * annotations included — the overlay is part of the document DOM) and crop to
- * the scroller's current viewport ourselves. Returns a PNG data URL.
+ * the scroller's current viewport ourselves. Returns a compressed JPEG data
+ * URL — quality 0.75 keeps text readable at a fraction of PNG size.
  */
 export async function captureMainView(
   scroller: HTMLElement,
@@ -34,7 +35,7 @@ export async function captureMainView(
   if (sw > 0 && sh > 0) {
     ctx.drawImage(docCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
   }
-  return out.toDataURL("image/png");
+  return out.toDataURL("image/jpeg", 0.75);
 }
 
 /** Nearest non-transparent ancestor background, for the canvas backdrop. */

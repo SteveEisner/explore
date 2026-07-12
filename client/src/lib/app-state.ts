@@ -7,7 +7,7 @@
 
 export interface AppStateResult {
   state: unknown;
-  /** PNG data URL of the main window, when requested. */
+  /** Compressed JPEG data URL of the main window, when requested. */
   screenshot?: string;
 }
 
