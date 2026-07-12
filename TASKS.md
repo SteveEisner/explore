@@ -24,8 +24,8 @@ The declared focus for the next two-hour session: interactive exploration elemen
 | Train the LLM toward chat brevity (explanations belong in the artifact, not the chat) | J2/J3 | — | todo |
 | Save artifacts to the wiki as .oui from the "new artifact" view: click into the filename bar to name it; a Save button sits at the far right inside that bar, shown only for a new artifact (not when viewing a saved one); saving requires a name. The UI generation process should also supply a default artifact name | J4 | Worker 2 | done |
 | Reopen a saved .oui and continue editing (second half of the old save/reopen task): "Edit Artifact" button over .oui views seeds the authoring panel; LLM-side editing of arbitrary wiki .oui files stays a separate task (Intelligence section) | J4 | Worker 2 | done |
-| Clean-clone quickstart: README setup, env/API-key handling, seed wiki, verify from fresh checkout. Note: vault semantic search has a one-time cost on first run (local embedding model download + initial indexing) — warm it during setup, don't let it land mid-demo | J0 | The Cleaner | in progress |
-| Test that vault search actually works (search / global_search / semantic_search over the wiki): never exercised; verify results are sane and the semantic index builds | bar | — | todo |
+| Clean-clone quickstart: README setup, env/API-key handling, seed wiki, verify from fresh checkout. Note: vault semantic search has a one-time cost on first run (local embedding model download + initial indexing) — warm it during setup, don't let it land mid-demo | J0 | The Cleaner | done |
+| Test that vault search actually works (search / global_search / semantic_search over the wiki): never exercised; verify results are sane and the semantic index builds — verified demo-ready 2026-07-12: all three are actions of the vault `view` tool, sane heading-chunked results, semantic index auto-builds at startup; manual probe at scripts/probe-vault-mcp.mts | bar | Cleaner | done |
 | Investigate exactly what the LLM receives at invocation — full report: docs/llm-invocation-report.md (base-prompt verbatim capture via logging proxy folded into the perf-instrumentation task) | bar | Claude | done |
 | Prompt removal: kill the OpenUI default rule "When asked about data, generate realistic/plausible data" — replace with "all facts/data in artifacts must come from wiki content; never invent data" (check `uiLibrary.prompt()` options for suppressing default Important Rules; otherwise counter-rule) | J1 | Worker 1 | done |
 | Prompt removal: kill the OpenUI default component-suggestion rule ("tables for comparisons, charts for trends, forms for input") — it names components our vocabulary doesn't have; replace with guidance naming our actual six | J1 | Worker 1 | done |
@@ -44,8 +44,8 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 
 | Task | Area | Notes |
 |---|---|---|
-
-*The backlog is empty (2026-07-12, Cleaner): rounds one to three cleared everything banked — see the worklog. The eval-snapshot refresh closed as invalid: the width-cap change only touched prop-level zod descriptions, which never appeared in the prompt snapshots (verified byte-identical against componentSignatures()); the model sees the new wording via the ui tool's MCP schema.*
+| Vite dev proxy hardcodes `:3001` — make it follow `PORT` (e.g. read `process.env.PORT` in `client/vite.config.ts`) so a dev instance on a nonstandard port still gets /ws, /docs, /api proxied | client | Found during J0 clean-clone verification (Cleaner): `PORT=3100 npm run dev` boots both servers but the client proxy still dials 3001 |
+| Voice front-end screenshot tool: "snapshot send was too large for the channel" | voice | seen live 2026-07-12 during D6 verification — the WebRTC data-channel payload path needs chunking or downscaling; unrelated to the envelope change |
 
 ## Crunch tracks (non-interactive; run unattended once the isolated instance exists)
 
@@ -166,7 +166,7 @@ The realtime voice collaborator (decisions.md D5): a mic button in the chat side
 | Drawing/annotation overlay on the rendered artifact | 3 | Worker 2 | done |
 | Screenshot round-trip: send the rendered (or marked-up) view back to the LLM | 3 | Worker 2 | done |
 | Voice agent: spoken conversation about the content or the application — expanded into the [Voice agent (realtime editing)](#voice-agent-realtime-editing) section above (decisions.md D5) | 3 | — | in progress |
-| Represent multimodal feedback in the LLM conversation — **shape decided, decisions.md D6**: one envelope `{text?, screenshot?, statementRef?, stateSnapshot}` for every channel; `stateSnapshot` (D3 store at capture time) always attached so feedback is self-locating. Implement the envelope type + chat-pane rendering (optional adornments: thumbnail, "re: statement" chip, state summary); migrate the screenshot round-trip to it; P1 point-and-comment and voice transcript integration emit it from the start | 3 | — | todo |
+| Represent multimodal feedback in the LLM conversation — **shape decided, decisions.md D6**: one envelope `{text?, screenshot?, statementRef?, stateSnapshot}` for every channel; `stateSnapshot` (D3 store at capture time) always attached so feedback is self-locating. Implement the envelope type + chat-pane rendering (optional adornments: thumbnail, "re: statement" chip, state summary); migrate the screenshot round-trip to it; P1 point-and-comment and voice transcript integration emit it from the start. Implemented 2026-07-12: FeedbackEnvelope in both protocol files, snapshots attached by typed chat + screenshot round-trip, `withEnvelopeContext()` prefixes the `<feedback-context>` block on LLM turns, chat-pane chips live ("re: statement" renderer awaits the P1 producer; state chip incl. voice rows). Live-verified end to end | 3 | Cleaner | done |
 | Keep text chat working as the universal fallback for every mode | 3 | — | todo |
 
 ## Wiki ingestion (stretch)
