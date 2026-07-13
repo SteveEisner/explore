@@ -40,8 +40,10 @@ export function buildSystemPrompt(options: { wikiDir?: string }): string {
  * timing eval measured ask→UI 7.7s→4.4s on the grounded scenario, with the
  * read turn disappearing entirely (eval/sweep-report.md, 2026-07-12).
  *
- * Root-level .md files only, whole files only (a truncated page would be a
- * grounding hazard), smallest-first until the byte budget is spent.
+ * All .md files in the wiki tree (hidden files/dirs skipped), whole files
+ * only (a truncated page would be a grounding hazard), smallest-first until
+ * the byte budget is spent. Pages are labeled with their wiki-relative path
+ * so the model can connect a preloaded copy to the file the tools would read.
  * WIKI_PRELOAD_BYTES overrides the budget; 0 disables preloading.
  */
 const PRELOAD_BUDGET_DEFAULT = 24_576;
@@ -57,28 +59,46 @@ included here, and re-read any page that has been edited during this session
 function preloadedPages(wikiDir: string): string {
   const budget = Number(process.env.WIKI_PRELOAD_BYTES ?? PRELOAD_BUDGET_DEFAULT);
   if (!Number.isFinite(budget) || budget <= 0) return "";
-  let names: string[];
-  try {
-    names = readdirSync(wikiDir, { withFileTypes: true })
-      .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
-      .map((entry) => entry.name);
-  } catch {
-    return ""; // unreadable wiki dir: preload is an optimization, never fatal
-  }
-  const pages = names
-    .map((name) => ({ name, size: statSync(path.join(wikiDir, name)).size }))
-    .sort((a, b) => a.size - b.size || a.name.localeCompare(b.name));
+  const pages = listMarkdownPages(wikiDir).sort(
+    (a, b) => a.size - b.size || a.relPath.localeCompare(b.relPath)
+  );
   const included: string[] = [];
   let used = 0;
   for (const page of pages) {
     if (used + page.size > budget) break; // ascending sizes: nothing later fits either
     included.push(
-      `### ${page.name}\n\n${readFileSync(path.join(wikiDir, page.name), "utf8").trim()}`
+      `### ${page.relPath}\n\n${readFileSync(path.join(wikiDir, page.relPath), "utf8").trim()}`
     );
     used += page.size;
   }
   if (included.length === 0) return "";
   return `\n\n${PRELOAD_INSTRUCTION}\n\n${included.join("\n\n")}`;
+}
+
+/**
+ * Every .md file under the wiki as wiki-relative paths with sizes, recursing
+ * into subdirectories. Hidden files and directories (dotfiles: the vault
+ * index, editor state) are skipped. An unreadable directory contributes
+ * nothing — preload is an optimization, never fatal.
+ */
+function listMarkdownPages(wikiDir: string, relDir = ""): { relPath: string; size: number }[] {
+  let entries;
+  try {
+    entries = readdirSync(path.join(wikiDir, relDir), { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const pages: { relPath: string; size: number }[] = [];
+  for (const entry of entries) {
+    if (entry.name.startsWith(".")) continue;
+    const relPath = relDir === "" ? entry.name : `${relDir}/${entry.name}`;
+    if (entry.isDirectory()) {
+      pages.push(...listMarkdownPages(wikiDir, relPath));
+    } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      pages.push({ relPath, size: statSync(path.join(wikiDir, relPath)).size });
+    }
+  }
+  return pages;
 }
 
 function readPromptFile(name: string): string {

@@ -26,6 +26,8 @@ Architecture and design decisions, newest first. Referenced from [ARCHITECTURE.m
 
 **Revisit if:** real wikis need smarter page selection than smallest-first-at-root (likely: relevance or recency ranking, or a digest); or fast mode ships a headless flag (biggest untapped lever, up to 2.5× output speed); or mid-session wiki edits by external writers make spawn-time copies too stale.
 
+**Update (2026-07-12):** the docs reorg into subdirectories emptied the root-level preload, so page selection became recursive: every non-hidden `.md` in the wiki tree, still smallest-first / whole-files-only under the same budget, labeled by wiki-relative path (tests: `tests/intelligence/prompt-preload.test.ts`). Relevance ranking remains open if budget pressure appears.
+
 ## D6. One feedback envelope for every channel
 
 **Date:** 2026-07-11
