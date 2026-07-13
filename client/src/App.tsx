@@ -258,6 +258,7 @@ export default function App() {
             <ExpandedArtifact
               url={renderedArtifact}
               open={expandedArtifact !== null}
+              drawMode={drawMode}
               onClosed={() => setRenderedArtifact(null)}
               onNavigate={(url) => {
                 setExpandedArtifact(null);

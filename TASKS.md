@@ -48,6 +48,7 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 
 | Task | Area | Notes |
 |---|---|---|
+| Screenshot paths ignore an expanded artifact: chat screenshot button, voice take_screenshot, and the state tool all capture scrollerRef/docRef — the hidden document — while an artifact is expanded over it; capture should target the expanded surface when present | client | found 2026-07-12 adding the expanded-surface pen layer |
 | Delete tool follow-up: consider a trash/undo layer (delete is currently permanent, git history aside) | wiki | resolved 2026-07-12: the delete tools were Steve's explicit request ("create a delete file tool exposed in all the standard places"), not an unauthorized rider — tool descriptions require explicit user intent per call; only the trash-layer question remains open |
 | `edit_artifact` with a completely garbage spec silently no-ops: mergeStatements drops unparseable patches and reports success — a teaching error would let the model self-correct | server | from the 2026-07-12 .oui-validation work (create/raw-edit paths now validate; the merge path can't corrupt files but can silently do nothing) |
 | Fix or delete the broken docs/design/explainer.oui | wiki | written in hallucinated syntax before .oui validation existed; now renders the new error card — its author should regenerate it in real OpenUI Lang (good live test target until then) |

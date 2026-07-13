@@ -1,5 +1,7 @@
 import * as React from "react";
+import { DrawingOverlay } from "@/components/drawing-overlay";
 import { FileViewer } from "@/components/file-viewer";
+import type { StrokePoints } from "@/lib/freehand";
 import { cn } from "@/lib/utils";
 
 /**
@@ -16,14 +18,25 @@ import { cn } from "@/lib/utils";
 export function ExpandedArtifact({
   url,
   open,
+  drawMode,
   onClosed,
   onNavigate,
 }: {
   url: string;
   open: boolean;
+  /** The toolbar pen tool: draw on the artifact, not the page beneath. */
+  drawMode: boolean;
   onClosed: () => void;
   onNavigate: (url: string) => void;
 }) {
+  // The expanded surface has its own annotation layer with its own strokes —
+  // the document's strokes live in document coordinates and stay with the
+  // page underneath. Same eraser semantics as the page: leaving pen mode
+  // clears; closing the overlay drops them with the component.
+  const [strokes, setStrokes] = React.useState<StrokePoints[]>([]);
+  React.useEffect(() => {
+    if (!drawMode) setStrokes([]);
+  }, [drawMode]);
   // Mount closed, then open after a forced reflow so the enter transition
   // runs. A reflow (not requestAnimationFrame) because rAF never fires in a
   // hidden tab — an agent can expand an artifact while the tab is occluded.
@@ -62,7 +75,17 @@ export function ExpandedArtifact({
         }
       }}
     >
-      <FileViewer url={url} onNavigate={onNavigate} />
+      {/* Same shape as the document wrapper in App: the annotation layer
+          lives inside the scrolled content, so strokes are recorded in the
+          artifact's own coordinates and stay glued through scrolling. */}
+      <div className="relative min-h-full">
+        <FileViewer url={url} onNavigate={onNavigate} />
+        <DrawingOverlay
+          active={drawMode}
+          strokes={strokes}
+          onStrokesChange={setStrokes}
+        />
+      </div>
     </div>
   );
 }
