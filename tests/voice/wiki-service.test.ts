@@ -189,6 +189,67 @@ describe("wiki service", () => {
     });
   });
 
+  describe(".oui validation (parse at the write boundary)", () => {
+    // The real failure this guards against: an agent hallucinating an
+    // indentation-based syntax that is not OpenUI Lang at all. The parser
+    // sees zero statements in it, so the artifact would render blank.
+    const hallucinated = [
+      "app Explainer",
+      "  header Title",
+      '    text "Explainer"',
+    ].join("\n");
+    const valid = 'main = Stack([Content("<p>hi</p>")])\n';
+
+    it("createDoc refuses non-OpenUI-Lang .oui content and writes nothing", async () => {
+      await assert.rejects(
+        () => createDoc(wikiDir, "made/broken.oui", hallucinated),
+        (err: Error) => {
+          assert.match(err.message, /not valid OpenUI Lang/);
+          // The teaching part: what the language actually looks like.
+          assert.match(err.message, /name = Component\(\.\.\.\)/);
+          // Surface-neutral, like the duplicate-path error.
+          assert.doesNotMatch(err.message, /create_doc|create_file|edit_artifact/);
+          return true;
+        }
+      );
+      assert.equal(existsSync(path.join(wikiDir, "made", "broken.oui")), false);
+    });
+
+    it("createDoc accepts a minimal valid program", async () => {
+      await createDoc(wikiDir, "made/valid.oui", valid);
+      assert.equal(
+        await readFile(path.join(wikiDir, "made", "valid.oui"), "utf8"),
+        valid
+      );
+    });
+
+    it("editDoc refuses an edit that would break the .oui, leaving it unchanged", async () => {
+      // Breaking `Stack` into `Stak` makes the root statement invalid
+      // (unknown component), which the parser redacts — an empty render.
+      await assert.rejects(
+        () => editDoc(wikiDir, "made/valid.oui", "Stack", "Stak"),
+        (err: Error) => {
+          assert.match(err.message, /would no longer be valid OpenUI Lang/);
+          assert.match(err.message, /Stak/); // parser message names the culprit
+          return true;
+        }
+      );
+      assert.equal(
+        await readFile(path.join(wikiDir, "made", "valid.oui"), "utf8"),
+        valid,
+        "a refused edit must not touch the file"
+      );
+    });
+
+    it("editDoc still applies edits that keep the .oui valid", async () => {
+      await editDoc(wikiDir, "made/valid.oui", "<p>hi</p>", "<p>bye</p>");
+      assert.match(
+        await readFile(path.join(wikiDir, "made", "valid.oui"), "utf8"),
+        /<p>bye<\/p>/
+      );
+    });
+  });
+
   describe("renameDoc", () => {
     it("moves a file to a new nested path, creating parent dirs", async () => {
       await createDoc(wikiDir, "to-move.md", "movable\n");
@@ -202,11 +263,11 @@ describe("wiki service", () => {
     });
 
     it("renames a .oui artifact", async () => {
-      await createDoc(wikiDir, "board.oui", 'root = Text(text="hi")\n');
+      await createDoc(wikiDir, "board.oui", 'root = Content("<p>hi</p>")\n');
       await renameDoc(wikiDir, "board.oui", "boards/kanban.oui");
       assert.match(
         await readFile(path.join(wikiDir, "boards", "kanban.oui"), "utf8"),
-        /root = Text/
+        /root = Content/
       );
     });
 

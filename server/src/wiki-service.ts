@@ -1,7 +1,8 @@
 import { link, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { mergeStatements } from "@openuidev/lang-core";
+import { createParser, mergeStatements, type Parser } from "@openuidev/lang-core";
 import { listWikiFiles } from "./wiki-files.js";
+import { uiLibrary } from "./ui-library.js";
 
 /**
  * Wiki content service: read, search, create, and edit files inside the
@@ -47,6 +48,48 @@ export function wikiDocPath(file: unknown): string | null {
 export function ensureTrailingNewline(text: string): string {
   return text.endsWith("\n") ? text : `${text}\n`;
 }
+
+/** Built once, on the first .oui validation (the parser is pure/reusable). */
+let ouiParser: Parser | undefined;
+
+/**
+ * Check that `content` is a renderable OpenUI Lang program, using the same
+ * component library the renderer parses with (ui-library.ts mirrors
+ * client/src/lib/openui.tsx). Returns null when it renders, otherwise a
+ * short reason for the teaching error. Invalid means any of:
+ *
+ * - nothing parses as a statement (e.g. a hallucinated indentation syntax —
+ *   the parser reports no error for plain prose, just zero statements);
+ * - a statement fails prop validation (unknown component, missing required
+ *   prop) — the parser redacts those nodes, so the artifact renders broken;
+ * - the input is truncated (unterminated string/bracket at EOF);
+ * - no statement resolves to a root element, which renders an empty page.
+ */
+function ouiProblem(content: string): string | null {
+  ouiParser ??= createParser(uiLibrary.toJSONSchema());
+  const result = ouiParser.parse(content);
+  const { errors, incomplete, statementCount } = result.meta;
+  if (statementCount === 0) return "no statements found";
+  if (errors.length > 0) {
+    const first = errors[0];
+    return first.statementId
+      ? `${first.message} (in statement "${first.statementId}")`
+      : first.message;
+  }
+  if (incomplete) return "the program is incomplete (unclosed string or bracket)";
+  if (!result.root) {
+    return "no statement resolves to a root component, so the page would render empty";
+  }
+  return null;
+}
+
+/**
+ * The shared tail of every .oui teaching error — reminds the model what the
+ * language looks like. Surface-neutral (no tool names), like createDoc's
+ * duplicate-path error, because it reaches models on every surface.
+ */
+const OUI_HINT =
+  "artifacts are OpenUI Lang `name = Component(...)` statements and need a root component";
 
 export interface DocSlice {
   path: string;
@@ -158,6 +201,17 @@ export async function editDoc(
   // Replacement via callback: a plain string replacement would expand `$`
   // patterns in newText, corrupting content that legitimately contains them.
   const edited = content.replace(oldText, () => newText);
+  // Raw text edits are the one way an existing .oui could be corrupted (the
+  // artifact-spec edit path merges through the parser), so validate the
+  // *result* and refuse before writing — the file stays as it was.
+  if (path.extname(rel).toLowerCase() === ".oui") {
+    const problem = ouiProblem(edited);
+    if (problem) {
+      throw new Error(
+        `refusing this edit — "${rel}" would no longer be valid OpenUI Lang (${problem}); ${OUI_HINT}. The file is unchanged.`
+      );
+    }
+  }
   await writeFile(path.join(wikiDir, rel), edited, "utf8");
 }
 
@@ -205,6 +259,16 @@ export async function createDoc(
     throw new Error(
       `refusing to create "${rel}" with empty content — pass the complete file content`
     );
+  }
+  // A .oui file that doesn't parse (or has no root) renders as a blank page,
+  // so refuse at create time with a teaching error the model can act on.
+  if (ext === ".oui") {
+    const problem = ouiProblem(content);
+    if (problem) {
+      throw new Error(
+        `refusing to create "${rel}" — not valid OpenUI Lang (${problem}); ${OUI_HINT}`
+      );
+    }
   }
   const abs = path.join(wikiDir, rel);
   await mkdir(path.dirname(abs), { recursive: true });
