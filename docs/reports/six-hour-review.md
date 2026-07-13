@@ -56,6 +56,8 @@ Block 4 was the day-one machine paying off: a single evening took the realtime v
 - Two shared-index incidents in one block — staged sweep files riding along in commit 94d8ac9, and three sweep runs killed by concurrent server edits — after zero collisions since hour two. Both were caught and documented, but the density of parallel work is now at the level where a pinned side instance for evals (already noted in the ops log) is worth doing before the next crunch.
 - The worklog-as-time-authority convention held: the 23:35 setback entry and its 23:47 supersession give an honest contemporaneous record of the block's one crisis.
 
+*(Continued in [seven-hour-review.md](seven-hour-review.md), which covers the 2026-07-12 evening.)*
+
 ## Suggested next session
 
 ~1h40 remains — one tight block. Open with the voice-path validation (wiki edit, screenshot, delegation by voice — each is minutes with the level meter and `voice:event` logging in place), then spend the rest on exactly one of the carried debts: grade J1 against the archetype, or ship the context switcher. Both again would overrun the budget; pick by whether the closing writeup needs a quality verdict (J1) or a feature demo (switcher) more.
