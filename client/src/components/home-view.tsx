@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Markdown } from "@/components/markdown";
 import { frontendLog } from "@/lib/frontend-log";
+import { READING_COLUMN_CLASS } from "@/lib/layout";
 import { useStoreValue } from "@/lib/state-store";
 
 /** The wiki's front page, featured as an excerpt at the top of Home. */
@@ -90,7 +91,7 @@ export function HomeView({
   }
 
   return (
-    <div className="mx-auto max-w-3xl p-6">
+    <div className={READING_COLUMN_CLASS}>
       {readme !== null && (
         <section className="mb-8">
           <Markdown

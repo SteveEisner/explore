@@ -2,6 +2,7 @@ import * as React from "react";
 import { FileWarningIcon, LoaderIcon } from "lucide-react";
 import { Markdown } from "@/components/markdown";
 import { frontendLog } from "@/lib/frontend-log";
+import { READING_COLUMN_CLASS } from "@/lib/layout";
 import { GenerativeView } from "@/lib/openui";
 import { useStoreValue } from "@/lib/state-store";
 
@@ -120,15 +121,13 @@ export function FileViewer({
       if (isMarkdown(url, contentType)) {
         // Reading layout: a readable measure using the roomy typeset-docs
         // preset rather than the chat sidebar's compact typeset-chat.
-        // Left-biased centering: the left margin caps at true center but
-        // shrinks first so the right gutter stays >= 24rem where space
-        // allows — the floating chat panel (w-96) then opens over gutter,
-        // not text. Clamp floor 0: px-8 still pads narrow windows.
+        // Left-biased centering shared with the home page — see
+        // READING_COLUMN_CLASS for the clamp explanation.
         return (
           <Markdown
             text={text}
             typeset
-            className="mr-auto ml-[clamp(0px,100%-72rem,(100%-48rem)/2)] max-w-3xl px-8 py-10"
+            className={READING_COLUMN_CLASS}
             onLinkClick={handleLink}
           />
         );
