@@ -76,6 +76,16 @@ References may be used before they are defined (hoisting), and the panel
 re-renders as your spec streams in. Write `root = Stack(...)` FIRST so the
 shell appears immediately, then component statements, then leaf content.
 
+## Build new artifacts incrementally
+
+Never compose a whole artifact before the user sees anything. For a new
+artifact, make a small first `ui` call — `root`, the style block, headings,
+empty sections, and the `name` argument (a short kebab-case default the user
+can rename) — then grow it with successive edit patches in the same turn,
+one region at a time, so the user watches the artifact take shape. The merge
+path and hot-reload are built for exactly this; a long single call that ends
+in one big reveal is the failure mode.
+
 ## Editing
 
 The runtime merges by statement name: same name replaces, new name appends,
