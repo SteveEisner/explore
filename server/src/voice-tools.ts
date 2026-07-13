@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { listWikiFiles } from "./wiki-files.js";
 import {
+  createDoc,
   editArtifactSpec,
   editDoc,
   readDoc,
@@ -143,6 +144,27 @@ const serverTools = [
       const rel = requireWikiPath(path);
       await editDoc(ctx.wikiDir, rel, old_text, new_text);
       return JSON.stringify({ edited: rel });
+    },
+  }),
+  tool({
+    name: "create_doc",
+    description:
+      "Create a new file in the wiki (markdown notes, .oui artifacts, and " +
+      "other text types). Fails if the file already exists — change " +
+      "existing files with edit_doc or edit_artifact. Parent folders are " +
+      "created as needed. For a new exploration artifact, prefer " +
+      "ask_artifact_agent unless you already have the complete OpenUI " +
+      "program to write.",
+    args: z.object({
+      path: z
+        .string()
+        .describe("Wiki-relative path for the new file, e.g. 'notes/idea.md'"),
+      content: z.string().min(1).describe("The full file content"),
+    }),
+    execute: async ({ path, content }, ctx) => {
+      const rel = requireWikiPath(path);
+      await createDoc(ctx.wikiDir, rel, content);
+      return JSON.stringify({ created: rel, url: `/docs/${rel}` });
     },
   }),
   tool({

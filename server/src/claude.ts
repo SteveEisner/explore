@@ -183,7 +183,9 @@ export class ClaudeSession extends EventEmitter {
         "mcp__vault__edit",
         "mcp__vault__view",
         "mcp__vault__system",
-        "mcp__wiki__list_files"
+        "mcp__wiki__list_files",
+        "mcp__wiki__read_file",
+        "mcp__wiki__create_file"
       );
     }
     // The appended prompt is authored in server/prompts/*.md and read at

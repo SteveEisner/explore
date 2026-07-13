@@ -1,4 +1,5 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { mergeStatements } from "@openuidev/lang-core";
 import { listWikiFiles } from "./wiki-files.js";
@@ -158,6 +159,49 @@ export async function editDoc(
   // patterns in newText, corrupting content that legitimately contains them.
   const edited = content.replace(oldText, () => newText);
   await writeFile(path.join(wikiDir, rel), edited, "utf8");
+}
+
+/**
+ * Text types agents may create. Everything here is servable by the app and
+ * editable through the agents' own tools afterward — a create that neither
+ * surface could ever render or edit again is a mistake, not a capability.
+ */
+const CREATABLE_EXTENSIONS = new Set([
+  ".md",
+  ".markdown",
+  ".oui",
+  ".txt",
+  ".html",
+  ".csv",
+  ".json",
+]);
+
+/**
+ * Create a new wiki file (any supported text type, .oui included — the
+ * agent-side counterpart of the user's artifact save). Refuses to overwrite:
+ * changing an existing file is edit_doc / edit_artifact territory, so a
+ * duplicate path errors instead of silently clobbering. Parent folders are
+ * created as needed.
+ */
+export async function createDoc(
+  wikiDir: string,
+  rel: string,
+  content: string
+): Promise<void> {
+  const ext = path.extname(rel).toLowerCase();
+  if (!CREATABLE_EXTENSIONS.has(ext)) {
+    throw new Error(
+      `cannot create "${rel}" — supported types: ${[...CREATABLE_EXTENSIONS].join(", ")}`
+    );
+  }
+  const abs = path.join(wikiDir, rel);
+  if (existsSync(abs)) {
+    throw new Error(
+      `"${rel}" already exists — edit it instead (edit_doc for text, edit_artifact for .oui)`
+    );
+  }
+  await mkdir(path.dirname(abs), { recursive: true });
+  await writeFile(abs, ensureTrailingNewline(content), "utf8");
 }
 
 /**
