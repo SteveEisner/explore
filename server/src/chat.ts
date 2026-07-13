@@ -40,11 +40,22 @@ const WARMUP_PROMPT =
  */
 const DELEGATION_TIMEOUT_MS = 5 * 60_000;
 
-/** Model tier each ask_artifact_agent mode selects (perf-eval calibrated). */
+/**
+ * Model each ask_artifact_agent mode selects (perf-eval calibrated: Sonnet 5
+ * matched Opus 4.8 on speed and cost in the model sweep, while Haiku added
+ * 6.6–8.2s of thinking per delegated turn — eval/agent-timing-report.md).
+ *
+ * Always full model ids, never CLI aliases: ClaudeSession restarts whenever
+ * the requested model string differs from the active one, so an alias like
+ * "opus" reads as a switch away from "claude-opus-4-8" and forces a spurious
+ * respawn (plus a fresh prompt-cache write) on every delegation. With exact
+ * ids, `smart` on the production default is a same-model no-op — no respawn.
+ * VOICE_SMART_MODEL / VOICE_FAST_MODEL overrides must also be full ids.
+ */
 function delegationModel(mode: "fast" | "smart"): string {
   return mode === "smart"
-    ? process.env.VOICE_SMART_MODEL || "opus"
-    : process.env.VOICE_FAST_MODEL || "haiku";
+    ? process.env.VOICE_SMART_MODEL || "claude-opus-4-8"
+    : process.env.VOICE_FAST_MODEL || "claude-sonnet-5";
 }
 
 /**
