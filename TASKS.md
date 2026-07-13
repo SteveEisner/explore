@@ -49,8 +49,8 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Task | Area | Notes |
 |---|---|---|
 | Delete tool follow-up: consider a trash/undo layer (delete is currently permanent, git history aside) | wiki | resolved 2026-07-12: the delete tools were Steve's explicit request ("create a delete file tool exposed in all the standard places"), not an unauthorized rider — tool descriptions require explicit user intent per call; only the trash-layer question remains open |
-| Validate .oui content on create: an agent wrote design/explainer.oui in a hallucinated indentation syntax (not OpenUI Lang) and createDoc/create_file happily saved it — parse with lang-core at create/edit time and reject with a teaching error ("no root statement; OpenUI Lang is name = Component(...) lines") so the model self-corrects instead of shipping an empty artifact | server | found 2026-07-12 21:30 diagnosing "explainer.md renders no widget" |
-| Embed shows parse failures instead of an empty sliver: GenerativeView renders null when a .oui has no renderable root, so a broken embed collapses silently (openui:error goes only to the JSONL log) — surface an error card in the oui-embed preview (and arguably the full-page .oui view) with the parse message | client | same 2026-07-12 diagnosis; error text already exists via the onError callback |
+| `edit_artifact` with a completely garbage spec silently no-ops: mergeStatements drops unparseable patches and reports success — a teaching error would let the model self-correct | server | from the 2026-07-12 .oui-validation work (create/raw-edit paths now validate; the merge path can't corrupt files but can silently do nothing) |
+| Fix or delete the broken docs/design/explainer.oui | wiki | written in hallucinated syntax before .oui validation existed; now renders the new error card — its author should regenerate it in real OpenUI Lang (good live test target until then) |
 
 ## Crunch tracks (non-interactive; run unattended once the isolated instance exists)
 
