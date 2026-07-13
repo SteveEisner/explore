@@ -27,6 +27,8 @@ export function ExpandedArtifact({
   target,
   open,
   drawMode,
+  scrollerRef,
+  contentRef,
   onClosed,
   onNavigate,
 }: {
@@ -34,6 +36,13 @@ export function ExpandedArtifact({
   open: boolean;
   /** The toolbar pen tool: draw on the artifact, not the page beneath. */
   drawMode: boolean;
+  /**
+   * Expose the overlay's scroll container and content wrapper to App: while
+   * an artifact is expanded, screenshots and state snapshots must observe
+   * this surface, not the hidden document underneath.
+   */
+  scrollerRef: React.MutableRefObject<HTMLDivElement | null>;
+  contentRef: React.MutableRefObject<HTMLDivElement | null>;
   onClosed: () => void;
   onNavigate: (url: string) => void;
 }) {
@@ -69,7 +78,10 @@ export function ExpandedArtifact({
 
   return (
     <div
-      ref={rootRef}
+      ref={(el) => {
+        rootRef.current = el;
+        scrollerRef.current = el;
+      }}
       className={cn(
         "absolute inset-0 z-10 overflow-y-auto overscroll-none bg-background select-text",
         "transition-[opacity,transform,filter] duration-300 ease-out",
@@ -86,7 +98,7 @@ export function ExpandedArtifact({
       {/* Same shape as the document wrapper in App: the annotation layer
           lives inside the scrolled content, so strokes are recorded in the
           artifact's own coordinates and stay glued through scrolling. */}
-      <div className="relative min-h-full">
+      <div ref={contentRef} className="relative min-h-full">
         {typeof target === "string" ? (
           <FileViewer url={target} onNavigate={onNavigate} />
         ) : (

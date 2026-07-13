@@ -92,6 +92,30 @@ export default function App() {
   }, [expandedKey]);
   const scrollerRef = React.useRef<HTMLDivElement>(null);
   const docRef = React.useRef<HTMLDivElement>(null);
+  // The expanded-artifact overlay's own scroller/content, filled while one
+  // is mounted (expanded-artifact.tsx).
+  const expandedScrollerRef = React.useRef<HTMLDivElement | null>(null);
+  const expandedContentRef = React.useRef<HTMLDivElement | null>(null);
+
+  // The surface the user actually sees: the expanded artifact when one is
+  // up, else the document wrapper. Screenshots and state snapshots observe
+  // this — capturing the hidden page under a maximized artifact was a bug.
+  // Read at call time (refs fill after mount); everything touched is a
+  // stable ref or the store, so the once-registered provider can close over
+  // it safely.
+  const activeSurface = () => {
+    if (
+      normalizeExpandedRef(getState("app/expanded-artifact")) &&
+      expandedScrollerRef.current &&
+      expandedContentRef.current
+    ) {
+      return {
+        scroller: expandedScrollerRef.current,
+        doc: expandedContentRef.current,
+      };
+    }
+    return { scroller: scrollerRef.current, doc: docRef.current };
+  };
 
   // Leaving line mode erases the annotations — toggling off is the eraser.
   const toggleDraw = () => {
@@ -138,14 +162,17 @@ export default function App() {
     };
     document.addEventListener("mousemove", track, { passive: true });
     const unregister = registerAppStateProvider(async ({ screenshot }) => {
+      const surface = activeSurface();
       const inputs = {
         ...snapshotInputsRef.current,
         pointer: pointerRef.current,
+        scroller: surface.scroller,
+        doc: surface.doc,
       };
       const state = buildAppSnapshot(inputs);
       let image: string | undefined;
-      if (screenshot && inputs.scroller && inputs.doc) {
-        image = await captureMainView(inputs.scroller, inputs.doc);
+      if (screenshot && surface.scroller && surface.doc) {
+        image = await captureMainView(surface.scroller, surface.doc);
       }
       return { state, screenshot: image };
     });
@@ -155,7 +182,9 @@ export default function App() {
     // key through set_state. The raw subscription (not useStoreValue) fires
     // on every write, so pointing at the same target twice blinks twice.
     const unregisterIndicate = registerIndicateProvider((target) => {
-      const { scroller, doc } = snapshotInputsRef.current;
+      // Point at the surface the user sees: an expanded artifact's
+      // statements when one is up, the document otherwise.
+      const { scroller, doc } = activeSurface();
       if (!scroller || !doc) {
         return { ok: false, matched: 0, detail: "main panel not mounted" };
       }
@@ -179,10 +208,11 @@ export default function App() {
   // so they're captured with it) and send it to the chat as a D6 feedback
   // envelope: text + screenshot (+ the store snapshot chat.send attaches).
   const screenshot = async () => {
-    if (!scrollerRef.current || !docRef.current || capturing) return;
+    const surface = activeSurface();
+    if (!surface.scroller || !surface.doc || capturing) return;
     setCapturing(true);
     try {
-      const image = await captureMainView(scrollerRef.current, docRef.current);
+      const image = await captureMainView(surface.scroller, surface.doc);
       chat.send(
         strokes.length
           ? "Here's a screenshot of the current view, with my annotations drawn on it."
@@ -277,6 +307,8 @@ export default function App() {
               target={renderedArtifact}
               open={expandedArtifact !== null}
               drawMode={drawMode}
+              scrollerRef={expandedScrollerRef}
+              contentRef={expandedContentRef}
               onClosed={() => setRenderedArtifact(null)}
               onNavigate={(url) => {
                 setExpandedArtifact(null);
