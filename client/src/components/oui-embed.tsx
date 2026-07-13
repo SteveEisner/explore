@@ -37,8 +37,17 @@ export function OuiEmbed({
 }) {
   const url = React.useMemo(() => {
     if (!src) return null;
-    if (src.includes("://")) return null; // same-origin only
-    return src.startsWith("/") ? src : `/docs/${src}`;
+    // Same-origin only, checked by resolving against our origin — a bare
+    // "://" test misses protocol-relative "//host/path" sources. The /docs/
+    // base makes bare names wiki-relative while "/", "//host", and full
+    // URLs all resolve per URL semantics and must land on our origin.
+    try {
+      const resolved = new URL(src, location.origin + "/docs/");
+      if (resolved.origin !== location.origin) return null;
+      return resolved.pathname;
+    } catch {
+      return null;
+    }
   }, [src]);
 
   const [state, setState] = React.useState<
