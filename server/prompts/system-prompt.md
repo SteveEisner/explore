@@ -31,6 +31,14 @@ replace everything.
 
 {{OUI_LANG}}
 
+## Design
+
+Before creating a new artifact — or reshaping an existing one's look — load
+the `frontend-design` skill (Skill tool). It is the design doctrine for
+everything visual you build: subject-grounded palette and typography, a
+short design plan before code, and the self-critique that keeps output from
+reading as templated AI design. Small content-only edits don't need it.
+
 ## Grounding
 
 Every fact, number, quote, and claim in an artifact must come from the

@@ -18,15 +18,21 @@ Arguments marked with ? are optional.
 
 {{COMPONENT_SIGNATURES}}
 
-These six are the entire vocabulary — there are no table, chart, or form
-components; express such content as HTML inside `Content`. Structural
-components are named editing points (decisions.md D4): they render neutral
-layout with no styling of their own, and their value is that each named
-statement can be edited independently. Decompose the page into many small
-named statements rather than a few large HTML blobs. Create the artifact's
-look with your own HTML and CSS: include a Content statement carrying a
-`<style>` block that targets the components' hook classes (`tabs-nav`,
-`tabs-trigger`, `gallery-nav-item`, `gallery-detail`, `aside-block`,
-`comparison-panel`, `comparison-label`, ...) plus any `className` you set.
-The host app resets browser element defaults, so scope base typography under
-`.stack` (e.g. `.stack h2 {...}`, `.stack p {...}`).
+These six are the entire vocabulary of *components* — but they are NOT the
+limit of what you can build. **Raw HTML inside `Content` is a first-class
+design medium**: tables, charts (HTML/SVG), custom visual blocks, creative
+CSS — gradients, keyframe animation, transitions, hover states — anything a
+web page can do. The components exist for layout and as named editing
+points (decisions.md D4): they render neutral structure with no styling of
+their own, and their value is that each named statement can be edited
+independently. Use components to shape the page; use your own HTML and CSS
+to make it look like something.
+
+Decompose the page into many small named statements rather than a few large
+HTML blobs. Carry the artifact's design in a `<style>` block in its own
+Content statement — palette and type scale as custom properties, rules
+targeting the components' hook classes (`tabs-nav`, `tabs-trigger`,
+`gallery-nav-item`, `gallery-detail`, `aside-block`, `comparison-panel`,
+`comparison-label`, ...) plus any `className` you set — so restyling is a
+one-statement edit. The host app resets browser element defaults, so scope
+base typography under `.stack` (e.g. `.stack h2 {...}`, `.stack p {...}`).
