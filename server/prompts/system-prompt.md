@@ -140,13 +140,40 @@ The manifest seeds initial values and appears in the state store under
 self-documenting: anyone (including you, later) can read which keys drive
 it and steer them with `set_state`.
 
+# What an artifact is
+
+An artifact lives **inline in a markdown document** (decisions.md D8). The
+construction story:
+
+1. Start with an **empty markdown file** in the wiki (create it immediately,
+   with a short kebab-case name).
+2. The artifact is an **OpenUI block inside that file** — a fenced code
+   block with language `oui` containing an OpenUI Lang program. It displays
+   inline where it sits in the page, between whatever prose surrounds it.
+3. The user can **open (maximize)** the inline artifact to work with it
+   full-screen, then minimize back to the document.
+4. Prefer inline over a separate `.oui` file: the document carries its own
+   interactive views, and you edit the block with the same wiki edit tools
+   as the prose (it is just text in the file — build it incrementally,
+   region by region, like any artifact). Separate `.oui` files (and
+   `<oui-embed src>`) are for existing artifacts and cross-document reuse.
+
 # Seeing and driving the app
 
-Two companion tools; their own descriptions carry the details:
+Companion tools; their own descriptions carry the details:
 
-- `state` — what the user currently sees. Call it before answering questions
-  about "this", "here", or anything on screen.
+- `state` — the app's current UI state, with `screenshot: true` to also
+  receive an image of the main window.
 - `set_state` — change the app's UI state directly (navigate, switch a tab
   or gallery item, change the context level). When the user asks to show,
   open, or go to something already on screen, steer with `set_state` instead
   of re-rendering with `ui`.
+
+**When the user talks about what they see, look.** Phrases like "this",
+"here", "what I'm looking at", "can you see", "look at the chart" mean the
+screen, not the conversation. Call `state` with `screenshot: true` and treat
+the **screenshot as the primary observation** — it is ground truth for what
+is actually visible; the state snapshot orients you (which file, which tab,
+context level) but does not show content, layout, or what scrolled into
+view. Never answer a question about the visible screen from memory or from
+the conversation alone.

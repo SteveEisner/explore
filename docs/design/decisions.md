@@ -2,6 +2,27 @@
 
 Architecture and design decisions, newest first. Referenced from [ARCHITECTURE.md](ARCHITECTURE.md).
 
+## D8. Artifacts live inline in markdown documents
+
+**Date:** 2026-07-12
+**Decision:** The canonical artifact is an **OpenUI block inline in a markdown document**, not a separate `.oui` file. Construction starts with an empty markdown file; the artifact is an OpenUI-formatted block inside it that displays inline where it sits in the page; the user can **open (maximize)** the artifact to work with it full-screen and minimize back to the document. Separate `.oui` files remain supported (existing artifacts, reuse across documents via `<oui-embed src>`), but inline is the preferred form for new work.
+
+**Inline carrier: a fenced ` ```oui ` code block.** OpenUI specs are full of literal HTML (`Content("<h1>…")`), so carrying the program as the text content of an HTML tag would let the HTML parser eat it. A fenced code block preserves the text exactly, is ordinary markdown any tool can write with plain string edits, and degrades gracefully — a viewer without embed support shows the code instead of breaking the page.
+
+**Why:**
+
+- The document is the unit of thought: prose and interactive explanation belong together, in reading order, instead of the artifact living in a detached pane or sibling file the prose can only point at.
+- Editing collapses to one surface. An inline block is just text in a `.md`, so both agents edit artifacts with the same wiki edit tools they use for prose — no separate artifact-edit path, and wiki hot-reload updates the embed live for free.
+- The vault/wiki stays coherent: one file carries the whole exploration (its narrative, data references, and interactive views), so saving, sharing, and preloading a document carries its artifacts with it.
+
+**Consequences:**
+
+- Renderer support to build: markdown fenced blocks with language `oui` render as embedded artifacts (same preview treatment as `<oui-embed>`), and the maximize path must accept an inline block (spec text / document+block reference), not only a `.oui` URL (tracked in TASKS).
+- Both agents' instructions teach the model: start with an empty markdown file, add prose and a ` ```oui ` block, build the block incrementally with ordinary wiki edits.
+- `edit_artifact` and `artifact:save` remain the `.oui`-file path; they are no longer the default construction story.
+
+**Revisit if:** inline blocks grow past comfortable in-file editing (very large artifacts may still warrant a `.oui` + embed), or multiple documents need to share one artifact routinely.
+
 ## D7. Generation latency: preload the wiki into the prompt; Opus 4.8 as the default model
 
 **Date:** 2026-07-12

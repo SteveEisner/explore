@@ -96,6 +96,8 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Context/audience switcher component with context-variant text (from pr-review.html analysis) | 4 | — | todo |
 | Artifact runtime API: let artifacts query the wiki on demand (via the Wiki API) | 4 | — | todo |
 | Grow the vocabulary with interactive exploration elements (filters, drill-downs, timelines, diagrams, quizzes), guided by escape-hatch usage | 4 | — | todo |
+| **D8 renderer: inline artifacts.** Render markdown fenced code blocks with language `oui` as embedded artifacts (same preview treatment as `<oui-embed>`, hot-reload included) — the carrier for D8's inline-in-markdown artifact model; until this lands the agents' new construction instructions degrade to a visible code block | 4 | — | todo |
+| **D8 maximize for inline artifacts.** The open/maximize path (`app/expanded-artifact`) accepts an inline block (spec text or doc+block reference), not only a `.oui` URL, so inline artifacts get the same full-screen work mode as embeds | 4 | — | todo |
 | Pack OUI into markdown files instead of a separate .oui format? (Steve, 2026-07-12) — surface this as an explicit decision point on the artifact file format in decisions.md (revisits D2's on-disk representation): one file type in the wiki, artifacts embeddable/viewable as markdown, existing md tooling applies; against: parsing/round-tripping OUI out of md, the oui-embed mechanism already bridges the two, and every current path (ui tool, save-as-.oui, home listing, hot-reload) assumes .oui. Decide before more surface area accretes | 4 | — | todo |
 
 ## Intelligence & generation guidance (Claude Code)
