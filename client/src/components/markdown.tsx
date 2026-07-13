@@ -40,7 +40,7 @@ const sanitizeSchema = {
  * clobber-prefixed). Fenced code blocks get highlight.js coloring;
  * ```mermaid blocks render as diagrams.
  */
-export function Markdown({
+export const Markdown = React.memo(function Markdown({
   text,
   invert,
   typeset,
@@ -73,6 +73,51 @@ export function Markdown({
    */
   onLinkClick?: (href: string, event: React.MouseEvent) => void;
 }) {
+  // The component map identities MUST be stable across renders: an inline
+  // arrow here is a brand-new component type each render, so React would
+  // unmount and remount every matching element — replacing the DOM nodes
+  // and silently destroying the user's text selection whenever anything
+  // re-renders (with the mic live, the voice level meter re-renders the
+  // whole tree several times a second).
+  const components = React.useMemo<Components>(
+    () =>
+      ({
+        code: MarkdownCode,
+        pre: (props: React.ComponentProps<"pre">) => (
+          <MarkdownPre {...props} sourceUrl={sourceUrl} />
+        ),
+        // Custom tag: mounts an OpenUI app from a wiki .oui file.
+        "oui-embed": OuiEmbed,
+        // `<oui-embed ...></oui-embed>` on one line is inline HTML to
+        // the markdown parser (an HTML *block* is a single tag alone on
+        // a line), so it lands inside a paragraph; drop that wrapper —
+        // the embed renders divs, which can't nest in <p>.
+        p: ({ node, children, ...props }: React.ComponentProps<"p"> & {
+          node?: { children?: { type: string; tagName?: string }[] };
+        }) => {
+          const hasEmbed = node?.children?.some(
+            (c) => c.type === "element" && c.tagName === "oui-embed"
+          );
+          if (hasEmbed) return <>{children}</>;
+          return <p {...props}>{children}</p>;
+        },
+        ...(onLinkClick && {
+          a: ({ href, children, ...props }: React.ComponentProps<"a">) => (
+            <a
+              href={href}
+              {...props}
+              onClick={(e) => href && onLinkClick(href, e)}
+            >
+              {children}
+            </a>
+          ),
+        }),
+        // Components is keyed by intrinsic tags; the custom-element key
+        // is outside that type but fully supported at runtime.
+      }) as Components,
+    [sourceUrl, onLinkClick]
+  );
+
   return (
     <div
       className={cn(
@@ -90,52 +135,13 @@ export function Markdown({
           [rehypeSanitize, sanitizeSchema],
           rehypeSlug,
         ]}
-        components={
-          {
-            code: MarkdownCode,
-            pre: (props: React.ComponentProps<"pre">) => (
-              <MarkdownPre {...props} sourceUrl={sourceUrl} />
-            ),
-            // Custom tag: mounts an OpenUI app from a wiki .oui file.
-            "oui-embed": OuiEmbed,
-            // `<oui-embed ...></oui-embed>` on one line is inline HTML to
-            // the markdown parser (an HTML *block* is a single tag alone on
-            // a line), so it lands inside a paragraph; drop that wrapper —
-            // the embed renders divs, which can't nest in <p>.
-            p: ({ node, children, ...props }: React.ComponentProps<"p"> & {
-              node?: { children?: { type: string; tagName?: string }[] };
-            }) => {
-              const hasEmbed = node?.children?.some(
-                (c) => c.type === "element" && c.tagName === "oui-embed"
-              );
-              if (hasEmbed) return <>{children}</>;
-              return <p {...props}>{children}</p>;
-            },
-            ...(onLinkClick && {
-              a: ({
-                href,
-                children,
-                ...props
-              }: React.ComponentProps<"a">) => (
-                <a
-                  href={href}
-                  {...props}
-                  onClick={(e) => href && onLinkClick(href, e)}
-                >
-                  {children}
-                </a>
-              ),
-            }),
-            // Components is keyed by intrinsic tags; the custom-element key
-            // is outside that type but fully supported at runtime.
-          } as Components
-        }
+        components={components}
       >
         {text}
       </ReactMarkdown>
     </div>
   );
-}
+});
 
 /**
  * Block-code wrapper: a ```mermaid fence renders as a diagram instead of a

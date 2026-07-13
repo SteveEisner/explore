@@ -117,6 +117,15 @@ export default function App() {
     return { scroller: scrollerRef.current, doc: docRef.current };
   };
 
+  // Stable navigation callback: FileViewer derives its link handler from
+  // this, and Markdown's memo (which keeps paragraph DOM nodes — and the
+  // user's text selection — alive across App's frequent re-renders, e.g.
+  // the live mic level) only holds if the handler identity doesn't churn.
+  const navigateTo = React.useCallback(
+    (url: string) => setView({ kind: "doc", url }),
+    [setView]
+  );
+
   // Leaving line mode erases the annotations — toggling off is the eraser.
   const toggleDraw = () => {
     if (drawMode) setStrokes([]);
@@ -282,14 +291,9 @@ export default function App() {
                   </p>
                 )
               ) : view.kind === "home" ? (
-                <HomeView
-                  onNavigate={(url) => setView({ kind: "doc", url })}
-                />
+                <HomeView onNavigate={navigateTo} />
               ) : (
-                <FileViewer
-                  url={view.url}
-                  onNavigate={(url) => setView({ kind: "doc", url })}
-                />
+                <FileViewer url={view.url} onNavigate={navigateTo} />
               )}
               <DrawingOverlay
                 active={drawMode}
