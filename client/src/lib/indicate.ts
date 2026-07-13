@@ -167,6 +167,12 @@ function isVisibleIn(scroller: HTMLElement, el: HTMLElement): boolean {
 /** Class removal timers, so re-pointing at an element restarts its blink. */
 const blinkTimers = new WeakMap<HTMLElement, number>();
 
+/**
+ * Must outlive the `indicate-blink` CSS animation in index.css (one 5s pass:
+ * double-pulse onset, hold, fade) so the class isn't removed mid-animation.
+ */
+const BLINK_CLEANUP_MS = 5200;
+
 function blink(el: HTMLElement): void {
   const pending = blinkTimers.get(el);
   if (pending !== undefined) {
@@ -180,6 +186,6 @@ function blink(el: HTMLElement): void {
     window.setTimeout(() => {
       el.classList.remove("indicate-blink");
       blinkTimers.delete(el);
-    }, 1800)
+    }, BLINK_CLEANUP_MS)
   );
 }

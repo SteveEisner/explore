@@ -217,23 +217,31 @@
     }
 }
 
-/* Agent "indicate" pointer: a few outline+wash pulses on the element(s) an
-   agent is pointing at (lib/indicate.ts adds the class, removes it after). */
+/* Agent "indicate" pointer on the element(s) an agent is pointing at:
+   a quick double-pulse onset (~1.2s), a hold at full emphasis until 3s,
+   then a gentle 2s fade. One 5s pass — lib/indicate.ts adds the class and
+   removes it after BLINK_CLEANUP_MS, which must outlive this duration. */
 @keyframes indicate-blink {
   0%, 100% {
     background-color: transparent;
     outline-color: transparent;
   }
-  50% {
+  /* pulse peaks at 0.4s and 1.2s, holding through 3s */
+  8%, 24%, 60% {
     background-color: color-mix(in oklab, var(--primary) 14%, transparent);
     outline-color: color-mix(in oklab, var(--primary) 55%, transparent);
+  }
+  /* dip between the onset pulses (0.8s) */
+  16% {
+    background-color: color-mix(in oklab, var(--primary) 5%, transparent);
+    outline-color: color-mix(in oklab, var(--primary) 20%, transparent);
   }
 }
 .indicate-blink {
   outline: 3px solid transparent;
   outline-offset: 2px;
   border-radius: calc(var(--radius) * 0.6);
-  animation: indicate-blink 0.5s ease-in-out 3;
+  animation: indicate-blink 5s ease-in-out 1;
 }
 
 /* Typeset preset for reading wiki documents: a roomier rhythm than the
