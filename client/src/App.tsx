@@ -1,12 +1,11 @@
 import * as React from "react";
-import { SparklesIcon, SquarePenIcon } from "lucide-react";
 import { ChatBar } from "@/components/chat-bar";
 import { ChatSidebar } from "@/components/chat-sidebar";
 import { DrawingOverlay } from "@/components/drawing-overlay";
+import { ExpandedArtifact } from "@/components/expanded-artifact";
 import { FileViewer } from "@/components/file-viewer";
 import { HomeView } from "@/components/home-view";
 import { MainToolbar } from "@/components/main-toolbar";
-import { Button } from "@/components/ui/button";
 import { useChat } from "@/hooks/use-chat";
 import { useVoice } from "@/hooks/use-voice";
 import { registerAppStateProvider } from "@/lib/app-state";
@@ -36,16 +35,6 @@ export type MainView =
   | { kind: "doc"; url: string | null }
   | { kind: "authoring" };
 
-/** Markdown wiki pages get the floating "New Artifact" entry point. */
-function isMarkdownUrl(url: string | null): boolean {
-  return url !== null && (url.endsWith(".md") || url.endsWith(".markdown"));
-}
-
-/** Saved .oui views get the floating "Edit Artifact" entry point (J4). */
-function isOuiUrl(url: string | null): boolean {
-  return url !== null && url.endsWith(".oui");
-}
-
 export default function App() {
   const chat = useChat();
   const voice = useVoice(chat);
@@ -70,6 +59,20 @@ export default function App() {
     "app/chat-expanded",
     false
   );
+  // A launched wiki .oui covering the content panel (null = none). In the
+  // store so embeds' Expand buttons, both agents, and state snapshots all
+  // share it; navigation to a different view auto-minimizes below.
+  const [expandedArtifact, setExpandedArtifact] = useStoreValue<string | null>(
+    "app/expanded-artifact",
+    null
+  );
+  const viewSignature = view.kind === "doc" ? `doc:${view.url}` : view.kind;
+  const lastViewSignature = React.useRef(viewSignature);
+  React.useEffect(() => {
+    if (viewSignature === lastViewSignature.current) return;
+    lastViewSignature.current = viewSignature;
+    setExpandedArtifact(null);
+  }, [viewSignature, setExpandedArtifact]);
   const scrollerRef = React.useRef<HTMLDivElement>(null);
   const docRef = React.useRef<HTMLDivElement>(null);
 
@@ -154,22 +157,6 @@ export default function App() {
     };
   }, []);
 
-  // Reopen a saved .oui for editing: load its program into the authoring
-  // panel (LLM edit patches then merge onto it; re-saving the same name
-  // overwrites the file) and switch to authoring mode.
-  const editArtifact = async () => {
-    if (view.kind !== "doc" || !isOuiUrl(view.url)) return;
-    const url = view.url!;
-    try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-      chat.loadArtifact(url, await res.text());
-      setView({ kind: "authoring" });
-    } catch (err) {
-      frontendLog("artifact:edit-error", { url, message: String(err) });
-    }
-  };
-
   // Screenshot the content area (annotations are part of the document DOM,
   // so they're captured with it) and send it to the chat as a D6 feedback
   // envelope: text + screenshot (+ the store snapshot chat.send attaches).
@@ -223,32 +210,6 @@ export default function App() {
           saveError={chat.saveError}
         />
         <div className="relative min-h-0 flex-1">
-          {/* Floating entry into authoring mode, shown over markdown views
-              (the toolbar deliberately has no authoring button — its pencil
-              read too much like the drawing pen). */}
-          {view.kind === "doc" && isMarkdownUrl(view.url) && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setView({ kind: "authoring" })}
-              className="absolute top-3 right-4 z-10 shadow-md"
-            >
-              <SparklesIcon data-icon="inline-start" />
-              New Artifact
-            </Button>
-          )}
-          {/* Floating reopen-for-editing entry, shown over saved .oui views. */}
-          {view.kind === "doc" && isOuiUrl(view.url) && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => void editArtifact()}
-              className="absolute top-3 right-4 z-10 shadow-md"
-            >
-              <SquarePenIcon data-icon="inline-start" />
-              Edit Artifact
-            </Button>
-          )}
           {/* Document content is selectable; the surrounding chrome is not. */}
           <div
             ref={scrollerRef}
@@ -280,6 +241,18 @@ export default function App() {
               />
             </div>
           </div>
+          {/* A launched artifact covers the content panel; the document view
+              above stays mounted (scroll and state intact) underneath. */}
+          {expandedArtifact && (
+            <ExpandedArtifact
+              url={expandedArtifact}
+              onMinimize={() => setExpandedArtifact(null)}
+              onNavigate={(url) => {
+                setExpandedArtifact(null);
+                setView({ kind: "doc", url });
+              }}
+            />
+          )}
         </div>
       </main>
 

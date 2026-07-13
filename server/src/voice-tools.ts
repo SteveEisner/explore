@@ -246,6 +246,9 @@ const frontendTools: Array<{
       "url:'/docs/<path>'} opens a wiki file, {kind:'home'} the folder " +
       "view, {kind:'authoring'} the generative panel; 'app/context-level' " +
       "(integer) — the depth gate for context-aware artifact sections; " +
+      "'app/expanded-artifact' — a wiki .oui URL ('/docs/<path>') expands " +
+      "that artifact full-screen over the content panel, null minimizes " +
+      "back to the document; " +
       "'app/chat-open' and 'app/draw-mode' (booleans); artifact component " +
       "selections under 'artifact/...' (get_app_state shows every current " +
       "key under stateStore). Pass `updates` mapping keys to new values; " +

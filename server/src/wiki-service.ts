@@ -5,15 +5,16 @@ import { mergeStatements } from "@openuidev/lang-core";
 import { listWikiFiles } from "./wiki-files.js";
 
 /**
- * Wiki content service: read, search, and edit files inside the wiki
- * directory. This is the internal surface behind every non-MCP way of
- * touching wiki content — the voice agent's server tools and (future) HTTP
- * endpoints — so path safety and edit semantics live in exactly one place.
+ * Wiki content service: read, search, create, and edit files inside the
+ * wiki directory. This is the internal surface behind every agent-facing
+ * way of touching wiki content — the voice agent's server tools, the wiki
+ * MCP server, and the chat service's artifact commands — so path safety
+ * and edit semantics live in exactly one place.
  *
  * All functions take the wiki root and a *wiki-relative* path already
  * validated by `wikiDocPath`; they throw plain Errors with user-readable
- * messages (the voice bridge forwards them verbatim to the model, so a
- * failed call must teach the model how to correct itself).
+ * messages (every caller forwards them verbatim to a model, so a failed
+ * call must teach the model how to correct itself).
  */
 
 /** Longest slice `readDoc` returns; keeps tool results bounded. */

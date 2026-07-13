@@ -32,8 +32,9 @@ export interface ClaudeSessionOptions {
   command?: string;
   /**
    * The wiki directory. When set, the model gets the markdown-vault MCP
-   * server (note CRUD/search) plus the wiki file-listing MCP server, both
-   * rooted here — its only window onto content outside the sandbox cwd.
+   * server (note CRUD/search) plus the wiki MCP server (list/read/create
+   * for every file type), both rooted here — its only window onto content
+   * outside the sandbox cwd.
    */
   wikiDir?: string;
   /** Model for the CLI session (`--model`); the CLI's default when unset. */
@@ -375,7 +376,8 @@ export class ClaudeSession extends EventEmitter {
     };
     if (this.wikiDir) {
       // Third-party markdown-note CRUD/search over the wiki, plus our own
-      // listing tool covering the non-markdown wiki files it can't see.
+      // wiki server (list/read/create) covering the non-markdown wiki files
+      // it can't see.
       mcpServers.vault = {
         command: path.resolve(
           here,

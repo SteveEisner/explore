@@ -37,6 +37,9 @@ server.registerTool(
     },
   },
   async ({ spec }) => {
+    // Flavor for the acknowledgement only: non-empty lines approximate
+    // statements (nothing here parses the spec — see the header; the back
+    // end streams the real spec to the front end from the tool-call tokens).
     const statements = spec
       .split("\n")
       .filter((line) => line.trim().length > 0).length;
@@ -114,7 +117,10 @@ server.registerTool(
       "(markdown source lines of the open document, 1-based), " +
       "{statement:'name'} (an OpenUI statement in the rendered artifact), " +
       "or {text:'snippet'} (first occurrence, case-insensitive); write it " +
-      "again to blink again. Artifact keys: a " +
+      "again to blink again; 'app/expanded-artifact' — a wiki .oui URL " +
+      "('/docs/<path>') expands that artifact full-screen over the content " +
+      "panel (the document view stays open underneath); null minimizes " +
+      "back to the document. Artifact keys: a " +
       "Tabs/Gallery " +
       "component's active item lives under its stateKey prop, or " +
       "'artifact/tabs/<statementId>' / 'artifact/gallery/<statementId>' " +
