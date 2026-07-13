@@ -6,6 +6,7 @@ import {
   PenLineIcon,
   SaveIcon,
   SparklesIcon,
+  XIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useStoreValue } from "@/lib/state-store";
@@ -170,6 +171,13 @@ function ArtifactNameBar({
 
 /** The filename-selector face: current document name, or the artifact state. */
 function ViewTitle({ view }: { view: MainView }) {
+  // A launched artifact (the full-panel overlay) rides the right side of the
+  // file bar as a closable pill — the document name stays put, saying the
+  // page is still open underneath.
+  const [expandedArtifact, setExpandedArtifact] = useStoreValue<string | null>(
+    "app/expanded-artifact",
+    null
+  );
   // Sparkles = artifact (.oui / authoring), file = ordinary wiki document.
   const face =
     view.kind === "home"
@@ -196,6 +204,22 @@ function ViewTitle({ view }: { view: MainView }) {
       >
         {face.name}
       </span>
+      {expandedArtifact && (
+        <span className="ml-auto flex min-w-0 shrink-0 items-center gap-1.5 rounded-full border bg-background py-0.5 pr-1 pl-2.5 text-xs shadow-sm">
+          <SparklesIcon className="size-3 shrink-0 text-primary" />
+          <span className="max-w-48 truncate font-medium">
+            {expandedArtifact.split("/").pop()}
+          </span>
+          <button
+            type="button"
+            onClick={() => setExpandedArtifact(null)}
+            aria-label="Minimize the expanded artifact"
+            className="cursor-pointer rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <XIcon className="size-3.5" />
+          </button>
+        </span>
+      )}
     </div>
   );
 }

@@ -14,6 +14,8 @@ export interface SnapshotInputs {
   chatOpen: boolean;
   chatBusy: boolean;
   drawMode: boolean;
+  /** Wiki .oui expanded full-screen over the content panel, if any. */
+  expandedArtifact: string | null;
   strokeCount: number;
   authoringProgram: string | null;
   pointer: { x: number; y: number; at: number } | null;
@@ -48,6 +50,12 @@ export function buildAppSnapshot(inputs: SnapshotInputs): unknown {
                 ? "markdown"
                 : "oui",
           },
+    /**
+     * A launched artifact covering the content panel (null = none). Expand
+     * with the expand_artifact tool / the app/expanded-artifact store key;
+     * the document in `view` stays open underneath.
+     */
+    expandedArtifact: inputs.expandedArtifact,
     scroll: snapshotScroll(scroller),
     selection: snapshotSelection(doc),
     pointer: snapshotPointer(inputs.pointer, doc),

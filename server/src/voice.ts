@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import type { JsonlLogger } from "./logger.js";
+import { ouiLangExplainer } from "./prompt.js";
 import { frontendToolNames, voiceToolSchemas } from "./voice-tools.js";
 
 /**
@@ -85,7 +86,15 @@ async function mintSession(logger: JsonlLogger): Promise<VoiceSessionAnswer> {
   // file is a deployment bug — a voice session must never start unguided.
   let instructions: string;
   try {
-    instructions = readFileSync(GUIDANCE_FILE, "utf8").trim();
+    // The same OpenUI Lang explainer the Claude session gets (prompt.ts):
+    // the voice model writes .oui through edit_artifact/create_doc, and an
+    // unguided model invents syntax (seen 2026-07-12, design/explainer.oui).
+    instructions =
+      readFileSync(GUIDANCE_FILE, "utf8").trim() +
+      "\n\n# OpenUI Lang (.oui artifacts)\n\n" +
+      "The language your edit_artifact tool speaks, and the only valid " +
+      "content for a .oui file you create with create_doc.\n\n" +
+      ouiLangExplainer();
   } catch (err) {
     throw new HttpError(
       500,

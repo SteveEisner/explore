@@ -73,6 +73,14 @@ export default function App() {
     lastViewSignature.current = viewSignature;
     setExpandedArtifact(null);
   }, [viewSignature, setExpandedArtifact]);
+  // What the overlay actually renders: follows the store key up instantly,
+  // but holds the last url through the exit animation until onClosed.
+  const [renderedArtifact, setRenderedArtifact] = React.useState<string | null>(
+    null
+  );
+  React.useEffect(() => {
+    if (expandedArtifact) setRenderedArtifact(expandedArtifact);
+  }, [expandedArtifact]);
   const scrollerRef = React.useRef<HTMLDivElement>(null);
   const docRef = React.useRef<HTMLDivElement>(null);
 
@@ -107,6 +115,7 @@ export default function App() {
     chatOpen,
     chatBusy: chat.busy,
     drawMode,
+    expandedArtifact,
     strokeCount: strokes.length,
     authoringProgram: chat.ui.program,
     pointer: pointerRef.current,
@@ -242,11 +251,14 @@ export default function App() {
             </div>
           </div>
           {/* A launched artifact covers the content panel; the document view
-              above stays mounted (scroll and state intact) underneath. */}
-          {expandedArtifact && (
+              above stays mounted (scroll and state intact) underneath. It
+              stays rendered through the exit animation (renderedArtifact
+              lags the store key until the fade-out reports closed). */}
+          {renderedArtifact && (
             <ExpandedArtifact
-              url={expandedArtifact}
-              onMinimize={() => setExpandedArtifact(null)}
+              url={renderedArtifact}
+              open={expandedArtifact !== null}
+              onClosed={() => setRenderedArtifact(null)}
               onNavigate={(url) => {
                 setExpandedArtifact(null);
                 setView({ kind: "doc", url });

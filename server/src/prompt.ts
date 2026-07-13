@@ -6,9 +6,12 @@ import { componentSignatures } from "./ui-library.js";
  * The appended system prompt is authored as markdown under server/prompts/
  * so it can be edited without touching code:
  *
- *   system-prompt.md — role, the ui tool (with a {{COMPONENT_SIGNATURES}}
- *                      placeholder filled from the component schemas),
+ *   system-prompt.md — role, the ui tool (with an {{OUI_LANG}} placeholder),
  *                      grounding, and the state/set_state policy
+ *   oui-lang.md      — the OpenUI Lang explainer (syntax + component
+ *                      signatures via {{COMPONENT_SIGNATURES}}); shared
+ *                      verbatim with the voice agent (ouiLangExplainer),
+ *                      so both intelligences learn the same language
  *   wiki.md          — appended only when a wiki is configured
  *
  * Files are read on every session spawn, so a prompt edit takes effect the
@@ -21,15 +24,32 @@ import { componentSignatures } from "./ui-library.js";
 const PROMPTS_DIR = path.resolve(import.meta.dirname, "../prompts");
 
 const SIGNATURES_PLACEHOLDER = "{{COMPONENT_SIGNATURES}}";
+const OUI_LANG_PLACEHOLDER = "{{OUI_LANG}}";
+
+/**
+ * The OpenUI Lang teaching text (syntax rules + live component signatures)
+ * — the single source both agents learn the language from: substituted into
+ * the Claude session's system prompt here, appended to the voice agent's
+ * session instructions by voice.ts.
+ */
+export function ouiLangExplainer(): string {
+  const template = readPromptFile("oui-lang.md");
+  if (!template.includes(SIGNATURES_PLACEHOLDER)) {
+    throw new Error(
+      `oui-lang.md must contain ${SIGNATURES_PLACEHOLDER} — without it the LLM never learns the component vocabulary`
+    );
+  }
+  return template.replace(SIGNATURES_PLACEHOLDER, componentSignatures());
+}
 
 export function buildSystemPrompt(options: { wikiDir?: string }): string {
   const template = readPromptFile("system-prompt.md");
-  if (!template.includes(SIGNATURES_PLACEHOLDER)) {
+  if (!template.includes(OUI_LANG_PLACEHOLDER)) {
     throw new Error(
-      `system-prompt.md must contain ${SIGNATURES_PLACEHOLDER} — without it the LLM never learns the component vocabulary`
+      `system-prompt.md must contain ${OUI_LANG_PLACEHOLDER} — without it the LLM never learns OpenUI Lang`
     );
   }
-  const prompt = template.replace(SIGNATURES_PLACEHOLDER, componentSignatures());
+  const prompt = template.replace(OUI_LANG_PLACEHOLDER, ouiLangExplainer());
   if (options.wikiDir === undefined) return prompt;
   return `${prompt}\n\n${readPromptFile("wiki.md")}${preloadedPages(options.wikiDir)}`;
 }
