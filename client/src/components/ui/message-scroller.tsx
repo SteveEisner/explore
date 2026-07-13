@@ -32,10 +32,41 @@ function MessageScroller({
   )
 }
 
+/** A wheel gesture ending within this many pixels of the bottom re-pins the
+ * scroller (matches the "near bottom" feel of common chat UIs). */
+const WHEEL_REPIN_THRESHOLD = 100
+
 function MessageScrollerViewport({
   className,
+  onWheel,
   ...props
 }: React.ComponentProps<typeof MessageScrollerPrimitive.Viewport>) {
+  const { scrollToEnd } = useMessageScroller()
+
+  // The primitive drops out of follow-the-bottom mode on ANY wheel event
+  // ("user scroll intent"), including downward/neutral ticks at the bottom
+  // that move nothing — e.g. macOS trackpad inertia right after scrolling
+  // down. Since no scroll event follows, the mode never recovers and
+  // streaming messages stop auto-scrolling. The primitive runs its intent
+  // handler before this one, so re-pin here (its own scrollToEnd restores
+  // follow mode) when the gesture points at the bottom:
+  // - downward wheel near the bottom → user is heading to the newest
+  //   message; snap the pin back on,
+  // - neutral (horizontal) wheel while at the bottom → not a scroll-away at
+  //   all; restore the pin in place.
+  // Upward wheel is real "scroll up to read" intent and stays unpinned.
+  const handleWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    onWheel?.(event)
+    const el = event.currentTarget
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight
+    if (
+      (event.deltaY > 0 && distance <= WHEEL_REPIN_THRESHOLD) ||
+      (event.deltaY === 0 && distance <= 2)
+    ) {
+      scrollToEnd({ behavior: "auto" })
+    }
+  }
+
   return (
     <MessageScrollerPrimitive.Viewport
       data-slot="message-scroller-viewport"
@@ -43,6 +74,7 @@ function MessageScrollerViewport({
         "size-full min-h-0 min-w-0 scroll-fade-b scrollbar-thin scrollbar-gutter-stable overflow-y-auto overscroll-contain contain-content data-autoscrolling:scrollbar-thumb-transparent data-autoscrolling:scrollbar-track-transparent",
         className
       )}
+      onWheel={handleWheel}
       {...props}
     />
   )
