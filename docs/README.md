@@ -14,6 +14,8 @@ right inside the wiki's own pages.
 - **You talk; the agent does.** It reads the wiki, discusses it with you,
   answers from the material, and makes every change itself — you never edit
   a file by hand. Ask, watch the page update live, ask again.
+
+  Use the toolbar buttons: Draw (pencil icon) to draw, and Chat (speech bubble icon) to chat.
 - **Artifacts live inside the pages.** An artifact is an interactive OpenUI
   view embedded in a markdown document: it renders inline where it sits, and
   opens full-screen when you want to work with it.
@@ -29,6 +31,13 @@ right inside the wiki's own pages.
   program and the hand-built original it recreates
 - [Embedding demo](/docs/oui-embed-demo.md) — how live artifacts sit inside a
   wiki page, with two working embeds
+
+### In the agents' own words
+
+Examples drawn from the reports folder, written as artifacts inside markdown pages:
+- [PM retrospective](/docs/reports/pm-retrospective.md) — the overseer’s ledger of what shipped and why
+- [Worker retrospective: markdown tooling](/docs/reports/how-it-felt-to-build-the-page.md) — a worker’s reflection on building the page and its artifact
+- [Worker 2 signing off](/docs/reports/worker-2-signing-off.md) — a final transmission from Worker 2
 
 The project's own documentation — design docs, decision log, reviews,
 worklogs — lives in the `design/`, `reports/`, and `worklogs/` folders,
