@@ -93,6 +93,41 @@ describe("voice:tool bridge", () => {
     assert.doesNotMatch(content, /text="hi"/);
   });
 
+  it("create_doc then rename_doc moves a file through the bridge", async () => {
+    const created = await callTool(socket, "create_doc", {
+      path: "drafts/idea.md",
+      content: "# Idea\n",
+    });
+    assert.equal(created.error, undefined);
+
+    const renamed = await callTool(socket, "rename_doc", {
+      path: "drafts/idea.md",
+      new_path: "plans/idea.md",
+    });
+    assert.equal(renamed.error, undefined);
+    assert.deepEqual(JSON.parse(renamed.result as string), {
+      renamed: "drafts/idea.md",
+      to: "plans/idea.md",
+      url: "/docs/plans/idea.md",
+    });
+    const content = await readFile(
+      path.join(app.wikiDir, "plans", "idea.md"),
+      "utf8"
+    );
+    assert.equal(content, "# Idea\n");
+  });
+
+  it("rename_doc rejects a hostile target path before touching the wiki", async () => {
+    const reply = await callTool(socket, "rename_doc", {
+      path: "guide.md",
+      new_path: "../outside.md",
+    });
+    assert.match(reply.error as string, /invalid path/);
+    // The source must be untouched by the refused rename.
+    const guide = await readFile(path.join(app.wikiDir, "guide.md"), "utf8");
+    assert.match(guide, /# Guide/);
+  });
+
   it("returns teaching errors, not silence, for bad calls", async () => {
     const unknown = await callTool(socket, "no_such_tool", {});
     assert.match(unknown.error as string, /unknown voice tool/);

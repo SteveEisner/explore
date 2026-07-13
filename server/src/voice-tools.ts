@@ -2,9 +2,11 @@ import { z } from "zod";
 import { listWikiFiles } from "./wiki-files.js";
 import {
   createDoc,
+  deleteDoc,
   editArtifactSpec,
   editDoc,
   readDoc,
+  renameDoc,
   searchDocs,
   wikiDocPath,
 } from "./wiki-service.js";
@@ -165,6 +167,42 @@ const serverTools = [
       const rel = requireWikiPath(path);
       await createDoc(ctx.wikiDir, rel, content);
       return JSON.stringify({ created: rel, url: `/docs/${rel}` });
+    },
+  }),
+  tool({
+    name: "rename_doc",
+    description:
+      "Rename or move a wiki file to a new path. The file's extension must " +
+      "stay the same (a rename never changes content), and the target must " +
+      "not already exist. Parent folders of the new path are created as " +
+      "needed. Anyone viewing the file sees the change.",
+    args: z.object({
+      path: z.string().describe("Current wiki-relative path of the file"),
+      new_path: z
+        .string()
+        .describe("New wiki-relative path, e.g. 'notes/renamed.md'"),
+    }),
+    execute: async ({ path, new_path }, ctx) => {
+      const from = requireWikiPath(path);
+      const to = requireWikiPath(new_path);
+      await renameDoc(ctx.wikiDir, from, to);
+      return JSON.stringify({ renamed: from, to, url: `/docs/${to}` });
+    },
+  }),
+  tool({
+    name: "delete_doc",
+    description:
+      "Permanently delete a wiki file. There is no trash and no undo, so " +
+      "only call this when the user has explicitly asked for this specific " +
+      "file to be deleted — never to tidy up on your own initiative. When " +
+      "in doubt, confirm the exact path with the user first.",
+    args: z.object({
+      path: z.string().describe("Wiki-relative path of the file to delete"),
+    }),
+    execute: async ({ path }, ctx) => {
+      const rel = requireWikiPath(path);
+      await deleteDoc(ctx.wikiDir, rel);
+      return JSON.stringify({ deleted: rel });
     },
   }),
   tool({

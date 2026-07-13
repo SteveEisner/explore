@@ -1,11 +1,14 @@
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
+  createDoc,
   editDoc,
   readDoc,
+  renameDoc,
   searchDocs,
   wikiDocPath,
 } from "../../server/src/wiki-service.js";
@@ -144,6 +147,103 @@ describe("wiki service", () => {
         /matches 2 places/
       );
       assert.equal(await readFile(path.join(wikiDir, "notes.md"), "utf8"), before);
+    });
+  });
+
+  describe("createDoc", () => {
+    it("creates a new file (parent dirs included) with a trailing newline", async () => {
+      await createDoc(wikiDir, "made/fresh.md", "# Fresh");
+      const content = await readFile(path.join(wikiDir, "made", "fresh.md"), "utf8");
+      assert.equal(content, "# Fresh\n");
+    });
+
+    it("refuses to overwrite an existing file, without tool names", async () => {
+      await assert.rejects(
+        () => createDoc(wikiDir, "notes.md", "clobber"),
+        (err: Error) => {
+          assert.match(err.message, /"notes\.md" already exists/);
+          // Surface-neutral: the same message reaches the voice model and
+          // the CLI model, whose edit tools have different names.
+          assert.doesNotMatch(err.message, /edit_doc|edit_artifact/);
+          return true;
+        }
+      );
+      // The refused write must not have touched the file.
+      const content = await readFile(path.join(wikiDir, "notes.md"), "utf8");
+      assert.doesNotMatch(content, /clobber/);
+    });
+
+    it("rejects empty content instead of writing a lone newline", async () => {
+      await assert.rejects(
+        () => createDoc(wikiDir, "made/blank.md", ""),
+        /empty content/
+      );
+      assert.equal(existsSync(path.join(wikiDir, "made", "blank.md")), false);
+    });
+
+    it("rejects unsupported extensions, listing the supported ones", async () => {
+      await assert.rejects(
+        () => createDoc(wikiDir, "script.sh", "#!/bin/sh\n"),
+        /supported types: .*\.md/
+      );
+    });
+  });
+
+  describe("renameDoc", () => {
+    it("moves a file to a new nested path, creating parent dirs", async () => {
+      await createDoc(wikiDir, "to-move.md", "movable\n");
+      await renameDoc(wikiDir, "to-move.md", "moved/into/place.md");
+      assert.equal(existsSync(path.join(wikiDir, "to-move.md")), false);
+      const content = await readFile(
+        path.join(wikiDir, "moved", "into", "place.md"),
+        "utf8"
+      );
+      assert.equal(content, "movable\n");
+    });
+
+    it("renames a .oui artifact", async () => {
+      await createDoc(wikiDir, "board.oui", 'root = Text(text="hi")\n');
+      await renameDoc(wikiDir, "board.oui", "boards/kanban.oui");
+      assert.match(
+        await readFile(path.join(wikiDir, "boards", "kanban.oui"), "utf8"),
+        /root = Text/
+      );
+    });
+
+    it("rejects a missing source with a listing hint", async () => {
+      await assert.rejects(
+        () => renameDoc(wikiDir, "ghost.md", "still-ghost.md"),
+        /"ghost\.md" does not exist/
+      );
+    });
+
+    it("refuses to overwrite an existing target and leaves both files intact", async () => {
+      await createDoc(wikiDir, "clash-src.md", "source\n");
+      await createDoc(wikiDir, "clash-dst.md", "target\n");
+      await assert.rejects(
+        () => renameDoc(wikiDir, "clash-src.md", "clash-dst.md"),
+        /"clash-dst\.md" already exists/
+      );
+      assert.equal(await readFile(path.join(wikiDir, "clash-src.md"), "utf8"), "source\n");
+      assert.equal(await readFile(path.join(wikiDir, "clash-dst.md"), "utf8"), "target\n");
+    });
+
+    it("refuses a cross-extension rename (content/type mismatch)", async () => {
+      await createDoc(wikiDir, "typed.md", "prose\n");
+      await assert.rejects(
+        () => renameDoc(wikiDir, "typed.md", "typed.oui"),
+        /must keep the file type/
+      );
+      assert.equal(existsSync(path.join(wikiDir, "typed.md")), true);
+      assert.equal(existsSync(path.join(wikiDir, "typed.oui")), false);
+    });
+
+    it("rejects a no-op rename to the same path", async () => {
+      await assert.rejects(
+        () => renameDoc(wikiDir, "notes.md", "notes.md"),
+        /same as the current path/
+      );
+      assert.equal(existsSync(path.join(wikiDir, "notes.md")), true);
     });
   });
 

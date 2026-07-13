@@ -2,7 +2,13 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { listWikiFiles } from "./wiki-files.js";
-import { createDoc, readDoc, wikiDocPath } from "./wiki-service.js";
+import {
+  createDoc,
+  deleteDoc,
+  readDoc,
+  renameDoc,
+  wikiDocPath,
+} from "./wiki-service.js";
 
 /**
  * Standalone MCP stdio server exposing wiki file-system tools to the Claude
@@ -109,7 +115,9 @@ server.registerTool(
       path: z
         .string()
         .describe("Wiki-relative path for the new file, e.g. 'notes/idea.md'"),
-      content: z.string().describe("The full file content"),
+      // min(1): the service rejects empty content (see createDoc); mirroring
+      // it here keeps both tool surfaces aligned with that boundary.
+      content: z.string().min(1).describe("The full file content"),
     },
   },
   async ({ path, content }) => {
@@ -121,6 +129,67 @@ server.registerTool(
           { type: "text", text: `Created ${rel} (served at /docs/${rel}).` },
         ],
       };
+    } catch (err) {
+      return toolError(err);
+    }
+  }
+);
+
+server.registerTool(
+  "rename_file",
+  {
+    description:
+      "Rename or move a wiki file to a new path. The file's extension must " +
+      "stay the same (a rename never changes content), and the target must " +
+      "not already exist. Parent folders of the new path are created as " +
+      "needed.",
+    inputSchema: {
+      path: z
+        .string()
+        .describe("Current wiki-relative path or /docs/<path> URL"),
+      new_path: z
+        .string()
+        .describe("New wiki-relative path, e.g. 'notes/renamed.md'"),
+    },
+  },
+  async ({ path, new_path }) => {
+    try {
+      const from = requirePath(path);
+      const to = requirePath(new_path);
+      await renameDoc(wikiRoot, from, to);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Renamed ${from} to ${to} (now served at /docs/${to}).`,
+          },
+        ],
+      };
+    } catch (err) {
+      return toolError(err);
+    }
+  }
+);
+
+server.registerTool(
+  "delete_file",
+  {
+    description:
+      "Permanently delete a wiki file. There is no trash and no undo, so " +
+      "only call this when the user has explicitly asked for this specific " +
+      "file to be deleted — never to tidy up on your own initiative. When " +
+      "in doubt, confirm the exact path with the user first.",
+    inputSchema: {
+      path: z
+        .string()
+        .describe("Wiki-relative path or /docs/<path> URL of the file to delete"),
+    },
+  },
+  async ({ path }) => {
+    try {
+      const rel = requirePath(path);
+      await deleteDoc(wikiRoot, rel);
+      return { content: [{ type: "text", text: `Deleted ${rel}.` }] };
     } catch (err) {
       return toolError(err);
     }

@@ -1,5 +1,4 @@
-import { existsSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { link, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { mergeStatements } from "@openuidev/lang-core";
 import { listWikiFiles } from "./wiki-files.js";
@@ -180,9 +179,16 @@ const CREATABLE_EXTENSIONS = new Set([
 /**
  * Create a new wiki file (any supported text type, .oui included — the
  * agent-side counterpart of the user's artifact save). Refuses to overwrite:
- * changing an existing file is edit_doc / edit_artifact territory, so a
- * duplicate path errors instead of silently clobbering. Parent folders are
- * created as needed.
+ * changing an existing file is edit-tool territory, so a duplicate path
+ * errors instead of silently clobbering — enforced atomically by the "wx"
+ * (exclusive-create) write flag, so no check-then-write race can lose a
+ * concurrent writer's file. Parent folders are created as needed.
+ *
+ * Empty content is rejected here, at the shared boundary: an empty create is
+ * a mistaken call (the model meant to write content, or dropped the
+ * argument), and a lone-newline file just renders as a puzzling blank page.
+ * Both tool schemas (voice create_doc, MCP create_file) mirror this with
+ * min-length 1, so most callers get the schema error first.
  */
 export async function createDoc(
   wikiDir: string,
@@ -195,14 +201,109 @@ export async function createDoc(
       `cannot create "${rel}" — supported types: ${[...CREATABLE_EXTENSIONS].join(", ")}`
     );
   }
-  const abs = path.join(wikiDir, rel);
-  if (existsSync(abs)) {
+  if (!content) {
     throw new Error(
-      `"${rel}" already exists — edit it instead (edit_doc for text, edit_artifact for .oui)`
+      `refusing to create "${rel}" with empty content — pass the complete file content`
     );
   }
+  const abs = path.join(wikiDir, rel);
   await mkdir(path.dirname(abs), { recursive: true });
-  await writeFile(abs, ensureTrailingNewline(content), "utf8");
+  try {
+    await writeFile(abs, ensureTrailingNewline(content), {
+      encoding: "utf8",
+      flag: "wx",
+    });
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "EEXIST") {
+      // Deliberately surface-neutral: this message reaches models on
+      // surfaces with different edit-tool names (voice edit_doc /
+      // edit_artifact vs. the CLI's vault edit + mcp__ui__edit_artifact),
+      // so it names the action, not any one surface's tool.
+      throw new Error(
+        `"${rel}" already exists — edit the existing file instead of creating it again`
+      );
+    }
+    throw err;
+  }
+}
+
+/**
+ * Rename or move a wiki file. Both paths are wiki-relative and already
+ * validated by `wikiDocPath` at every calling surface, same as createDoc.
+ *
+ * - Refuses to change the file's extension: a rename never rewrites content,
+ *   so letting notes.md become notes.oui would produce a file whose type no
+ *   longer matches what is inside it — creating a new file of the right type
+ *   is the correct move, and the error says so.
+ * - Refuses to overwrite an existing target, atomically: plain rename(2)
+ *   silently replaces the target, so we hard-link the source to the target
+ *   (link(2) fails with EEXIST when the target exists) and then unlink the
+ *   source. Both names briefly coexist; the source name never disappears
+ *   before the target exists.
+ * - Parent folders of the target are created as needed, like createDoc.
+ *
+ * Deleting wiki files stays deliberately unexposed — a destructive tool
+ * needs its own decision, not a rename side effect.
+ */
+export async function renameDoc(
+  wikiDir: string,
+  from: string,
+  to: string
+): Promise<void> {
+  if (from === to) {
+    throw new Error(
+      `the new path is the same as the current path ("${from}") — pass a different target`
+    );
+  }
+  const extFrom = path.extname(from).toLowerCase();
+  const extTo = path.extname(to).toLowerCase();
+  if (extFrom !== extTo) {
+    throw new Error(
+      `cannot rename "${from}" to "${to}" — a rename must keep the file type ` +
+        `(${extFrom || "no extension"} vs ${extTo || "no extension"}); ` +
+        `create a new file if you need a different type`
+    );
+  }
+  const absFrom = path.join(wikiDir, from);
+  const absTo = path.join(wikiDir, to);
+  await mkdir(path.dirname(absTo), { recursive: true });
+  try {
+    await link(absFrom, absTo);
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    // The target's parent dir was just created, so ENOENT means the source.
+    if (code === "ENOENT") {
+      throw new Error(
+        `"${from}" does not exist in the wiki — list the wiki files to find the right path`
+      );
+    }
+    if (code === "EEXIST") {
+      throw new Error(
+        `"${to}" already exists — refusing to overwrite it; pick a different target path`
+      );
+    }
+    throw err;
+  }
+  await unlink(absFrom);
+}
+
+/**
+ * Permanently delete a wiki file. There is no trash and no undo (outside
+ * git history), so callers' tool descriptions must demand explicit user
+ * intent. Missing files throw the standard teaching error rather than
+ * succeeding silently — "deleted" must always mean "it was there".
+ */
+export async function deleteDoc(wikiDir: string, rel: string): Promise<void> {
+  try {
+    await unlink(path.join(wikiDir, rel));
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+      throw new Error(
+        `"${rel}" does not exist in the wiki — list the wiki files to find the right path`
+      );
+    }
+    throw err;
+  }
 }
 
 /**
