@@ -8,8 +8,6 @@ import {
   FlagIcon,
   InfoIcon,
   MapPinIcon,
-  MicIcon,
-  MicOffIcon,
   SendIcon,
   WrenchIcon,
 } from "lucide-react";
@@ -31,12 +29,15 @@ import {
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller";
 import type { ChatItem, ChatState } from "@/hooks/use-chat";
-import type { VoiceState, VoiceStatus } from "@/hooks/use-voice";
+import type { VoiceState } from "@/hooks/use-voice";
 
 /**
- * Right-sidebar chat. Every event published by the back end is expressed as
- * a chat row: user/assistant turns as bubbles, status/tool/result/error
- * events as simple marker text.
+ * The conversation pane behind the toolbar chat bar's expander: the
+ * transcript plus the typed composer (text input, screenshot, send).
+ * Collapsed chat is voice-only — the toolbar bar carries just the mic
+ * (see chat-bar.tsx); anything needing text happens here. Every event
+ * published by the back end is expressed as a chat row: user/assistant
+ * turns as bubbles, status/tool/result/error events as simple marker text.
  */
 export function ChatSidebar({
   chat,
@@ -45,7 +46,9 @@ export function ChatSidebar({
   screenshotEnabled,
 }: {
   chat: ChatState;
-  /** The realtime voice session behind the mic toggle. */
+  /** Shown-problems source: the pane renders voice warnings/errors in full
+   * (the bar only tints its mic button) with the device picker to fix a
+   * silent mic in place. */
   voice?: VoiceState;
   /** Capture the main view and send it into the chat as an image turn. */
   onScreenshot?: () => void;
@@ -64,48 +67,6 @@ export function ChatSidebar({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {/* Closing lives in the toolbar's chat button; no control here.
-          Voice lives here: the session auto-starts with the panel (App
-          wires chat-open → voice), so the header carries its always-visible
-          controls — a live input level bar (if it doesn't move while you
-          talk, the model can't hear you) and the mic toggle, pulsing red
-          while the session is live. */}
-      <header className="flex items-center gap-2 border-b px-4 py-1.5">
-        <span className="flex-1 text-sm font-semibold">Chat</span>
-        {voice?.active && (
-          <span
-            aria-label="Microphone input level"
-            title={`Mic level — device: ${voice.micLabel ?? "unknown"}`}
-            className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted"
-          >
-            <span
-              className="block h-full rounded-full bg-green-500 transition-[width] duration-150"
-              style={{ width: `${Math.round(Math.min(1, voice.inputLevel) * 100)}%` }}
-            />
-          </span>
-        )}
-        {voice && (
-          <Button
-            type="button"
-            size="icon-sm"
-            variant={voice.active ? "destructive" : "ghost"}
-            onClick={voice.toggle}
-            aria-label={
-              voice.active
-                ? "End the voice conversation"
-                : "Start a voice conversation"
-            }
-            title={voiceStatusLabel(voice.status)}
-            className={voice.active ? "animate-pulse" : undefined}
-          >
-            {/* A live mic shows a pulsing mic (recording), not a mic-off
-                glyph — mic-off reads as "muted/disabled", the opposite of
-                what an open session is. */}
-            {voice.status === "error" ? <MicOffIcon /> : <MicIcon />}
-          </Button>
-        )}
-      </header>
-
       <MessageScrollerProvider autoScroll>
         <MessageScroller className="h-auto flex-1">
           <MessageScrollerViewport>
@@ -127,6 +88,20 @@ export function ChatSidebar({
           <MessageScrollerButton />
         </MessageScroller>
       </MessageScrollerProvider>
+
+      {/* Delegation progress strip: an ask_artifact_agent call can run for
+          minutes with nothing but the amber tool dot, so while one is in
+          flight show what the delegated Claude turn is doing right now. The
+          turn's events already stream to every client as ordinary chat:*
+          broadcasts (they land in `items` above), so the newest item doubles
+          as the live progress line — no extra protocol needed. */}
+      {voice?.active && voice.runningTools.includes("ask_artifact_agent") && (
+        <div className="border-t px-4 py-2 text-xs text-muted-foreground">
+          <span className="shimmer">
+            Claude is working — {delegationProgress(items) ?? "starting up…"}
+          </span>
+        </div>
+      )}
 
       {/* Voice problem strip: shown only when something needs the user —
           a mid-session warning (silent mic) or the reason the session
@@ -190,21 +165,31 @@ export function ChatSidebar({
   );
 }
 
-/** Human phrasing of the session state, for the mic button's tooltip. */
-function voiceStatusLabel(status: VoiceStatus): string {
-  switch (status) {
-    case "connecting":
-      return "Connecting voice…";
-    case "listening":
-      return "Listening…";
-    case "speaking":
-      return "Speaking…";
+/**
+ * One-line "what is Claude doing right now" for the delegation strip, read
+ * off the newest chat item: the delegated turn's streamed events (tool
+ * calls, response deltas, statuses) arrive as ordinary chat:* broadcasts
+ * and land at the end of `items`. Null means nothing has streamed since the
+ * delegation's own "voice:…" bridge marker — the caller shows a generic
+ * starting line.
+ */
+function delegationProgress(items: ChatItem[]): string | null {
+  const last = items[items.length - 1];
+  if (!last) return null;
+  switch (last.kind) {
     case "tool":
-      return "Working on it…";
-    case "error":
-      return "Voice failed";
-    case "idle":
-      return "Voice off";
+      // The bridge's own marker ("voice:ask_artifact_agent …") means the
+      // delegated turn hasn't produced an event of its own yet.
+      return last.text.startsWith("voice:") ? null : last.text;
+    case "assistant":
+      // A finished assistant row is a voice transcript folded in mid-flight
+      // ("I'm on it") — not Claude progress.
+      return last.streaming ? "writing a response…" : null;
+    case "status":
+    case "result":
+      return last.text;
+    default:
+      return null;
   }
 }
 

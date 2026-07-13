@@ -1,5 +1,6 @@
 import * as React from "react";
 import { SparklesIcon, SquarePenIcon } from "lucide-react";
+import { ChatBar } from "@/components/chat-bar";
 import { ChatSidebar } from "@/components/chat-sidebar";
 import { DrawingOverlay } from "@/components/drawing-overlay";
 import { FileViewer } from "@/components/file-viewer";
@@ -63,6 +64,12 @@ export default function App() {
   const [strokes, setStrokes] = React.useState<StrokePoints[]>([]);
   const [capturing, setCapturing] = React.useState(false);
   const [chatOpen, setChatOpen] = useStoreValue("app/chat-open", false);
+  // Chat's resting state is the toolbar composer alone; the conversation
+  // pane (bubbles, tool markers) drops down only when explicitly expanded.
+  const [chatExpanded, setChatExpanded] = useStoreValue(
+    "app/chat-expanded",
+    false
+  );
   const scrollerRef = React.useRef<HTMLDivElement>(null);
   const docRef = React.useRef<HTMLDivElement>(null);
 
@@ -200,6 +207,14 @@ export default function App() {
           chatOpen={chatOpen}
           onToggleChat={() => setChatOpen(!chatOpen)}
           chatBusy={chat.busy}
+          chatBar={
+            <ChatBar
+              chat={chat}
+              voice={voice}
+              expanded={chatExpanded}
+              onToggleExpanded={() => setChatExpanded(!chatExpanded)}
+            />
+          }
           onSaveArtifact={chat.saveArtifact}
           canSave={
             chat.connected && chat.ui.program !== null && !chat.ui.streaming
@@ -269,18 +284,21 @@ export default function App() {
       </main>
 
       {/* Right chat sidebar: floats above the content pane (the main panel
-          keeps its width) and slides in from the right edge. Stays mounted
-          off-screen when closed so chat state survives; `inert` keeps its
-          controls out of the tab order then. overflow-clip on the shell
-          clips the off-screen panel, and (not `hidden`) focusing elements
-          in the clipped chat must not scroll anything sideways. z-20 rides
-          over the content pane's floating buttons (z-10). */}
+          keeps its width) and drops down from under the toolbar (top-12 =
+          toolbar height) when the chat bar's expander is on — composing
+          happens in the toolbar bar; this pane is only the transcript.
+          Stays mounted off-screen when hidden so chat state survives;
+          `inert` keeps its controls out of the tab order then. overflow-clip
+          on the shell clips the off-screen panel, and (not `hidden`)
+          focusing elements in the clipped chat must not scroll anything
+          sideways. z-20 rides over the content pane's floating buttons
+          (z-10). */}
       <aside
-        inert={!chatOpen}
+        inert={!(chatOpen && chatExpanded)}
         className={
-          "absolute inset-y-0 right-0 z-20 w-96 border-l bg-sidebar shadow-lg " +
+          "absolute top-12 bottom-0 right-0 z-20 w-96 border-l bg-sidebar shadow-lg " +
           "transition-transform duration-200 " +
-          (chatOpen ? "translate-x-0" : "translate-x-full")
+          (chatOpen && chatExpanded ? "translate-x-0" : "translate-x-full")
         }
       >
         <div className="flex h-full flex-col">
