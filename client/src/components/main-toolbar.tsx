@@ -79,7 +79,7 @@ export function MainToolbar({
       <div className="mx-1 h-5 w-px bg-border" aria-hidden />
 
       {/* Toggles read filled-primary when ON, ghost when off — the same
-          on = filled language as the mic button's destructive fill. */}
+          on = filled language as the chat bar's live mic button. */}
       <Button
         size="icon-sm"
         variant={drawMode ? "default" : "ghost"}

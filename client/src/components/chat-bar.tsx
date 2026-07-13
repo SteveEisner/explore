@@ -8,13 +8,15 @@ import type { ChatItem, ChatState } from "@/hooks/use-chat";
 import type { VoiceState, VoiceStatus } from "@/hooks/use-voice";
 
 /**
- * Chat's resting face, inline in the main toolbar: a *recording pill* that
- * makes the open mic unmistakable for the whole life of the chat — red
- * wash, a live equalizer dancing with the microphone input, and the
- * session state spelled out (Listening / Speaking / Working) — plus the
- * expander that drops the conversation pane (bubbles, composer) down below
- * the toolbar. Collapsed chat is for *talking*; anything needing text or
- * reading back lives in the expanded pane.
+ * Chat's resting face, inline in the main toolbar: an *on-air pill* that
+ * makes the open mic unmistakable for the whole life of the chat — a green
+ * "mic live" wash (green = recording, per the macOS/meeting convention;
+ * red is reserved for failures), a live equalizer dancing with the
+ * microphone input, and the session state spelled out (Listening /
+ * Speaking / Working) — plus the expander that drops the conversation
+ * pane (bubbles, composer) down below the toolbar. Collapsed chat is for
+ * *talking*; anything needing text or reading back lives in the expanded
+ * pane.
  */
 export function ChatBar({
   chat,
@@ -44,7 +46,7 @@ export function ChatBar({
       <Button
         type="button"
         size="icon-sm"
-        variant={voice.active ? "destructive" : "ghost"}
+        variant={voice.active ? "default" : "ghost"}
         onClick={voice.toggle}
         aria-label={
           voice.active ? "End the voice conversation" : "Start a voice conversation"
@@ -134,7 +136,7 @@ function LevelBars({ status, level }: { status: VoiceStatus; level: number }) {
           key={i}
           className={
             "w-1 rounded-full transition-[height] duration-150 " +
-            (status === "tool" ? "bg-amber-500 " : "bg-red-500 ") +
+            (status === "tool" ? "bg-amber-500 " : "bg-emerald-500 ") +
             (pulsing ? "animate-pulse" : "")
           }
           style={{
@@ -149,13 +151,16 @@ function LevelBars({ status, level }: { status: VoiceStatus; level: number }) {
   );
 }
 
-/** The pill's wash: unmistakably red while the mic is hot. */
+/**
+ * The pill's wash: a distinct green "on air" while the mic is hot —
+ * attention-grabbing without reading as an error (red is failures only).
+ */
 function pillClass(status: VoiceStatus): string {
   switch (status) {
     case "listening":
     case "speaking":
     case "tool":
-      return "border-red-300/70 bg-red-500/10 dark:border-red-900";
+      return "border-emerald-300/80 bg-emerald-500/10 dark:border-emerald-800";
     case "connecting":
       return "animate-pulse bg-muted/40";
     case "error":
@@ -169,7 +174,7 @@ function labelClass(status: VoiceStatus): string {
   switch (status) {
     case "listening":
     case "speaking":
-      return "text-red-700 dark:text-red-400";
+      return "text-emerald-700 dark:text-emerald-400";
     case "tool":
       return "text-amber-700 dark:text-amber-500";
     case "error":
