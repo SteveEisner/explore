@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect } from "react";
+import { createContext, useContext, useEffect, useMemo } from "react";
 import {
   createLibrary,
   defineComponent,
@@ -87,6 +87,29 @@ function resolveSelection(raw: unknown, labels: string[]): number {
  * Layout contract: components are edge-to-edge — no built-in outer padding.
  */
 
+/**
+ * Streamed html grows chunk by chunk, and dangerouslySetInnerHTML rebuilds
+ * the subtree on every change. For <style> blocks that rebuild removes the
+ * element for a frame per chunk — the whole artifact flashes unstyled at
+ * chunk rate. Split them out: complete blocks render as persistent React
+ * <style> elements (text updates apply in one commit, no unstyled frame),
+ * and an unclosed trailing <style> mid-stream is withheld entirely so
+ * half-streamed CSS never shows up as page text.
+ */
+function splitContentHtml(html: string): { styles: string[]; rest: string } {
+  const styles: string[] = [];
+  let rest = html.replace(
+    /<style\b[^>]*>([\s\S]*?)<\/style>/gi,
+    (_, css: string) => {
+      styles.push(css);
+      return "";
+    }
+  );
+  const unclosed = rest.search(/<style\b/i);
+  if (unclosed !== -1) rest = rest.slice(0, unclosed);
+  return { styles, rest };
+}
+
 const Content = defineComponent({
   name: "Content",
   description:
@@ -96,14 +119,24 @@ const Content = defineComponent({
     context: contextProp,
   }),
   component: function ContentComponent({ props, statementId }) {
-    if (!useContextVisible(props.context)) return null;
+    const visible = useContextVisible(props.context);
+    const { styles, rest } = useMemo(
+      () => splitContentHtml(props.html),
+      [props.html]
+    );
+    if (!visible) return null;
     return (
-      <div
-        className="w-full min-w-0 [&_a]:underline"
-        data-statement={statementId}
-        // The whole point of Content is trusted LLM-authored markup.
-        dangerouslySetInnerHTML={{ __html: props.html }}
-      />
+      <>
+        {styles.map((css, i) => (
+          <style key={i}>{css}</style>
+        ))}
+        <div
+          className="w-full min-w-0 [&_a]:underline"
+          data-statement={statementId}
+          // The whole point of Content is trusted LLM-authored markup.
+          dangerouslySetInnerHTML={{ __html: rest }}
+        />
+      </>
     );
   },
 });
