@@ -68,6 +68,13 @@ export interface VoiceState {
   /** The picked deviceId ("" = browser default). */
   inputDevice: string;
   /**
+   * Names of the voice model's tool calls currently executing (empty when
+   * none; status is "tool" while non-empty). Lets the UI say *what* is
+   * running — e.g. a long ask_artifact_agent delegation shows live progress
+   * instead of a bare "working" dot.
+   */
+  runningTools: string[];
+  /**
    * Choose the capture device. Applies immediately to a live session
    * (replaceTrack — the call stays up) and to every later session.
    */
@@ -85,6 +92,69 @@ const REALTIME_CALLS_URL = "https://api.openai.com/v1/realtime/calls";
  */
 const IDLE_CLOSE_MS = 2 * 60_000;
 
+/**
+ * WebRTC data channels refuse messages beyond ~256KB (seen live as
+ * "snapshot send was too large for the channel"), and the main-view capture
+ * is a full-pixel-ratio JPEG data URL that regularly exceeds that. Budget
+ * for the data URL itself: data URLs are pure ASCII, so chars ≈ bytes, and
+ * 200KB leaves comfortable headroom for the JSON event envelope around it.
+ */
+const SNAPSHOT_MAX_CHARS = 200_000;
+/** First-pass downscale bound for the voice path (longest edge, px). */
+const SNAPSHOT_MAX_EDGE = 1024;
+/** First-pass JPEG re-encode quality for the voice path. */
+const SNAPSHOT_QUALITY = 0.6;
+
+/**
+ * Re-encode a captured data URL so it fits a data-channel message: downscale
+ * to SNAPSHOT_MAX_EDGE on the longest side and recompress, then keep
+ * shrinking (smaller edge, lower quality) until it fits SNAPSHOT_MAX_CHARS.
+ * Each pass cuts the pixel area roughly in half, so a handful of passes
+ * always lands under the budget for real screen content; the throw is a
+ * teaching error for the model in the pathological case.
+ */
+async function shrinkSnapshotForDataChannel(dataUrl: string): Promise<string> {
+  if (dataUrl.length <= SNAPSHOT_MAX_CHARS) return dataUrl;
+  const image = await decodeDataUrl(dataUrl);
+  let edge = SNAPSHOT_MAX_EDGE;
+  let quality = SNAPSHOT_QUALITY;
+  for (let pass = 0; pass < 6; pass++) {
+    const out = reencodeImage(image, edge, quality);
+    if (out.length <= SNAPSHOT_MAX_CHARS) return out;
+    edge = Math.round(edge * 0.7);
+    quality = Math.max(0.4, quality - 0.05);
+  }
+  throw new Error("the screenshot could not be compressed enough to send");
+}
+
+/** Decode a data URL back into a drawable image element. */
+function decodeDataUrl(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () =>
+      reject(new Error("could not decode the screenshot for re-encoding"));
+    image.src = url;
+  });
+}
+
+/** Draw the image at ≤ maxEdge on its longest side, return a JPEG data URL. */
+function reencodeImage(
+  image: HTMLImageElement,
+  maxEdge: number,
+  quality: number
+): string {
+  const scale = Math.min(
+    1,
+    maxEdge / Math.max(image.naturalWidth, image.naturalHeight)
+  );
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  canvas.getContext("2d")!.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
 /** The subset of chat the session needs; read via a getter so the session
  * always sees the current render's callbacks. */
 type ChatBridge = Pick<ChatState, "callVoiceTool" | "sendVoiceTranscript">;
@@ -100,6 +170,8 @@ interface VoiceSessionHooks {
   onLevel(level: number): void;
   /** Label of the device currently being captured. */
   onMicLabel(label: string | null): void;
+  /** Names of tool calls currently executing (empty when none). */
+  onTools(names: string[]): void;
   /** Fired exactly once when the session is gone; error set if abnormal. */
   onEnd(error?: string): void;
 }
@@ -129,8 +201,8 @@ class VoiceSession {
   private meterCtx: AudioContext | null = null;
   private meterTimer: ReturnType<typeof setInterval> | undefined;
   private ended = false;
-  /** Tool calls in flight; status shows "tool" while nonzero. */
-  private runningTools = 0;
+  /** Names of tool calls in flight; status shows "tool" while non-empty. */
+  private runningTools: string[] = [];
   /** True while the model's audio is playing (barge-in clears it). */
   private modelSpeaking = false;
   /** Tool names to execute locally, from the mint response. */
@@ -482,7 +554,8 @@ class VoiceSession {
    * wedges waiting for it.
    */
   private async runToolCalls(calls: FunctionCallItem[]): Promise<void> {
-    this.runningTools += calls.length;
+    this.runningTools = [...this.runningTools, ...calls.map((c) => c.name)];
+    this.hooks.onTools(this.runningTools);
     this.refreshStatus();
     try {
       for (const call of calls) {
@@ -509,7 +582,14 @@ class VoiceSession {
       }
       this.sendClientEvent({ type: "response.create" });
     } finally {
-      this.runningTools -= calls.length;
+      // Remove exactly this batch's names (another batch may be in flight).
+      const remaining = [...this.runningTools];
+      for (const call of calls) {
+        const at = remaining.indexOf(call.name);
+        if (at !== -1) remaining.splice(at, 1);
+      }
+      this.runningTools = remaining;
+      this.hooks.onTools(this.runningTools);
       this.refreshStatus();
       this.bumpIdleTimer();
     }
@@ -552,17 +632,28 @@ class VoiceSession {
         if (!screenshot) {
           throw new Error("could not capture the main panel right now");
         }
+        // The raw capture regularly exceeds the data channel's ~256KB
+        // message limit — re-encode it down to the voice-path budget first.
+        const image = await shrinkSnapshotForDataChannel(screenshot);
         // Realtime image input rides the conversation, not the function
         // result: attach the capture as a user-role image item, and let
         // the function output point the model at it.
-        this.sendClientEvent({
+        const event = {
           type: "conversation.item.create",
           item: {
             type: "message",
             role: "user",
-            content: [{ type: "input_image", image_url: screenshot }],
+            content: [{ type: "input_image", image_url: image }],
           },
+        };
+        // The channel message is the JSON envelope; data URLs are ASCII, so
+        // its length is its byte size — logged for future size diagnosis.
+        frontendLog("voice:screenshot", {
+          messageBytes: JSON.stringify(event).length,
+          capturedChars: screenshot.length,
+          sentChars: image.length,
         });
+        this.sendClientEvent(event);
         return "Screenshot attached to the conversation as an image.";
       }
       default:
@@ -580,7 +671,7 @@ class VoiceSession {
   private refreshStatus(): void {
     if (this.ended) return;
     this.hooks.onStatus(
-      this.runningTools > 0
+      this.runningTools.length > 0
         ? "tool"
         : this.modelSpeaking
           ? "speaking"
@@ -609,6 +700,7 @@ export function useVoice(chat: ChatState): VoiceState {
   const [warning, setWarning] = React.useState<string | null>(null);
   const [inputLevel, setInputLevel] = React.useState(0);
   const [micLabel, setMicLabel] = React.useState<string | null>(null);
+  const [runningTools, setRunningTools] = React.useState<string[]>([]);
   const [inputDevices, setInputDevices] = React.useState<MicDevice[]>([]);
   // The picked device lives in the D3 store: visible in state snapshots and
   // settable like any other app state ("" = browser default).
@@ -675,10 +767,12 @@ export function useVoice(chat: ChatState): VoiceState {
       onWarning: setWarning,
       onLevel: setInputLevel,
       onMicLabel: setMicLabel,
+      onTools: setRunningTools,
       onEnd: (endError) => {
         sessionRef.current = null;
         setError(endError ?? null);
         setWarning(null);
+        setRunningTools([]);
         setStatus(endError ? "error" : "idle");
       },
     });
@@ -694,6 +788,7 @@ export function useVoice(chat: ChatState): VoiceState {
     micLabel,
     inputDevices,
     inputDevice,
+    runningTools,
     setInputDevice,
     active: status !== "idle" && status !== "error",
     toggle,
