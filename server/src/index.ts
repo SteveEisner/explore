@@ -68,7 +68,14 @@ const claude = new ClaudeSession({
   // is the timing sweep's pick — fastest to UI at Sonnet-tier cost, rather
   // than whatever the machine's CLI config happens to say (decisions.md D7).
   model: process.env.CLAUDE_MODEL ?? "claude-opus-4-8",
-  effort: process.env.CLAUDE_EFFORT,
+  // Effort defaults to "low" — the lowest tier that still allows some
+  // extended thinking. The delegation traces (2026-07-13 log) caught the
+  // default budget spending up to 3m11s in silent chain-of-thought before
+  // the first tool call; low collapses that wall for every turn. Session-
+  // wide because --effort is a spawn flag: a per-mode value would respawn
+  // the CLI per delegation, the exact cost (and MCP-registration race) the
+  // shared-model decision in chat.ts exists to avoid.
+  effort: process.env.CLAUDE_EFFORT ?? "low",
   appendSystemPromptFile: process.env.APPEND_PROMPT_FILE,
 });
 // WARMUP=0 disables the pre-warm turn on first client connect (tests, cost-

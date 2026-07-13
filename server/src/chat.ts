@@ -71,20 +71,43 @@ function delegationModel(mode: "fast" | "smart"): string {
 // switching — they inherit the respawn cost and the MCP race.
 
 /**
- * Prepended to every delegated request: the agent-timing eval caught
- * delegated "create a wiki file" jobs writing via the sandbox Write tool —
- * the file lands in the CLI's working directory, not the wiki, while the
- * reply still claims success (eval/agent-timing-report.md, correctness
- * section). Typed chat turns don't get this — the user is watching and the
- * production prompt already covers wiki habits; delegated jobs are fire-and-
- * forget, so wrong placement surfaces as "where's my file?".
+ * Prepended to every delegated request. Three jobs, all born from measured
+ * failures (typed chat turns get none of this — the user is watching):
+ *
+ * - Wiki placement: the agent-timing eval caught delegated "create a wiki
+ *   file" jobs writing via the sandbox Write tool — the file lands in the
+ *   CLI's working directory, not the wiki, while the reply still claims
+ *   success (eval/agent-timing-report.md, correctness section).
+ * - Pace: the user is waiting on an open voice line, and the 2026-07-13
+ *   delegation traces measured up to 3m11s of silent thinking before the
+ *   first tool call. The instruction is explicit: best possible work
+ *   WITHOUT overthinking.
+ * - Verification budget by mode: screenshot-verify rounds cost 30–60s
+ *   each (and one delegation ran three). `fast` gets none — write-time
+ *   .oui validation already refuses broken programs; `smart` gets at most
+ *   one, and only when the work is heavily visual.
  */
-const DELEGATION_PREAMBLE =
-  "[Delegated task] If this task creates or edits wiki content, use the " +
-  "wiki/vault tools (mcp__wiki__create_file, mcp__vault__edit, " +
-  "mcp__ui__edit_artifact) — files written with the sandbox Write tool do " +
-  "NOT land in the wiki. Before reporting success, confirm the file shows " +
-  "up in mcp__wiki__list_files.\n\n";
+function delegationPreamble(mode: "fast" | "smart"): string {
+  const verification =
+    mode === "fast"
+      ? "Do NOT run screenshot-verification rounds (no state/screenshot " +
+        "calls to check your own output) — the wiki validates artifacts " +
+        "at write time."
+      : "Screenshot-verify AT MOST ONCE, and only if the work is heavily " +
+        "visual (a design or layout where looks are the point); for " +
+        "content or structural edits, skip verification entirely.";
+  return (
+    "[Delegated task] The user is waiting on an open voice line. Your " +
+    "goal is the best result you can produce WITHOUT overthinking: act " +
+    "immediately, keep reasoning brief, read only what the task needs. " +
+    verification +
+    " If this task creates or edits wiki content, use the wiki/vault " +
+    "tools (mcp__wiki__create_file, mcp__vault__edit, " +
+    "mcp__ui__edit_artifact) — files written with the sandbox Write tool " +
+    "do NOT land in the wiki; a NEW file should show up in " +
+    "mcp__wiki__list_files. End with a one-or-two-sentence summary.\n\n"
+  );
+}
 
 /**
  * Chat service: bridges websocket clients and the Claude CLI session.
@@ -540,7 +563,7 @@ export class ChatService {
           clearTimeout(timer);
           outcome();
         };
-        this.sendTurn(DELEGATION_PREAMBLE + request, undefined, {
+        this.sendTurn(delegationPreamble(mode) + request, undefined, {
           model: delegationModel(mode),
           resolver: {
             resolve: (finalText) => settle(() => resolve(finalText)),
