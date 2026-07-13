@@ -194,6 +194,10 @@ export interface UiSpecEvent {
   name?: string;
 }
 
+/**
+ * Lifecycle/status updates. "warming"/"ready" bracket the back end's
+ * pre-warm turn (see server protocol.ts) — statusText() renders both.
+ */
 export interface ChatStatusEvent {
   type: "chat:status";
   status:
@@ -202,6 +206,10 @@ export interface ChatStatusEvent {
     | "session"
     | "session-resumed"
     | "thinking"
+    /** Thinking-block heartbeat — a live "reasoning…" signal, no content. */
+    | "reasoning"
+    | "warming"
+    | "ready"
     | "exited";
   sessionId?: string;
   model?: string;
@@ -232,9 +240,15 @@ export interface ChatDeltaEvent {
   text: string;
 }
 
+/**
+ * Tool-call lifecycle: "start" the moment the model begins writing the call
+ * (name only, arguments still streaming), "use" when the finished call
+ * arrives (adds the summarized input — upgrades the started row), "result"
+ * when the tool reports back.
+ */
 export interface ChatToolEvent {
   type: "chat:tool";
-  phase: "use" | "result";
+  phase: "start" | "use" | "result";
   name?: string;
   detail?: string;
   isError?: boolean;

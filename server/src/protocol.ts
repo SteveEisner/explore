@@ -286,6 +286,12 @@ export interface ChatStatusEvent {
     | "session"
     | "session-resumed"
     | "thinking"
+    /**
+     * The model opened a thinking block mid-turn (its text is withheld at
+     * the API level, so this is a heartbeat, not content) — lets clients
+     * show a live "reasoning…" state during otherwise-silent stretches.
+     */
+    | "reasoning"
     | "warming"
     | "ready"
     | "exited";
@@ -320,10 +326,16 @@ export interface ChatDeltaEvent {
   text: string;
 }
 
-/** The assistant invoked a tool (or a tool finished). */
+/**
+ * Tool-call lifecycle. "start" fires the moment the model begins writing
+ * the call (name known, arguments still streaming) so clients can show
+ * "running X…" seconds before the call completes; "use" follows when the
+ * finished call (with its summarized input) arrives and upgrades the same
+ * row; "result" reports the tool's outcome.
+ */
 export interface ChatToolEvent {
   type: "chat:tool";
-  phase: "use" | "result";
+  phase: "start" | "use" | "result";
   name?: string;
   detail?: string;
   isError?: boolean;

@@ -76,6 +76,33 @@ Yes — the signals exist, they just aren't forwarded:
    model can say "still working — it's editing the file now" instead of
    dead air; the tool call itself stays blocking.
 
+## Fixes shipped (2026-07-12, verified with this suite)
+
+1. **No model switch on delegation** — `smart` and `fast` both default to the
+   session's own `claude-opus-4-8` (full id, never an alias); overrides via
+   `VOICE_FAST/SMART_MODEL`. An intermediate re-tier of `fast` to Sonnet 5
+   measured *worse* (6.5–8.3s — the respawn dominates any model difference).
+2. **Streaming progress** — the server now broadcasts `chat:tool
+   {phase:"start", name}` the moment the model begins writing any tool call,
+   and a `chat:status "reasoning"` heartbeat at thinking-block starts; the
+   chat pane shows the started row immediately and upgrades it in place when
+   the finished call adds its input summary.
+3. **Delegation preamble** — every delegated request is prefixed with
+   wiki-tool guidance and a verify-before-claiming-success instruction.
+
+**Verified (`agent-timing-final`, 4 runs):** 3.6–5.8s total (was 4–12s),
+file in the wiki 4/4 (was 2/4), zero respawns, zero client-visible silent
+gaps > 3s (was up to 9.6s); first tool announced within ~1.3s of the send;
+the model now confirms placement via `list_files` before reporting done.
+
+**New finding — respawn races MCP startup.** During verification, a
+model-switch respawn sometimes brought the CLI up with **zero MCP tools**
+(`agent-timing-fixed/events_fast_2`: init lists no `mcp__*` tools; the
+model had no ui/vault/wiki for the whole turn). The pre-warm masks this for
+the first spawn; a respawn sends the turn immediately and can lose the
+race. Dormant in the default no-switch config, but any future model-switch
+feature must wait for MCP registration before sending the turn.
+
 ## Also found (correctness, not timing)
 
 Delegated "create a wiki file" writes to the CLI sandbox via `Write` about

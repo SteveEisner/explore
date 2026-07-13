@@ -159,20 +159,53 @@ function reduceEvent(items: ChatItem[], event: ServerEvent): ChatItem[] {
     }
 
     case "chat:tool": {
-      const finished = event.phase === "result";
-      const text = finished
-        ? event.isError
-          ? "tool failed"
-          : "tool finished"
-        : `${event.name ?? "tool"}${event.detail ? ` ${event.detail}` : ""}`;
+      // "start" arrives when the model begins writing the call — name only,
+      // seconds before the finished call. Show the row immediately…
+      if (event.phase === "start") {
+        return [
+          ...items,
+          {
+            kind: "tool",
+            id: newId(),
+            text: event.name ?? "tool",
+            isError: false,
+            finished: false,
+          },
+        ];
+      }
+      // …and let the completed call ("use", now carrying the summarized
+      // input) upgrade that same row instead of adding a duplicate. Rows
+      // match newest-first by bare tool name; a "use" with no started row
+      // (voice bridge markers, non-streamed paths) still appends.
+      if (event.phase === "use") {
+        const text = `${event.name ?? "tool"}${event.detail ? ` ${event.detail}` : ""}`;
+        for (let i = items.length - 1; i >= 0; i--) {
+          const item = items[i];
+          if (item.kind === "tool" && !item.finished && item.text === event.name) {
+            const updated = [...items];
+            updated[i] = { ...item, text };
+            return updated;
+          }
+        }
+        return [
+          ...items,
+          {
+            kind: "tool",
+            id: newId(),
+            text,
+            isError: event.isError ?? false,
+            finished: false,
+          },
+        ];
+      }
       return [
         ...items,
         {
           kind: "tool",
           id: newId(),
-          text,
+          text: event.isError ? "tool failed" : "tool finished",
           isError: event.isError ?? false,
-          finished,
+          finished: true,
         },
       ];
     }

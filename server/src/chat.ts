@@ -55,8 +55,36 @@ const DELEGATION_TIMEOUT_MS = 5 * 60_000;
 function delegationModel(mode: "fast" | "smart"): string {
   return mode === "smart"
     ? process.env.VOICE_SMART_MODEL || "claude-opus-4-8"
-    : process.env.VOICE_FAST_MODEL || "claude-sonnet-5";
+    : process.env.VOICE_FAST_MODEL || "claude-opus-4-8";
 }
+
+// Both modes intentionally share the production default: any model switch
+// respawns the CLI, and the agent-timing-fixed runs measured the respawn
+// path at 6.5–8.3s vs 4.4–5.5s for no-switch on the same job, with ~15K
+// extra uncached prompt tokens per API call — AND a startup race in which
+// the respawned CLI sometimes registers zero MCP tools, so the delegated
+// turn runs without ui/vault/wiki access entirely (events_fast_2 in
+// eval/results/agent-timing-fixed: init reports no mcp__* tools; the model
+// then wrote to the sandbox and reported it couldn't reach the wiki). Until
+// a genuinely faster same-process tier exists (e.g. a fast-mode CLI flag),
+// "fast" ≠ a smaller model. Overrides via VOICE_FAST/SMART_MODEL re-enable
+// switching — they inherit the respawn cost and the MCP race.
+
+/**
+ * Prepended to every delegated request: the agent-timing eval caught
+ * delegated "create a wiki file" jobs writing via the sandbox Write tool —
+ * the file lands in the CLI's working directory, not the wiki, while the
+ * reply still claims success (eval/agent-timing-report.md, correctness
+ * section). Typed chat turns don't get this — the user is watching and the
+ * production prompt already covers wiki habits; delegated jobs are fire-and-
+ * forget, so wrong placement surfaces as "where's my file?".
+ */
+const DELEGATION_PREAMBLE =
+  "[Delegated task] If this task creates or edits wiki content, use the " +
+  "wiki/vault tools (mcp__wiki__create_file, mcp__vault__edit, " +
+  "mcp__ui__edit_artifact) — files written with the sandbox Write tool do " +
+  "NOT land in the wiki. Before reporting success, confirm the file shows " +
+  "up in mcp__wiki__list_files.\n\n";
 
 /**
  * Chat service: bridges websocket clients and the Claude CLI session.
@@ -512,7 +540,7 @@ export class ChatService {
           clearTimeout(timer);
           outcome();
         };
-        this.sendTurn(request, undefined, {
+        this.sendTurn(DELEGATION_PREAMBLE + request, undefined, {
           model: delegationModel(mode),
           resolver: {
             resolve: (finalText) => settle(() => resolve(finalText)),
@@ -666,6 +694,34 @@ export class ChatService {
           streamed.delta.text
         ) {
           this.broadcast({ type: "chat:delta", text: streamed.delta.text });
+          return;
+        }
+
+        // Announce every tool call the moment the model starts writing it —
+        // the name is known at block start, seconds before the finished call
+        // (with its input) arrives in the assistant message. The agent-timing
+        // eval measured 3–10s client-visible silent gaps whose first
+        // available cover signal was exactly this block start.
+        if (
+          streamed?.type === "content_block_start" &&
+          streamed.content_block?.type === "tool_use" &&
+          streamed.content_block.name
+        ) {
+          this.broadcast({
+            type: "chat:tool",
+            phase: "start",
+            name: streamed.content_block.name,
+          });
+        }
+
+        // Thinking heartbeat: the block's text is withheld at the API level,
+        // but its start is a live "reasoning…" signal for clients to show
+        // during otherwise-silent stretches (agent-timing eval §b).
+        if (
+          streamed?.type === "content_block_start" &&
+          streamed.content_block?.type === "thinking"
+        ) {
+          this.broadcast({ type: "chat:status", status: "reasoning" });
           return;
         }
 
