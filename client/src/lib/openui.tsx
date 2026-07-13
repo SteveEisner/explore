@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
  */
 export const DEFAULT_CONTEXT_LEVEL = 0;
 
-export const ContextLevelContext = createContext<number>(DEFAULT_CONTEXT_LEVEL);
+const ContextLevelContext = createContext<number>(DEFAULT_CONTEXT_LEVEL);
 
 const contextProp = z
   .array(z.number().int().nonnegative())
@@ -537,7 +537,7 @@ const Stack = defineComponent({
   },
 });
 
-export const openuiLibrary = createLibrary({
+const openuiLibrary = createLibrary({
   components: [Stack, Content, Tabs, Gallery, Aside, Comparison],
   root: "Stack",
 });

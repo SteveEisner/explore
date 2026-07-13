@@ -1,7 +1,8 @@
 import * as React from "react";
 import { FileWarningIcon, LoaderIcon } from "lucide-react";
 import { Markdown } from "@/components/markdown";
-import { OuiErrorCard, useOuiFatalError } from "@/components/oui-embed";
+import { OuiErrorCard } from "@/components/oui-embed";
+import { useOuiFatalError } from "@/hooks/use-oui-fatal-error";
 import { frontendLog } from "@/lib/frontend-log";
 import { READING_COLUMN_CLASS } from "@/lib/layout";
 import { GenerativeView } from "@/lib/openui";
