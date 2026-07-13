@@ -87,6 +87,12 @@ export interface VoiceState {
 const REALTIME_CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 
 /**
+ * The typing loop heard while a bridged tool call runs — audibly, the
+ * assistant working at its computer (served from client/public/sounds).
+ */
+const KEYBOARD_LOOP_URL = "/sounds/tool-call-loop.mp3";
+
+/**
  * An open mic bills per minute, so a forgotten session must close itself:
  * this long with no speech, no model output, and no tool activity ends it.
  */
@@ -197,6 +203,14 @@ class VoiceSession {
   private audio: HTMLAudioElement | null = null;
   private idleTimer: ReturnType<typeof setTimeout> | undefined;
   private silenceTimer: ReturnType<typeof setTimeout> | undefined;
+  /**
+   * The keyboard-typing loop that plays while a bridged tool call runs
+   * (see runTool). Lazily created, shared across calls; `bridgedCalls`
+   * counts overlapping calls so the loop stops only when the last one
+   * finishes.
+   */
+  private keyboardLoop: HTMLAudioElement | null = null;
+  private bridgedCalls = 0;
   /** Local level meter: WebAudio analyser over the current mic stream. */
   private meterCtx: AudioContext | null = null;
   private meterTimer: ReturnType<typeof setInterval> | undefined;
@@ -446,6 +460,31 @@ class VoiceSession {
     this.end();
   }
 
+  /** Start (or keep) the typing loop; one more bridged call is in flight. */
+  private startKeyboardLoop(): void {
+    this.bridgedCalls += 1;
+    if (this.ended) return;
+    if (!this.keyboardLoop) {
+      this.keyboardLoop = new Audio(KEYBOARD_LOOP_URL);
+      this.keyboardLoop.loop = true;
+      // Background texture under the conversation, not a foreground sound.
+      this.keyboardLoop.volume = 0.35;
+    }
+    if (this.keyboardLoop.paused) {
+      this.keyboardLoop.play().catch((err: unknown) => {
+        frontendLog("voice:keyboard-loop-blocked", { error: String(err) });
+      });
+    }
+  }
+
+  /** One bridged call finished; silence the loop when it was the last. */
+  private stopKeyboardLoop(): void {
+    this.bridgedCalls = Math.max(0, this.bridgedCalls - 1);
+    if (this.bridgedCalls > 0 || !this.keyboardLoop) return;
+    this.keyboardLoop.pause();
+    this.keyboardLoop.currentTime = 0;
+  }
+
   /** Tear down every resource and report the outcome — exactly once. */
   private end(error?: string): void {
     if (this.ended) return;
@@ -463,6 +502,10 @@ class VoiceSession {
       this.audio.srcObject = null;
       this.audio.remove();
     }
+    // A dead session must not keep typing: in-flight bridged calls resolve
+    // into a closed dc, so nothing else would stop the loop.
+    this.keyboardLoop?.pause();
+    this.keyboardLoop = null;
     frontendLog("voice:end", { error });
     this.hooks.onEnd(error);
   }
@@ -599,13 +642,23 @@ class VoiceSession {
    * One tool call: front-end tools run against the live app right here;
    * anything else bridges to the back end's registry executor. Returns the
    * output string for the model; throws message text the model can act on.
+   *
+   * Bridged calls run under the keyboard-typing loop: audibly, the
+   * assistant is working at the computer — looking something up, editing a
+   * file — which is exactly the persona (its tools are its own hands, never
+   * a handoff to something else).
    */
   private async runTool(
     name: string,
     args: Record<string, unknown>
   ): Promise<string> {
     if (!this.frontendTools.includes(name)) {
-      return this.hooks.chat().callVoiceTool(name, args);
+      this.startKeyboardLoop();
+      try {
+        return await this.hooks.chat().callVoiceTool(name, args);
+      } finally {
+        this.stopKeyboardLoop();
+      }
     }
     switch (name) {
       case "get_app_state": {
@@ -621,6 +674,22 @@ class VoiceSession {
           updates as Record<string, unknown>
         );
         return JSON.stringify({ applied, store: stateSnapshot() });
+      }
+      case "expand_artifact": {
+        const file = args.file;
+        if (typeof file !== "string" || !file.trim()) {
+          throw new Error("pass `file`: the .oui wiki path to expand");
+        }
+        if (!file.toLowerCase().endsWith(".oui")) {
+          throw new Error(`only .oui artifacts expand — "${file}" is not one`);
+        }
+        const url = file.startsWith("/") ? file : `/docs/${file}`;
+        applyServerUpdates({ "app/expanded-artifact": url });
+        return JSON.stringify({ expanded: url });
+      }
+      case "minimize_artifact": {
+        applyServerUpdates({ "app/expanded-artifact": null });
+        return JSON.stringify({ minimized: true });
       }
       case "indicate": {
         const result = indicate(args as IndicateTarget);

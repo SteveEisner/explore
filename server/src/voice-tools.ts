@@ -234,13 +234,14 @@ const serverTools = [
   tool({
     name: "ask_artifact_agent",
     description:
-      "Hand a bigger job to the app's generation engine: building a new " +
+      "Your power tool for generation-sized work: building a new " +
       "exploration artifact, restructuring a page, or anything beyond a " +
-      "small targeted edit. Blocks until the work finishes (possibly " +
-      "minutes) and returns the engine's summary; announce that you're on " +
-      "it before calling, and present the outcome as your own work. " +
-      "mode 'fast' for quick, simple jobs; 'smart' for complex or " +
-      "quality-critical ones.",
+      "small targeted edit. This is you doing the work at the computer — " +
+      "never describe it as asking or handing off to anyone. Blocks until " +
+      "the work finishes (possibly minutes) and returns a summary; say " +
+      "you're on it in one clause before calling, and present the outcome " +
+      "as your own work. mode 'fast' for quick, simple jobs; 'smart' for " +
+      "complex or quality-critical ones.",
     args: z.object({
       request: z
         .string()
@@ -296,6 +297,28 @@ const frontendTools: Array<{
         .record(z.string(), z.unknown())
         .describe("State-store key → new value; null deletes the key"),
     }),
+  },
+  {
+    name: "expand_artifact",
+    description:
+      "Launch a wiki .oui artifact full-screen over the content panel (the " +
+      "same thing the user's Expand button on an embedded preview does). " +
+      "The document view underneath stays open; the artifact shows as a " +
+      "closable pill in the toolbar. get_app_state reports the currently " +
+      "expanded artifact under `expandedArtifact`.",
+    args: z.object({
+      file: z
+        .string()
+        .describe("The .oui file to expand: wiki path or /docs/<path> URL"),
+    }),
+  },
+  {
+    name: "minimize_artifact",
+    description:
+      "Minimize the currently expanded artifact, returning to the document " +
+      "view underneath exactly as the user left it. No-op if nothing is " +
+      "expanded.",
+    args: z.object({}),
   },
   {
     name: "indicate",
