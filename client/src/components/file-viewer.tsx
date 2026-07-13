@@ -1,6 +1,7 @@
 import * as React from "react";
 import { FileWarningIcon, LoaderIcon } from "lucide-react";
 import { Markdown } from "@/components/markdown";
+import { OuiErrorCard, useOuiFatalError } from "@/components/oui-embed";
 import { frontendLog } from "@/lib/frontend-log";
 import { READING_COLUMN_CLASS } from "@/lib/layout";
 import { GenerativeView } from "@/lib/openui";
@@ -116,7 +117,7 @@ export function FileViewer({
       if (url === null) return null;
       const { text, contentType } = state;
       if (url.endsWith(".oui")) {
-        return <GenerativeView response={text} />;
+        return <OuiFileView url={url} text={text} />;
       }
       if (isMarkdown(url, contentType)) {
         // Reading layout: a readable measure using the roomy typeset-docs
@@ -135,6 +136,24 @@ export function FileViewer({
       return <pre className="overflow-x-auto p-6 text-sm">{text}</pre>;
     }
   }
+}
+
+/**
+ * A full-page .oui artifact. When it fails to parse or has no renderable
+ * root, GenerativeView renders nothing — surface the same error card as the
+ * <oui-embed> preview instead of a blank page. The GenerativeView stays
+ * mounted so a wiki hot-reload that fixes the file clears the card.
+ */
+function OuiFileView({ url, text }: { url: string; text: string }) {
+  const [fatalError, onOuiError] = useOuiFatalError();
+  return (
+    <>
+      {fatalError !== null && (
+        <OuiErrorCard url={url} message={fatalError} className="m-6" />
+      )}
+      <GenerativeView response={text} onError={onOuiError} />
+    </>
+  );
 }
 
 function isMarkdown(url: string, contentType: string): boolean {

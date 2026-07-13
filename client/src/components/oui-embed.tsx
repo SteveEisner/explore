@@ -1,9 +1,64 @@
 import * as React from "react";
 import { FileWarningIcon, LoaderIcon, Maximize2Icon } from "lucide-react";
+import type { OpenUIError } from "@openuidev/react-lang";
 import { Button } from "@/components/ui/button";
 import { frontendLog } from "@/lib/frontend-log";
 import { GenerativeView } from "@/lib/openui";
 import { useStoreValue } from "@/lib/state-store";
+import { cn } from "@/lib/utils";
+
+/**
+ * Track whether a GenerativeView is fatally broken — the artifact failed to
+ * parse or parsed to no renderable root, the two cases where the Renderer
+ * renders nothing at all (both reported with these codes; other errors are
+ * partial and still render). Returns the fatal error's message, or null, plus
+ * the callback to pass as GenerativeView's onError. The Renderer re-reports
+ * on every response change (including `[]` on recovery), so a wiki hot-reload
+ * that fixes the file clears the message — keep the GenerativeView mounted
+ * while showing the error.
+ */
+export function useOuiFatalError(): [
+  string | null,
+  (errors: OpenUIError[]) => void,
+] {
+  const [message, setMessage] = React.useState<string | null>(null);
+  const onError = React.useCallback((errors: OpenUIError[]) => {
+    const fatal = errors.find(
+      (e) => e.code === "parse-exception" || e.code === "parse-failed"
+    );
+    setMessage(fatal ? fatal.message : null);
+  }, []);
+  return [message, onError];
+}
+
+/**
+ * The destructive-tinted card shown in place of a broken artifact, so a
+ * parse failure says why instead of collapsing to nothing. Shared by the
+ * embed preview and the full-page .oui view (file-viewer).
+ */
+export function OuiErrorCard({
+  url,
+  message,
+  className,
+}: {
+  url: string;
+  message: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive",
+        className
+      )}
+    >
+      <FileWarningIcon className="mt-0.5 size-4 shrink-0" />
+      <span>
+        Broken artifact {url}: {message}
+      </span>
+    </div>
+  );
+}
 
 /**
  * Renders an embedded OpenUI application inside markdown. Wiki pages use a
@@ -159,15 +214,26 @@ function ArtifactPreview({ url, text }: { url: string; text: string }) {
     return () => observer.disconnect();
   }, []);
 
+  const [fatalError, onOuiError] = useOuiFatalError();
+
   const height = Math.min(PREVIEW_MAX_HEIGHT, Math.ceil(contentHeight * scale));
   const expand = () => setExpanded(url);
 
   return (
     <div
       ref={containerRef}
-      className="relative overflow-hidden rounded-lg border bg-background"
-      style={{ height }}
+      className={cn(
+        "relative overflow-hidden rounded-lg bg-background",
+        // Broken artifact: the Renderer produced nothing, so the preview
+        // would collapse to an empty sliver — show the error card instead.
+        // The (zero-height) GenerativeView stays mounted below so a wiki
+        // hot-reload that fixes the file clears the error and restores the
+        // preview.
+        fatalError === null && "border"
+      )}
+      style={fatalError === null ? { height } : undefined}
     >
+      {fatalError !== null && <OuiErrorCard url={url} message={fatalError} />}
       <div
         ref={innerRef}
         aria-hidden
@@ -178,30 +244,34 @@ function ArtifactPreview({ url, text }: { url: string; text: string }) {
           transformOrigin: "top left",
         }}
       >
-        <GenerativeView response={text} />
+        <GenerativeView response={text} onError={onOuiError} />
       </div>
       {/* The shader: dims and desaturates toward the bottom so the card
           reads as a launchable preview, not a live surface; it also eats
-          every click except Expand. */}
-      <div
-        className="absolute inset-0 flex cursor-pointer items-end justify-center bg-gradient-to-b from-transparent via-background/25 to-background/85 backdrop-saturate-[.35]"
-        onClick={expand}
-        role="button"
-        aria-label={`Expand ${url}`}
-      >
-        <Button
-          size="sm"
-          variant="secondary"
-          className="mb-3 shadow-md"
-          onClick={(e) => {
-            e.stopPropagation();
-            expand();
-          }}
+          every click except Expand. Dropped for a broken artifact — there
+          is nothing to preview or expand, and it would sit over the error
+          card. */}
+      {fatalError === null && (
+        <div
+          className="absolute inset-0 flex cursor-pointer items-end justify-center bg-gradient-to-b from-transparent via-background/25 to-background/85 backdrop-saturate-[.35]"
+          onClick={expand}
+          role="button"
+          aria-label={`Expand ${url}`}
         >
-          <Maximize2Icon data-icon="inline-start" />
-          Expand
-        </Button>
-      </div>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="mb-3 shadow-md"
+            onClick={(e) => {
+              e.stopPropagation();
+              expand();
+            }}
+          >
+            <Maximize2Icon data-icon="inline-start" />
+            Expand
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

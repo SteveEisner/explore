@@ -1,5 +1,10 @@
 import { createContext, useContext, useEffect } from "react";
-import { createLibrary, defineComponent, Renderer } from "@openuidev/react-lang";
+import {
+  createLibrary,
+  defineComponent,
+  type OpenUIError,
+  Renderer,
+} from "@openuidev/react-lang";
 import { z } from "zod";
 import { frontendLog } from "@/lib/frontend-log";
 import { seedState, setState, useStoreValue } from "@/lib/state-store";
@@ -518,11 +523,19 @@ export function GenerativeView({
   response,
   isStreaming = false,
   contextLevel,
+  onError,
 }: {
   response: string | null;
   isStreaming?: boolean;
   /** Active context level; defaults to the store's `app/context-level`. */
   contextLevel?: number;
+  /**
+   * Receives the Renderer's structured errors in addition to the JSONL log,
+   * including `[]` when previous errors resolve. Fatal cases — parse failure
+   * or no renderable root, where the Renderer renders nothing — arrive with
+   * `source: "parser"`; hosts can surface those instead of showing a blank.
+   */
+  onError?: (errors: OpenUIError[]) => void;
 }) {
   // The store key lets the user's controls and the LLM's set_state tool
   // switch reader depth app-wide; an explicit prop still overrides.
@@ -545,6 +558,7 @@ export function GenerativeView({
               errors.map((e) => ({ code: e.code, message: e.message }))
             );
           }
+          onError?.(errors);
         }}
       />
     </ContextLevelContext.Provider>
