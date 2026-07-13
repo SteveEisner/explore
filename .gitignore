@@ -9,7 +9,7 @@ server/data/
 .obsidian/
 /sandbox/
 docs/.markdown_vault_mcp/
-docs/meta/
+docs/design/api/
 eval/results/
 eval/wiki/.markdown_vault_mcp/
 /sandbox-side/

@@ -171,7 +171,7 @@ export interface StateUpdateEvent {
 /** A wiki file changed on disk; reload the content pane if it shows it. */
 export interface WikiChangedEvent {
   type: "wiki:changed";
-  /** Web path of the changed file, e.g. "/docs/journeys.md". */
+  /** Web path of the changed file, e.g. "/docs/design/journeys.md". */
   url: string;
 }
 

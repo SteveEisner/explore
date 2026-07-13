@@ -89,4 +89,4 @@ Focus the novel work on two things:
 5. **Look and feel** — test and improve the application's polish and usability.
 6. **Wiki ingestion** *(stretch)* — improve the ability to ingest information into the wiki.
 
-See [tasks.md](tasks.md) for the phase-by-phase task breakdown.
+See [TASKS.md](../../TASKS.md) for the phase-by-phase task breakdown.

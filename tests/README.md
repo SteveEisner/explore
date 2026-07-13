@@ -1,7 +1,7 @@
 # Tests
 
 Automated test suites, organized by component area (mirroring
-[TASKS.md](../TASKS.md) / [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md)).
+[TASKS.md](../TASKS.md) / [docs/design/ARCHITECTURE.md](../docs/design/ARCHITECTURE.md)).
 Run everything from the repo root:
 
 ```

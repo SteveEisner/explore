@@ -23,5 +23,5 @@ this dev server together.
 ## More
 
 See the root [README](../README.md) for the full system (server, protocol,
-observability) and [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) for how the
+observability) and [docs/design/ARCHITECTURE.md](../docs/design/ARCHITECTURE.md) for how the
 wiki, artifacts, and session bridge fit together.

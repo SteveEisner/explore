@@ -1,6 +1,6 @@
 # Two-Hour Review — 2026-07-07
 
-What got built in the first ~2 hours of work (two sessions, 15:55–16:13 and 17:11–18:50, plus parallel worker agents), measured against [proposal.md](proposal.md).
+What got built in the first ~2 hours of work (two sessions, 15:55–16:13 and 17:11–18:50, plus parallel worker agents), measured against [proposal.md](../design/proposal.md).
 
 ## Verdict
 

@@ -1,6 +1,6 @@
 # Six-Hour Review — 2026-07-11/12
 
-What got built in the fourth work block (the evening of 2026-07-11, ending 00:07 on 07-12), measured against [proposal.md](proposal.md) and [journeys.md](journeys.md). Companion to [two-hour-review.md](two-hour-review.md) and [five-hour-review.md](five-hour-review.md). "Six-hour" is the milestone label by the established convention (hours of gross tracked work completed): gross is ~6h46 at the stop; the chargeable accounting below puts it at ~6h20. Written at close by The Optimizer; per precedent, the writing of this review is outward reporting and excluded from the chargeable total.
+What got built in the fourth work block (the evening of 2026-07-11, ending 00:07 on 07-12), measured against [proposal.md](../design/proposal.md) and [journeys.md](../design/journeys.md). Companion to [two-hour-review.md](two-hour-review.md) and [five-hour-review.md](five-hour-review.md). "Six-hour" is the milestone label by the established convention (hours of gross tracked work completed): gross is ~6h46 at the stop; the chargeable accounting below puts it at ~6h20. Written at close by The Optimizer; per precedent, the writing of this review is outward reporting and excluded from the chargeable total.
 
 ## Time accounting
 

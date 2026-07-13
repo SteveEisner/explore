@@ -1,6 +1,6 @@
 # Five-Hour Review — 2026-07-07
 
-What got built between the two-hour mark and the end of day one, measured against [proposal.md](proposal.md) and [journeys.md](journeys.md). Companion to [two-hour-review.md](two-hour-review.md). "Five-hour" is the milestone label (gross tracked work ~5h09); the corrected accounting below puts chargeable time at ~4¾ hours.
+What got built between the two-hour mark and the end of day one, measured against [proposal.md](../design/proposal.md) and [journeys.md](../design/journeys.md). Companion to [two-hour-review.md](two-hour-review.md). "Five-hour" is the milestone label (gross tracked work ~5h09); the corrected accounting below puts chargeable time at ~4¾ hours.
 
 ## Time accounting (corrected from session data)
 

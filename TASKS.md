@@ -1,6 +1,6 @@
 # Tasks
 
-The single task list: live tracker organized by component area (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)), plus the phase roadmap and the idea holding bin at the bottom. Phase numbers in the tables refer to the [Phases](#phases-roadmap) section.
+The single task list: live tracker organized by component area (see [docs/design/ARCHITECTURE.md](docs/design/ARCHITECTURE.md)), plus the phase roadmap and the idea holding bin at the bottom. Phase numbers in the tables refer to the [Phases](#phases-roadmap) section.
 
 **How to use:** claim a task by putting your name in Owner. Statuses: `todo` · `in progress` · `blocked` · `done`. When a task reaches `done`, log it in the worklog (see AGENTS.md).
 
@@ -12,7 +12,7 @@ The declared focus for the next two-hour session: interactive exploration elemen
 - **(b) A better understanding of clear explaining** — J1/J2 guidance findings (what makes generated explanations actually land).
 - **(c) A voice model** — expected to take significant time; start early. (Elevated from the Multimodal backlog; now specced and broken down in the [Voice agent (realtime editing)](#voice-agent-realtime-editing) section, decisions.md D5.)
 
-## Priority: customer journeys ([docs/journeys.md](docs/journeys.md))
+## Priority: customer journeys ([docs/design/journeys.md](docs/design/journeys.md))
 
 | Task | Journey | Owner | Status |
 |---|---|---|---|
@@ -26,7 +26,7 @@ The declared focus for the next two-hour session: interactive exploration elemen
 | Reopen a saved .oui and continue editing (second half of the old save/reopen task): "Edit Artifact" button over .oui views seeds the authoring panel; LLM-side editing of arbitrary wiki .oui files stays a separate task (Intelligence section) | J4 | Worker 2 | done |
 | Clean-clone quickstart: README setup, env/API-key handling, seed wiki, verify from fresh checkout. Note: vault semantic search has a one-time cost on first run (local embedding model download + initial indexing) — warm it during setup, don't let it land mid-demo | J0 | The Cleaner | done |
 | Test that vault search actually works (search / global_search / semantic_search over the wiki): never exercised; verify results are sane and the semantic index builds — verified demo-ready 2026-07-12: all three are actions of the vault `view` tool, sane heading-chunked results, semantic index auto-builds at startup; manual probe at scripts/probe-vault-mcp.mts | bar | Cleaner | done |
-| Investigate exactly what the LLM receives at invocation — full report: docs/llm-invocation-report.md (base-prompt verbatim capture via logging proxy folded into the perf-instrumentation task) | bar | Claude | done |
+| Investigate exactly what the LLM receives at invocation — full report: docs/reports/llm-invocation-report.md (base-prompt verbatim capture via logging proxy folded into the perf-instrumentation task) | bar | Claude | done |
 | Prompt removal: kill the OpenUI default rule "When asked about data, generate realistic/plausible data" — replace with "all facts/data in artifacts must come from wiki content; never invent data" (check `uiLibrary.prompt()` options for suppressing default Important Rules; otherwise counter-rule) | J1 | Worker 1 | done |
 | Prompt removal: kill the OpenUI default component-suggestion rule ("tables for comparisons, charts for trends, forms for input") — it names components our vocabulary doesn't have; replace with guidance naming our actual six | J1 | Worker 1 | done |
 | Prompt removal: eliminate the vault `workflow` tool from the model's context (config option on markdown-vault-mcp if it exists, else a wrapper/filter; last resort: an explicit "never call workflow" line) | bar | Worker 1 | done |
@@ -49,6 +49,7 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Home page gets the same gutters as the Markdown view | client | home-view still centers symmetrically; apply file-viewer's left-biased clamp (`ml-[clamp(0px,100%-72rem,(100%-48rem)/2)]`) so the floating chat panel opens over gutter, not content — consider extracting the class to a shared constant instead of copying it |
 | Teach the voice agent that "this"/"that"/other deictic referents mean what's on screen | voice/prompts | from Steve 2026-07-12. The state snapshot names the doc but not what's visible; guidance in voice-agent.md should say referents resolve against the current view — and consider the stronger option: attach a screenshot to every voice turn (gpt-realtime takes image input; weigh tokens/latency, and it collides with the payload-size nit above) |
 | Progress indication for voice→Claude delegation (`ask_artifact_agent`) | voice/web app | from Steve 2026-07-12. The tool call can run many seconds with nothing visible beyond the amber "tool" dot; surface delegation progress in the chat pane / status strip (the bridge already streams Claude-turn events — render them, and it gives the voice model something concrete to narrate) |
+| Wiki preload lost most of its pages: D7 inlines *root-level* `.md` only, and the docs reorg (design/reports/worklogs/benchmarks subdirs, 2026-07-12) leaves just README + oui-embed-demo at root — grounded asks about design docs regress to the ~7.7s tool-read path. Extend preload to recurse (or rank pages) per D7's revisit clause; re-run the grounded eval cell after | server/eval | from The Optimizer's docs reorg |
 | Teach the agent to create a new Explore app incrementally: create the file first, then stream in changes | prompts | from Steve 2026-07-12. Guidance for generation: don't compose the whole .oui before anything renders — create/save the artifact immediately, then build it up with incremental edits so the user watches it grow (the ui tool's edit path and hot-reload already support this; this is prompt guidance, maybe plus a default artifact name from the first statement) |
 
 ## Crunch tracks (non-interactive; run unattended once the isolated instance exists)
@@ -85,7 +86,7 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 | Evaluate and integrate OpenUI: library setup, rendering pipeline, on-disk representation (decisions.md D2) | 1 | — | done |
 | Define the initial component vocabulary for exploration apps (Stack, Content, Tabs) | 1 | — | done |
 | Add Gallery (master-detail), Aside (side context panel), and Comparison (side-by-side panels) to the vocabulary | 1 | Claude | done |
-| Translate the hand-built PR-review explainer to `.oui` as a vocabulary benchmark (docs/pr-502764-review.oui, archetype: docs/pr-502764-review.html) | 1 | Claude | done |
+| Translate the hand-built PR-review explainer to `.oui` as a vocabulary benchmark (docs/examples/pr-502764-review/pr-502764-review.oui, archetype: docs/examples/pr-502764-review/pr-502764-review.html) | 1 | Claude | done |
 | Generalize Comparison: unstyled default, gap/border/dividers/className options, optional labels | 1 | Claude | done |
 | Apply D4 to Gallery/Aside/Tabs: de-chrome, hook classes, layout props; teach D4 in generation guidance | 1 | Claude | done |
 | Context-aware rendering: `context` prop on every component, gated against an app-level context level | 1 | Claude | done |
@@ -102,7 +103,7 @@ Little things deliberately *not* fixed on sight — banked here until there are 
 
 | Task | Journey | Owner | Status |
 |---|---|---|---|
-| Synthesize the clarity doctrine for teaching: audience calibration, orient-then-detail, dependency-order context, smallest useful model, layered depth, boundaries, checkable claims, anti-pedantry — [docs/explaining-with-clarity.md](docs/explaining-with-clarity.md) | J1/J2 | Worker 2 | done |
+| Synthesize the clarity doctrine for teaching: audience calibration, orient-then-detail, dependency-order context, smallest useful model, layered depth, boundaries, checkable claims, anti-pedantry — [docs/design/explaining-with-clarity.md](docs/design/explaining-with-clarity.md) | J1/J2 | Worker 2 | done |
 | Deliver the doctrine as an on-demand **skill**, not always-on prompt text (prompt section reverted): server/skills/explaining-clarity/SKILL.md, description-triggered on explaining / answering wiki questions / building an exploration artifact; materialized into the sandbox at every spawn (server/src/skills.ts), discovered via `--setting-sources "project"` with the Skill tool enabled. Live-verified on Haiku: skill discovered, loaded, core definition quoted back | J1/J2 | Worker 2 | done |
 | Tweak the skill's definition with the author: trigger-description wording, guidance content, when-to-load boundaries | J1/J2 | Worker 2 | in progress |
 | Validate the explainer live: one Q&A at newcomer level and one at expert level over the same wiki topic (eval-harness scenario or scripted session); check calibration, no re-explaining, layered artifact depth, and that the skill gets loaded unprompted | J2 | — | todo |
@@ -189,11 +190,11 @@ The realtime voice collaborator (decisions.md D5): a mic button in the chat side
 | End-to-end smoke test: sample wiki → generated artifact → rendered in app | 1 | — | todo |
 | Validate against two motivating examples (e.g., PR review, SEV investigation); note missing guidance | 4 | — | todo |
 | Dogfood on a real task; log friction and fix top items | 5 | — | todo |
-| Record architecture decisions in docs/decisions.md as they're made | — | — | in progress |
+| Record architecture decisions in docs/design/decisions.md as they're made | — | — | in progress |
 
 ## Phases (roadmap)
 
-The phase numbers used in the tables above, derived from [docs/proposal.md](docs/proposal.md). Each phase ends with something usable, so later phases can be reordered or cut without stranding work. (Formerly docs/tasks.md; its per-phase checklists live on as the rows above.)
+The phase numbers used in the tables above, derived from [docs/design/proposal.md](docs/design/proposal.md). Each phase ends with something usable, so later phases can be reordered or cut without stranding work. (Formerly docs/tasks.md; its per-phase checklists live on as the rows above.)
 
 1. **Artifact creation via tool use** — an LLM can create an artifact through tool use, and you can see it rendered
 2. **Feedback chat** — a chat pane lets you steer the LLM, and the artifact updates in response

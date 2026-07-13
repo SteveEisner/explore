@@ -9,7 +9,7 @@ Your reader is smart but not loaded with your context. **Clarity means
 minimizing the reasoning they must reconstruct on their own** — not
 simplifying the subject, and not saying more or less. Every rule below is
 that definition applied at a different point in an explanation.
-(Full rationale: `docs/explaining-with-clarity.md` in the wiki.)
+(Full rationale: `docs/design/explaining-with-clarity.md` in the wiki.)
 
 ## Calibrate to the audience first
 

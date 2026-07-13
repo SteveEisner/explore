@@ -5,7 +5,7 @@ Architecture and design decisions, newest first. Referenced from [ARCHITECTURE.m
 ## D7. Generation latency: preload the wiki into the prompt; Opus 4.8 as the default model
 
 **Date:** 2026-07-12
-**Decision:** Two production changes and a set of recorded nulls, all from the UI-generation timing sweeps ([eval/sweep-report.md](../eval/sweep-report.md), 56 + 28 runs, every run byte-exact):
+**Decision:** Two production changes and a set of recorded nulls, all from the UI-generation timing sweeps ([eval/sweep-report.md](../../eval/sweep-report.md), 56 + 28 runs, every run byte-exact):
 
 1. **Wiki preload.** At CLI spawn, small root-level wiki `.md` pages are inlined verbatim into the appended system prompt (smallest-first, whole files only, 24KB budget; `WIKI_PRELOAD_BYTES` overrides, `0` disables), with an instruction to use the inlined copy instead of re-reading — and to re-read any page edited during the session. Measured: grounded ask→UI **7.7s→4.4s** (Opus 4.8) / 5.2s→4.4s (Sonnet 5); the wiki-read turn disappears (3→2 turns); slightly *cheaper* per session; no regression on non-wiki generations.
 2. **Default generation model: `claude-opus-4-8`** (explicit in `server/src/index.ts` instead of inheriting the machine's CLI config). Fastest to UI in the model sweep (2.8s fixed / 5.5s grounded) at the same ~$0.12/session as Sonnet 5, which is the equal-fast fallback. `CLAUDE_MODEL` still overrides.
