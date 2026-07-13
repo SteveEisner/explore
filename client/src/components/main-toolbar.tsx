@@ -1,3 +1,4 @@
+import type * as React from "react";
 import {
   FileTextIcon,
   HomeIcon,
@@ -14,9 +15,11 @@ import type { MainView } from "@/App";
  * Toolbar across the top of the main viewing area, shaped like a filename
  * selector: home on the left, the current document's name in the middle
  * (an editable name + Save button while authoring), the line-drawing tool
- * and chat toggle on the right. Authoring mode is entered via the floating
- * "New Artifact" button over the main pane; screenshots are sent from the
- * chat pane's composer.
+ * and chat toggle on the right. Chat lives *in* the toolbar: toggling it
+ * slides the voice cluster (`chatBar` — mic, level, expander) open beside
+ * the title; the conversation pane (bubbles + typed composer) only appears
+ * via that bar's expander. Authoring mode is entered via the floating
+ * "New Artifact" button over the main pane.
  */
 export function MainToolbar({
   view,
@@ -26,6 +29,7 @@ export function MainToolbar({
   chatOpen,
   onToggleChat,
   chatBusy,
+  chatBar,
   onSaveArtifact,
   canSave,
   saving,
@@ -38,6 +42,8 @@ export function MainToolbar({
   chatOpen: boolean;
   onToggleChat: () => void;
   chatBusy: boolean;
+  /** The inline chat composer, rendered beside the title while chat is on. */
+  chatBar?: React.ReactNode;
   onSaveArtifact: (name: string) => void;
   /** There is a finished program to save (not empty, not mid-stream). */
   canSave: boolean;
@@ -45,15 +51,7 @@ export function MainToolbar({
   saveError: string | null;
 }) {
   return (
-    // mr-96 tracks the floating chat panel (same width and duration as its
-    // slide in App.tsx) so the right-side buttons never sit under it.
-    <div
-      className={
-        "flex h-12 shrink-0 items-center gap-2 border-b bg-background px-3 " +
-        "transition-[margin] duration-200 " +
-        (chatOpen ? "mr-96" : "")
-      }
-    >
+    <div className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-3">
       <Button
         size="icon-sm"
         variant="ghost"
@@ -74,6 +72,10 @@ export function MainToolbar({
         <ViewTitle view={view} />
       )}
 
+      {/* The voice cluster is compact (fixed width) — the title keeps the
+          middle and just cedes a little room when chat slides open. */}
+      {chatOpen && chatBar}
+
       <div className="mx-1 h-5 w-px bg-border" aria-hidden />
 
       {/* Toggles read filled-primary when ON, ghost when off — the same
@@ -90,14 +92,12 @@ export function MainToolbar({
 
       <div className="mx-1 h-5 w-px bg-border" aria-hidden />
 
-      {/* Doubles as the panel's close button while chat is open — the
-          sidebar has no close control of its own. */}
       <Button
         size="icon-sm"
         variant={chatOpen ? "default" : "ghost"}
         onClick={onToggleChat}
         aria-pressed={chatOpen}
-        aria-label={chatOpen ? "Close chat panel" : "Open chat panel"}
+        aria-label={chatOpen ? "Close chat" : "Open chat"}
         className="relative"
       >
         <MessageSquareIcon />
@@ -144,7 +144,13 @@ function ArtifactNameBar({
         className="min-w-0 flex-1 bg-transparent font-medium outline-none placeholder:font-normal placeholder:text-muted-foreground"
       />
       {saveError && (
-        <span className="truncate text-xs text-destructive" role="alert">
+        // The explanatory message can outgrow the bar; title keeps the full
+        // reason reachable when the span truncates.
+        <span
+          className="truncate text-xs text-destructive"
+          role="alert"
+          title={saveError}
+        >
           {saveError}
         </span>
       )}

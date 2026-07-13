@@ -87,18 +87,40 @@ describe("artifact:save over the websocket", () => {
 
   // Every hostile or meaningless save must be answered with an error AND
   // leave the wiki byte-for-byte alone — especially names that try to
-  // address files outside the wiki root.
-  const rejected: Array<{ label: string; name: string; spec?: string }> = [
-    { label: "path traversal", name: "../escape" },
-    { label: "nested path (no directories via save)", name: "notes/inner" },
-    { label: "backslash path", name: "notes\\inner" },
-    { label: "hidden-file name", name: ".sneaky" },
-    { label: "empty name", name: "" },
-    { label: "whitespace-only name", name: "   " },
-    { label: "trailing-dot name", name: "dangling." },
-    { label: "empty spec", name: "valid-name", spec: "   " },
+  // address files outside the wiki root. The error must state the rule the
+  // name broke (`reason`), not just that the name was invalid — the message
+  // is shown verbatim in the toolbar and must teach the user the fix.
+  const rejected: Array<{
+    label: string;
+    name: string;
+    spec?: string;
+    reason: RegExp;
+  }> = [
+    { label: "path traversal", name: "../escape", reason: /slashes/ },
+    {
+      label: "nested path (no directories via save)",
+      name: "notes/inner",
+      reason: /slashes/,
+    },
+    { label: "backslash path", name: "notes\\inner", reason: /slashes/ },
+    { label: "hidden-file name", name: ".sneaky", reason: /start with a dot/ },
+    { label: "empty name", name: "", reason: /empty/ },
+    { label: "whitespace-only name", name: "   ", reason: /empty/ },
+    { label: "extension-only name", name: ".oui", reason: /empty/ },
+    { label: "trailing-dot name", name: "dangling.", reason: /end with a dot/ },
+    {
+      label: "punctuation from a title-like name",
+      name: "Review: Q3 plan",
+      reason: /":".*letters, digits, spaces, dots, dashes/,
+    },
+    {
+      label: "apostrophe in name",
+      name: "Steve's notes",
+      reason: /"'".*letters, digits, spaces, dots, dashes/,
+    },
+    { label: "empty spec", name: "valid-name", reason: /empty/, spec: "   " },
   ];
-  for (const { label, name, spec } of rejected) {
+  for (const { label, name, spec, reason } of rejected) {
     it(`rejects without writing: ${label}`, async () => {
       const filesBefore = await wikiListing(app);
 
@@ -108,7 +130,7 @@ describe("artifact:save over the websocket", () => {
       });
 
       assert.equal(answer.url, undefined);
-      assert.ok(answer.error, "expected an error answer");
+      assert.match(String(answer.error), reason);
       assert.deepEqual(await wikiListing(app), filesBefore);
     });
   }

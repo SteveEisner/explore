@@ -359,14 +359,12 @@ export class ChatService {
       this.sendTo(ws, { type: "artifact:saved", id: message.id, ...result });
     };
 
-    const fileName = artifactFileName(message.name);
-    if (!fileName) {
-      answer({
-        error:
-          "invalid artifact name — use letters, digits, spaces, dots, dashes, or underscores",
-      });
+    const named = artifactFileName(message.name);
+    if ("error" in named) {
+      answer({ error: named.error });
       return;
     }
+    const fileName = named.fileName;
     if (typeof message.spec !== "string" || !message.spec.trim()) {
       answer({ error: "nothing to save — the artifact is empty" });
       return;
@@ -784,15 +782,49 @@ export class ChatService {
 }
 
 /**
- * Normalize a user-entered artifact name into a safe wiki filename, or null
- * if it can't be one: a single path segment (no separators, no traversal, no
- * leading dot) of word characters, spaces, dots, and dashes, ending in .oui.
+ * Normalize a user-entered artifact name into a safe wiki filename, or an
+ * error saying which rule the name broke. A valid name is a single path
+ * segment (no separators, no traversal, no leading dot) of ASCII letters,
+ * digits, underscores, spaces, dots, and dashes, ending in .oui.
+ *
+ * The character set must stay in sync with wiki-service's `wikiDocPath` —
+ * loosening it here would create files the edit/read tools refuse to address.
  */
-export function artifactFileName(name: unknown): string | null {
-  if (typeof name !== "string") return null;
+export function artifactFileName(
+  name: unknown
+): { fileName: string } | { error: string } {
+  const invalid = (why: string) => ({
+    error: `invalid artifact name — ${why}`,
+  });
+  if (typeof name !== "string" || !name.trim()) {
+    return invalid("the name is empty; type a name like 'my-dashboard'");
+  }
   const base = name.trim().replace(/\.oui$/i, "").trim();
-  if (!/^[\w][\w .-]*$/.test(base) || base.endsWith(".")) return null;
-  return `${base}.oui`;
+  if (!base) {
+    return invalid("the name is empty; type a name like 'my-dashboard'");
+  }
+  if (/[/\\]/.test(base)) {
+    return invalid(
+      "slashes are not allowed (artifacts save as a single file in the wiki, not into folders)"
+    );
+  }
+  if (base.startsWith(".")) {
+    return invalid("the name can't start with a dot");
+  }
+  if (base.endsWith(".")) {
+    return invalid("the name can't end with a dot");
+  }
+  if (!/^[\w]/.test(base)) {
+    return invalid(`it can't start with "${base[0]}"; begin with a letter or digit`);
+  }
+  const unsupported = [...new Set(base.replace(/[\w .-]/g, ""))];
+  if (unsupported.length > 0) {
+    const listed = unsupported.map((c) => `"${c}"`).join(" ");
+    return invalid(
+      `${listed} ${unsupported.length === 1 ? "is" : "are"} not allowed; use letters, digits, spaces, dots, dashes, or underscores`
+    );
+  }
+  return { fileName: `${base}.oui` };
 }
 
 /**

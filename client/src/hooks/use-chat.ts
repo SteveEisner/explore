@@ -259,6 +259,21 @@ async function answerStateRequest(
 }
 
 /**
+ * Reduce a model-suggested artifact name to the server's save rule (a single
+ * path segment of letters, digits, spaces, dots, dashes, underscores; no
+ * leading dot): runs of unsupported characters become one dash, leading
+ * dots/dashes and trailing dots/dashes are stripped. Returns "" when nothing
+ * usable remains — the caller then leaves the name field empty.
+ */
+function sanitizeArtifactName(name: string): string {
+  return name
+    .trim()
+    .replace(/\.oui$/i, "")
+    .replace(/[^\w .-]+/g, "-")
+    .replace(/^[\s.-]+|[\s.-]+$/g, "");
+}
+
+/**
  * Merge an edit-mode patch into the committed program. While the patch is
  * still streaming it can be syntactically incomplete, so fall back to plain
  * concatenation (the streaming parser discards invalid trailing lines).
@@ -457,8 +472,13 @@ export function useChat(): ChatState {
         } else if (event.type === "ui:spec") {
           // The model's suggested filename is only a default: never clobber
           // a name the user already typed (or a loaded artifact's name).
-          if (event.name && !getState("app/artifact-name")) {
-            setState("app/artifact-name", event.name, "server");
+          // The model is asked for kebab-case but doesn't always comply, so
+          // sanitize to the server's rule (letters, digits, spaces, dots,
+          // dashes, underscores) — a prefilled default must always be
+          // saveable as-is.
+          const suggested = event.name && sanitizeArtifactName(event.name);
+          if (suggested && !getState("app/artifact-name")) {
+            setState("app/artifact-name", suggested, "server");
           }
           // Authoritative full spec — commit it into the merged program.
           setUiParts((p) => ({
