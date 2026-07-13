@@ -301,15 +301,19 @@ const frontendTools: Array<{
   {
     name: "expand_artifact",
     description:
-      "Launch a wiki .oui artifact full-screen over the content panel (the " +
-      "same thing the user's Expand button on an embedded preview does). " +
+      "Launch an artifact full-screen over the content panel (the same " +
+      "thing the user's Expand button on an embedded preview does). Pass a " +
+      ".oui file, or a .md page — its first inline ```oui block expands. " +
       "The document view underneath stays open; the artifact shows as a " +
       "closable pill in the toolbar. get_app_state reports the currently " +
       "expanded artifact under `expandedArtifact`.",
     args: z.object({
       file: z
         .string()
-        .describe("The .oui file to expand: wiki path or /docs/<path> URL"),
+        .describe(
+          "What to expand: a .oui wiki path, or a .md page with an inline " +
+            "```oui block (wiki path or /docs/<path> URL)"
+        ),
     }),
   },
   {

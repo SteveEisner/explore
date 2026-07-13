@@ -2,6 +2,7 @@ import * as React from "react";
 import { FileWarningIcon, LoaderIcon, Maximize2Icon } from "lucide-react";
 import type { OpenUIError } from "@openuidev/react-lang";
 import { Button } from "@/components/ui/button";
+import type { ExpandedArtifactRef } from "@/lib/expanded-ref";
 import { frontendLog } from "@/lib/frontend-log";
 import { GenerativeView } from "@/lib/openui";
 import { useStoreValue } from "@/lib/state-store";
@@ -163,11 +164,42 @@ export function OuiEmbed({
           </p>
         )}
         {state.status === "ready" && (
-          <ArtifactPreview url={url} text={state.text} />
+          <ArtifactPreview
+            text={state.text}
+            expandRef={url}
+            label={url.split("/").pop() ?? url}
+          />
         )}
       </div>
       {children}
     </>
+  );
+}
+
+/**
+ * An inline OpenUI block (decisions.md D8): a ```oui fence in a wiki page,
+ * rendered as the same launchable preview an embed gets. Maximize is
+ * addressed as {doc, line} — the page URL plus the fence's source line — so
+ * the expanded view re-reads the block from the document (and hot-reloads
+ * with it) instead of carrying the whole program through the store.
+ */
+export function InlineArtifact({
+  program,
+  docUrl,
+  line,
+}: {
+  program: string;
+  docUrl: string;
+  line: number;
+}) {
+  return (
+    <div className="not-typeset my-6">
+      <ArtifactPreview
+        text={program}
+        expandRef={{ doc: docUrl, line }}
+        label={`${docUrl.split("/").pop()} artifact`}
+      />
+    </div>
   );
 }
 
@@ -184,13 +216,23 @@ const PREVIEW_MAX_HEIGHT = 360;
  * The scaled, non-interactive "ready to launch" card: artifact content
  * rendered live (so it's a real preview, not a screenshot) but blocked from
  * pointer events under a gradient shader, with Expand as the one action.
+ * `expandRef` is what Expand writes to `app/expanded-artifact`: a .oui URL
+ * for file embeds, a {doc, line} reference for inline blocks.
  */
-function ArtifactPreview({ url, text }: { url: string; text: string }) {
+function ArtifactPreview({
+  text,
+  expandRef,
+  label,
+}: {
+  text: string;
+  expandRef: ExpandedArtifactRef;
+  label: string;
+}) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const innerRef = React.useRef<HTMLDivElement>(null);
   const [scale, setScale] = React.useState(0.65);
   const [contentHeight, setContentHeight] = React.useState(PREVIEW_MAX_HEIGHT);
-  const [, setExpanded] = useStoreValue<string | null>(
+  const [, setExpanded] = useStoreValue<ExpandedArtifactRef | null>(
     "app/expanded-artifact",
     null
   );
@@ -216,24 +258,43 @@ function ArtifactPreview({ url, text }: { url: string; text: string }) {
 
   const [fatalError, onOuiError] = useOuiFatalError();
 
+  // Cursor shine: a radial highlight that follows the pointer across the
+  // shader, giving the launchable card a glassy, raised feel. Driven by
+  // direct style mutation (not state) — pointermove is too hot for renders.
+  const shineRef = React.useRef<HTMLDivElement>(null);
+  const moveShine = (e: React.PointerEvent<HTMLDivElement>) => {
+    const shine = shineRef.current;
+    if (!shine) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    shine.style.setProperty("--shine-x", `${e.clientX - rect.left}px`);
+    shine.style.setProperty("--shine-y", `${e.clientY - rect.top}px`);
+    shine.style.opacity = "1";
+  };
+  const hideShine = () => {
+    if (shineRef.current) shineRef.current.style.opacity = "0";
+  };
+
   const height = Math.min(PREVIEW_MAX_HEIGHT, Math.ceil(contentHeight * scale));
-  const expand = () => setExpanded(url);
+  const expand = () => setExpanded(expandRef);
 
   return (
     <div
       ref={containerRef}
       className={cn(
-        "relative overflow-hidden rounded-lg bg-background",
+        "relative overflow-hidden rounded-xl bg-background",
         // Broken artifact: the Renderer produced nothing, so the preview
         // would collapse to an empty sliver — show the error card instead.
         // The (zero-height) GenerativeView stays mounted below so a wiki
         // hot-reload that fixes the file clears the error and restores the
         // preview.
-        fatalError === null && "border"
+        fatalError === null &&
+          // A thin raised surface, not an inline image: hairline ring plus a
+          // close contact shadow and a soft drop shadow.
+          "border ring-1 ring-black/5 shadow-[0_1px_2px_rgba(0,0,0,0.10),0_6px_20px_rgba(0,0,0,0.12)] dark:ring-white/10 dark:shadow-[0_1px_2px_rgba(0,0,0,0.5),0_8px_24px_rgba(0,0,0,0.55)]"
       )}
       style={fatalError === null ? { height } : undefined}
     >
-      {fatalError !== null && <OuiErrorCard url={url} message={fatalError} />}
+      {fatalError !== null && <OuiErrorCard url={label} message={fatalError} />}
       <div
         ref={innerRef}
         aria-hidden
@@ -255,9 +316,22 @@ function ArtifactPreview({ url, text }: { url: string; text: string }) {
         <div
           className="absolute inset-0 flex cursor-pointer items-end justify-center bg-gradient-to-b from-transparent via-background/25 to-background/85 backdrop-saturate-[.35]"
           onClick={expand}
+          onPointerMove={moveShine}
+          onPointerLeave={hideShine}
           role="button"
-          aria-label={`Expand ${url}`}
+          aria-label={`Expand ${label}`}
         >
+          {/* The shine: a soft radial highlight under the cursor, fading in
+              on hover — the "glass over an app" cue that this is launchable. */}
+          <div
+            ref={shineRef}
+            aria-hidden
+            className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300"
+            style={{
+              background:
+                "radial-gradient(340px circle at var(--shine-x, 50%) var(--shine-y, 40%), color-mix(in oklab, white 26%, transparent), transparent 65%)",
+            }}
+          />
           <Button
             size="sm"
             variant="secondary"

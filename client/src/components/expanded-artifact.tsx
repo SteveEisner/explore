@@ -1,28 +1,36 @@
 import * as React from "react";
+import { FileWarningIcon, LoaderIcon } from "lucide-react";
 import { DrawingOverlay } from "@/components/drawing-overlay";
 import { FileViewer } from "@/components/file-viewer";
+import type { ExpandedArtifactRef } from "@/lib/expanded-ref";
 import type { StrokePoints } from "@/lib/freehand";
+import { frontendLog } from "@/lib/frontend-log";
+import { GenerativeView } from "@/lib/openui";
+import { blockAt, extractOuiBlocks } from "@/lib/oui-blocks";
+import { useStoreValue } from "@/lib/state-store";
 import { cn } from "@/lib/utils";
 
 /**
  * A launched artifact, taking over the content panel: full-screen view of a
- * wiki .oui file above the (still-mounted) document view. Driven by the
- * `app/expanded-artifact` store key — an embed's Expand button, the user,
- * or either agent can set it; minimizing happens in the toolbar's file bar,
- * where the launched artifact shows as a closable pill (main-toolbar.tsx).
+ * wiki .oui file — or an inline ```oui block of a wiki page ({doc, line}
+ * reference, decisions.md D8) — above the (still-mounted) document view.
+ * Driven by the `app/expanded-artifact` store key — an embed's Expand
+ * button, the user, or either agent can set it; minimizing happens in the
+ * toolbar's file bar, where the launched artifact shows as a closable pill
+ * (main-toolbar.tsx).
  *
  * `open` drives the enter/exit animation (fade + rise + slight scale); the
  * component stays mounted through the exit and reports `onClosed` when the
  * fade-out finishes so App can unmount it.
  */
 export function ExpandedArtifact({
-  url,
+  target,
   open,
   drawMode,
   onClosed,
   onNavigate,
 }: {
-  url: string;
+  target: ExpandedArtifactRef;
   open: boolean;
   /** The toolbar pen tool: draw on the artifact, not the page beneath. */
   drawMode: boolean;
@@ -79,7 +87,11 @@ export function ExpandedArtifact({
           lives inside the scrolled content, so strokes are recorded in the
           artifact's own coordinates and stay glued through scrolling. */}
       <div className="relative min-h-full">
-        <FileViewer url={url} onNavigate={onNavigate} />
+        {typeof target === "string" ? (
+          <FileViewer url={target} onNavigate={onNavigate} />
+        ) : (
+          <InlineBlockView doc={target.doc} line={target.line} />
+        )}
         <DrawingOverlay
           active={drawMode}
           strokes={strokes}
@@ -88,4 +100,66 @@ export function ExpandedArtifact({
       </div>
     </div>
   );
+}
+
+/**
+ * Full-screen view of one inline ```oui block: fetch the page, extract the
+ * block at the referenced fence line, render its program. Re-reads on wiki
+ * hot-reload, so editing the block (it's just text in the .md) updates the
+ * expanded view live — the same contract as file embeds.
+ */
+function InlineBlockView({ doc, line }: { doc: string; line: number }) {
+  const [state, setState] = React.useState<
+    | { status: "loading" }
+    | { status: "error"; message: string }
+    | { status: "ready"; program: string }
+  >({ status: "loading" });
+
+  const [wikiChanged] = useStoreValue<{ url: string; seq: number } | null>(
+    "app/wiki-changed",
+    null
+  );
+  const reloadSeq = wikiChanged?.url === doc ? wikiChanged.seq : 0;
+
+  React.useEffect(() => {
+    let stale = false;
+    fetch(doc)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        return res.text();
+      })
+      .then((text) => {
+        if (stale) return;
+        const block = blockAt(extractOuiBlocks(text), line);
+        if (!block) {
+          throw new Error(`no \`\`\`oui block at line ${line} of ${doc}`);
+        }
+        setState({ status: "ready", program: block.program });
+      })
+      .catch((err: Error) => {
+        frontendLog("expanded-block:error", { doc, line, message: err.message });
+        if (!stale) setState({ status: "error", message: err.message });
+      });
+    return () => {
+      stale = true;
+    };
+  }, [doc, line, reloadSeq]);
+
+  switch (state.status) {
+    case "loading":
+      return (
+        <p className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
+          <LoaderIcon className="size-4 animate-spin" /> Loading the artifact…
+        </p>
+      );
+    case "error":
+      return (
+        <p className="flex items-center gap-2 p-6 text-sm text-destructive">
+          <FileWarningIcon className="size-4" /> Couldn’t load the artifact:{" "}
+          {state.message}
+        </p>
+      );
+    case "ready":
+      return <GenerativeView response={state.program} />;
+  }
 }

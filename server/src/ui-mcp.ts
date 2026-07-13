@@ -117,9 +117,11 @@ server.registerTool(
       "(markdown source lines of the open document, 1-based), " +
       "{statement:'name'} (an OpenUI statement in the rendered artifact), " +
       "or {text:'snippet'} (first occurrence, case-insensitive); write it " +
-      "again to blink again; 'app/expanded-artifact' — a wiki .oui URL " +
-      "('/docs/<path>') expands that artifact full-screen over the content " +
-      "panel (the document view stays open underneath); null minimizes " +
+      "again to blink again; 'app/expanded-artifact' — expands an artifact " +
+      "full-screen over the content panel (the document view stays open " +
+      "underneath): a wiki .oui URL ('/docs/<path>'), or {doc:'/docs/" +
+      "<page>.md', line:N} for the inline ```oui block whose opening fence " +
+      "is at that 1-based source line; null minimizes " +
       "back to the document. Artifact keys: a " +
       "Tabs/Gallery " +
       "component's active item lives under its stateKey prop, or " +

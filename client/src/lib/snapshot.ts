@@ -1,3 +1,4 @@
+import type { ExpandedArtifactRef } from "@/lib/expanded-ref";
 import { sourceLineOf, visibleSourceLines } from "@/lib/source-lines";
 import { stateSnapshot } from "@/lib/state-store";
 
@@ -14,8 +15,11 @@ export interface SnapshotInputs {
   chatOpen: boolean;
   chatBusy: boolean;
   drawMode: boolean;
-  /** Wiki .oui expanded full-screen over the content panel, if any. */
-  expandedArtifact: string | null;
+  /**
+   * Artifact expanded full-screen over the content panel, if any: a wiki
+   * .oui URL or an inline-block {doc, line} reference.
+   */
+  expandedArtifact: ExpandedArtifactRef | null;
   strokeCount: number;
   authoringProgram: string | null;
   pointer: { x: number; y: number; at: number } | null;

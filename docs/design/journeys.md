@@ -46,6 +46,17 @@ The top journeys the app must nail, in priority order. Each journey is the unit 
 **Status:** not built. Generated artifacts are ephemeral today; `.oui` files render from the wiki but nothing writes them.
 **Definition of good:** save → reopen → looks identical → "continue editing" works.
 
+## J5 — Publish and view source (shareable static output)
+
+> I can publish a static page that contains the running app and also shows its markdown source.
+
+1. User publishes a document as a static artifact (HTML) that embeds the app.
+2. The published view includes a "view source" mode that renders the markdown source using the existing markdown viewer.
+3. A reader can switch between using the app and reading the source, and can ask questions with the context the source carries.
+
+**Status:** not built.
+**Definition of good:** a single published artifact is shareable and usable without a backend, and its source is inspectable in a readable markdown view.
+
 ## J0 — Get running (the meta-journey)
 
 > Anyone (including a reviewer) can clone the repo and be exploring in minutes.

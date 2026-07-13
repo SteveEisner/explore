@@ -3,6 +3,7 @@ import type { ChatState } from "@/hooks/use-chat";
 import { collectAppState } from "@/lib/app-state";
 import { frontendLog } from "@/lib/frontend-log";
 import { indicate, type IndicateTarget } from "@/lib/indicate";
+import { extractOuiBlocks } from "@/lib/oui-blocks";
 import {
   applyServerUpdates,
   stateSnapshot,
@@ -678,14 +679,34 @@ class VoiceSession {
       case "expand_artifact": {
         const file = args.file;
         if (typeof file !== "string" || !file.trim()) {
-          throw new Error("pass `file`: the .oui wiki path to expand");
-        }
-        if (!file.toLowerCase().endsWith(".oui")) {
-          throw new Error(`only .oui artifacts expand — "${file}" is not one`);
+          throw new Error(
+            "pass `file`: a .oui wiki path, or a .md page with an inline ```oui block"
+          );
         }
         const url = file.startsWith("/") ? file : `/docs/${file}`;
-        applyServerUpdates({ "app/expanded-artifact": url });
-        return JSON.stringify({ expanded: url });
+        const lower = file.toLowerCase();
+        if (lower.endsWith(".oui")) {
+          applyServerUpdates({ "app/expanded-artifact": url });
+          return JSON.stringify({ expanded: url });
+        }
+        if (lower.endsWith(".md") || lower.endsWith(".markdown")) {
+          // Inline block (decisions.md D8): expand the page's first ```oui
+          // fence, addressed as {doc, line} so it hot-reloads with the page.
+          const res = await fetch(url);
+          if (!res.ok) {
+            throw new Error(`could not read ${url}: ${res.status} ${res.statusText}`);
+          }
+          const blocks = extractOuiBlocks(await res.text());
+          if (blocks.length === 0) {
+            throw new Error(`${file} has no inline \`\`\`oui block to expand`);
+          }
+          const ref = { doc: url, line: blocks[0].line };
+          applyServerUpdates({ "app/expanded-artifact": ref });
+          return JSON.stringify({ expanded: ref, blocksInPage: blocks.length });
+        }
+        throw new Error(
+          `only .oui files or .md pages with inline \`\`\`oui blocks expand — "${file}" is neither`
+        );
       }
       case "minimize_artifact": {
         applyServerUpdates({ "app/expanded-artifact": null });

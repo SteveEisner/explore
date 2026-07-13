@@ -129,6 +129,7 @@ export function FileViewer({
             text={text}
             typeset
             className={READING_COLUMN_CLASS}
+            sourceUrl={url}
             onLinkClick={handleLink}
           />
         );

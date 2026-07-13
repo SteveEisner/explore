@@ -4,6 +4,11 @@ import { ChatSidebar } from "@/components/chat-sidebar";
 import { DrawingOverlay } from "@/components/drawing-overlay";
 import { ExpandedArtifact } from "@/components/expanded-artifact";
 import { FileViewer } from "@/components/file-viewer";
+import {
+  expandedRefKey,
+  normalizeExpandedRef,
+  type ExpandedArtifactRef,
+} from "@/lib/expanded-ref";
 import { HomeView } from "@/components/home-view";
 import { MainToolbar } from "@/components/main-toolbar";
 import { useChat } from "@/hooks/use-chat";
@@ -59,13 +64,15 @@ export default function App() {
     "app/chat-expanded",
     false
   );
-  // A launched wiki .oui covering the content panel (null = none). In the
-  // store so embeds' Expand buttons, both agents, and state snapshots all
-  // share it; navigation to a different view auto-minimizes below.
-  const [expandedArtifact, setExpandedArtifact] = useStoreValue<string | null>(
+  // A launched artifact covering the content panel (null = none): a .oui
+  // URL or an inline-block {doc, line} reference. In the store so embeds'
+  // Expand buttons, both agents, and state snapshots all share it;
+  // navigation to a different view auto-minimizes below.
+  const [rawExpanded, setExpandedArtifact] = useStoreValue<unknown>(
     "app/expanded-artifact",
     null
   );
+  const expandedArtifact = normalizeExpandedRef(rawExpanded);
   const viewSignature = view.kind === "doc" ? `doc:${view.url}` : view.kind;
   const lastViewSignature = React.useRef(viewSignature);
   React.useEffect(() => {
@@ -74,13 +81,15 @@ export default function App() {
     setExpandedArtifact(null);
   }, [viewSignature, setExpandedArtifact]);
   // What the overlay actually renders: follows the store key up instantly,
-  // but holds the last url through the exit animation until onClosed.
-  const [renderedArtifact, setRenderedArtifact] = React.useState<string | null>(
-    null
-  );
+  // but holds the last target through the exit animation until onClosed.
+  const [renderedArtifact, setRenderedArtifact] =
+    React.useState<ExpandedArtifactRef | null>(null);
+  const expandedKey = expandedRefKey(expandedArtifact);
   React.useEffect(() => {
     if (expandedArtifact) setRenderedArtifact(expandedArtifact);
-  }, [expandedArtifact]);
+    // expandedKey stands in for the object identity (LLM writes recreate it).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expandedKey]);
   const scrollerRef = React.useRef<HTMLDivElement>(null);
   const docRef = React.useRef<HTMLDivElement>(null);
 
@@ -229,10 +238,19 @@ export default function App() {
                 with the content, and screenshots capture them for free. */}
             <div ref={docRef} className="relative min-h-full">
               {view.kind === "authoring" ? (
-                <GenerativeView
-                  response={chat.ui.program}
-                  isStreaming={chat.ui.streaming}
-                />
+                chat.ui.program?.trim() ? (
+                  <GenerativeView
+                    response={chat.ui.program}
+                    isStreaming={chat.ui.streaming}
+                  />
+                ) : (
+                  // Empty artifact: a calm placeholder instead of a bare
+                  // white pane (the user steers via chat/voice — no manual
+                  // editing to point at).
+                  <p className="flex min-h-[60vh] items-center justify-center p-6 text-sm text-muted-foreground">
+                    Blank artifact — nothing here yet.
+                  </p>
+                )
               ) : view.kind === "home" ? (
                 <HomeView
                   onNavigate={(url) => setView({ kind: "doc", url })}
@@ -256,7 +274,7 @@ export default function App() {
               lags the store key until the fade-out reports closed). */}
           {renderedArtifact && (
             <ExpandedArtifact
-              url={renderedArtifact}
+              target={renderedArtifact}
               open={expandedArtifact !== null}
               drawMode={drawMode}
               onClosed={() => setRenderedArtifact(null)}

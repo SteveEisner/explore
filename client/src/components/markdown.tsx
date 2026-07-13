@@ -5,7 +5,7 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
 import { MarkdownCode, MermaidDiagram } from "@/components/markdown-code";
-import { OuiEmbed } from "@/components/oui-embed";
+import { InlineArtifact, OuiEmbed } from "@/components/oui-embed";
 import { rehypeSourceLines } from "@/lib/source-lines";
 import { cn } from "@/lib/utils";
 // The typeset code-block surface is dark in both themes (see index.css
@@ -45,6 +45,7 @@ export function Markdown({
   invert,
   typeset,
   className,
+  sourceUrl,
   onLinkClick,
 }: {
   text: string;
@@ -60,6 +61,12 @@ export function Markdown({
    */
   typeset?: boolean;
   className?: string;
+  /**
+   * The wiki URL this markdown was loaded from. When set, ```oui fences
+   * render as inline artifacts (decisions.md D8) addressed by {sourceUrl,
+   * fence line}; without it (chat messages) they stay plain code blocks.
+   */
+  sourceUrl?: string;
   /**
    * Intercept link clicks (e.g. to load the target into the main panel
    * instead of navigating). Call preventDefault() to stop the browser.
@@ -86,7 +93,9 @@ export function Markdown({
         components={
           {
             code: MarkdownCode,
-            pre: MarkdownPre,
+            pre: (props: React.ComponentProps<"pre">) => (
+              <MarkdownPre {...props} sourceUrl={sourceUrl} />
+            ),
             // Custom tag: mounts an OpenUI app from a wiki .oui file.
             "oui-embed": OuiEmbed,
             // `<oui-embed ...></oui-embed>` on one line is inline HTML to
@@ -130,14 +139,37 @@ export function Markdown({
 
 /**
  * Block-code wrapper: a ```mermaid fence renders as a diagram instead of a
- * <pre> box, so the typeset code-block chrome doesn't frame the SVG.
+ * <pre> box, and — on wiki pages (sourceUrl set) — a ```oui fence renders as
+ * an inline artifact (decisions.md D8), addressed for maximize by the
+ * fence's data-source-line stamp.
  */
-function MarkdownPre({ children, ...props }: React.ComponentProps<"pre">) {
+function MarkdownPre({
+  children,
+  sourceUrl,
+  ...props
+}: React.ComponentProps<"pre"> & { sourceUrl?: string }) {
   const child = React.isValidElement(children)
-    ? (children as React.ReactElement<{ className?: string; children?: React.ReactNode }>)
+    ? (children as React.ReactElement<{
+        className?: string;
+        children?: React.ReactNode;
+        "data-source-line"?: number | string;
+      }>)
     : null;
-  if (child?.props.className?.split(" ").includes("language-mermaid")) {
-    return <MermaidDiagram chart={reactNodeText(child.props.children)} />;
+  const languages = child?.props.className?.split(" ") ?? [];
+  if (languages.includes("language-mermaid")) {
+    return <MermaidDiagram chart={reactNodeText(child!.props.children)} />;
+  }
+  if (languages.includes("language-oui") && sourceUrl) {
+    const stamped =
+      child!.props["data-source-line"] ??
+      (props as Record<string, unknown>)["data-source-line"];
+    return (
+      <InlineArtifact
+        program={reactNodeText(child!.props.children)}
+        docUrl={sourceUrl}
+        line={Number(stamped) || 1}
+      />
+    );
   }
   return <pre {...props}>{children}</pre>;
 }
