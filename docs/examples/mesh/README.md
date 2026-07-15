@@ -2,7 +2,7 @@
 
 <oui-embed src="examples/mesh/simulator-wrapper.oui"></oui-embed>
 
-I vibe coded this simulator as a way to see the WLED-Tubes project operating as a physical wireless system rather than only as firmware. It lets me watch tubes elect leaders, synchronize lighting, relay messages, split into clusters, and react to radio range in real time, then use the packet history and per-device state to debug and improve the mesh networking code.
+I vibe coded this simulator as a way to see the WLED-Tubes project operating as a physical wireless system rather than only as firmware. It lets me watch tubes elect leaders, synchronize lighting, relay messages, split into clusters, and react to radio range in real time, then use the packet history and per-device state to debug and improve the mesh networking code. The positioning direction came from an interesting robotics paper, and we adapted its ideas to fit this device and mesh context.
 
 This project produced a static simulator for the Tubes wireless lighting mesh, then extended that simulator into a laboratory for an experimental cooperative-positioning protocol. The two layers share the same anonymous broadcast network, but they have different status: the lighting model begins with the existing Tubes firmware in [`node.h`](node.h), while the positioning protocol is a proposed ESP32 implementation that has not been added to the firmware.
 

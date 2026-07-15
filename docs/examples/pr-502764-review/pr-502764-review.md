@@ -317,4 +317,4 @@ reviewQuestion = Content("<h2>The compact review question</h2><p>For every saved
 reviewQuestionAudit = Content("<p>That question also tests the size of the change: the PR changes apply-time collector persistence while leaving preview calculation, storage schema, and billing frequencies outside the diff.</p>", [3])
 ```
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+This PR refactors apply-time billing so future work is saved as one replacement change plan. PREPAID future rebills still come from future bill rows, while POSTPAID usage collectors are rebuilt from saved collector state and current subscription timelines. The goal is to avoid missing or stale future billing by ensuring each relevant collector is consumed, advanced, preserved, rewritten, or dropped exactly once.
