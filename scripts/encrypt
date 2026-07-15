@@ -1,0 +1,7 @@
+#!/bin/sh
+# encrypt <phrase> <file>  — writes passphrase-encrypted base64 to stdout.
+# Counterpart: scripts/decrypt. AES-256-CBC with PBKDF2; the phrase rides
+# argv, so it is briefly visible in `ps` — fine for a burn-after-use handoff,
+# not for durable secrets.
+[ $# -eq 2 ] || { echo "usage: encrypt <phrase> <file>" >&2; exit 1; }
+exec openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt -a -pass "pass:$1" -in "$2"

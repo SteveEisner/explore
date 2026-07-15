@@ -1,0 +1,5 @@
+#!/bin/sh
+# decrypt <phrase> <file>  — decrypts scripts/encrypt output to stdout.
+# Typical use: scripts/decrypt <phrase> env.enc > .env.local
+[ $# -eq 2 ] || { echo "usage: decrypt <phrase> <file>" >&2; exit 1; }
+exec openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -a -pass "pass:$1" -in "$2"
