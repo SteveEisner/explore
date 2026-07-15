@@ -1,7 +1,71 @@
 # Explore
 
-A web app scaffold: a shadcn/ui front end with a chat sidebar driven by a
-back end that talks to a **Claude Code CLI** instance in streaming mode.
+Part wiki, part artifact authoring environment: a web app where you talk to
+a built-in agent (chat or voice) about a folder of documents, and it builds
+interactive explanation artifacts inside the wiki's own pages. The back end
+drives a **Claude Code CLI** instance in streaming mode.
+
+## Install
+
+Prerequisites — check these before anything else:
+
+- **Node 20.12+** (`node --version`) — older 20.x fails at startup
+  (`process.loadEnvFile`, `import.meta.dirname`).
+- **Claude Code CLI installed and authenticated** (`claude --version`
+  works and `claude` can answer a prompt) — the back end spawns it for
+  every chat session. See [Installing Claude Code, safely
+  scoped](#installing-claude-code-safely-scoped) below **before**
+  installing if it isn't already set up.
+- **The decryption password** — provided to you out of band. It unlocks the
+  OpenAI key that powers the optional voice agent; every other feature
+  works without it.
+
+Then, in order (each step must succeed before the next):
+
+```sh
+git clone https://github.com/SteveEisner/explore.git && cd explore
+npm install                                    # also wires the pre-commit hook
+scripts/decrypt <password> env.enc > .env.local  # <password> = the one you were given
+scripts/warm-vault.sh                          # one-time: ~100MB model + search index
+npm run dev                                    # back end :3001, front end :5173
+```
+
+Open **http://localhost:5173**. You should see the wiki home page; click the
+mic in the chat toolbar for voice (needs the decrypted key), or type in the
+chat. Verify the install with `npm run check && npm test` — both must pass
+on a clean clone. If `scripts/decrypt` prints `bad decrypt`, the password
+was wrong; nothing was written. The wiki is the repo's own `docs/` by
+default; point `WIKI_DIR` at another folder of notes to explore your own
+([.env.example](.env.example) lists every knob).
+
+### Installing Claude Code, safely scoped
+
+This app is a wrapper that invokes Claude Code programmatically — every chat
+session spawns a `claude` process without a human watching the permission
+prompts. That is inherently dangerous if your Claude Code installation has
+broad standing permissions, so:
+
+1. **Install the official CLI normally** (`npm install -g
+   @anthropic-ai/claude-code`), run `claude` once in a terminal to
+   authenticate, then quit it. No special configuration for this app —
+   the constraints below are applied by the app itself.
+2. **Know the app's jail, and don't widen it.** Every session this server
+   spawns is confined by construction (`server/src/claude.ts`): working
+   directory pinned to the gitignored `sandbox/` folder; the tool set
+   reduced to file tools + `Skill` (**no Bash, no web, no subagents** —
+   removed via `--tools` and belt-and-braces `--disallowedTools`); MCP
+   limited to this app's own servers (`--strict-mcp-config`); and
+   `--setting-sources "project"` so your user-level settings, allow rules,
+   hooks, and MCP servers **cannot leak into these sessions at all**.
+   Headless permission prompts auto-deny. Don't add permission flags or
+   tools there without understanding you are widening an unattended agent.
+3. **Keep your own user-level permissions conservative anyway** — no broad
+   `Bash` allow rules in `~/.claude/settings.json`. This app shields itself
+   from them, but other wrappers you run may not.
+4. **For the strongest isolation**, run the whole app inside a container,
+   VM, or a dedicated machine account whose home directory contains only
+   this project — then even a fully misbehaving session can see nothing
+   else.
 
 ## Architecture
 
@@ -49,32 +113,7 @@ The LLM can construct the main panel's UI:
   - `Stack(children)` — full-width vertical stack, edge to edge
   - `Tabs(tabs: [{label, content}])` — tab row on top, panels below
 
-## Quickstart
-
-Prerequisites:
-
-- **Node 20.12+** — the server uses `process.loadEnvFile` and
-  `import.meta.dirname`, so older 20.x versions fail at startup.
-- **Claude Code CLI** (`claude`) installed and authenticated — the back end
-  spawns it for every chat session. Everything else (dev servers, tests,
-  build) works without it; only real LLM sessions need it.
-- No API keys for the core app. `OPENAI_API_KEY` enables the optional voice
-  agent — see [.env.example](.env.example) for it and every other knob.
-
-```sh
-git clone <repo> && cd explore
-npm install                   # also wires up the pre-commit hook (core.hooksPath)
-cp .env.example .env.local    # optional — only needed to configure voice etc.
-scripts/warm-vault.sh         # one-time: embedding model download + wiki search index
-npm run dev                   # back end on :3001, Vite dev server on :5173 (proxies /ws)
-```
-
-Open http://localhost:5173. The wiki is the repo's own `docs/` directory by
-default, so a fresh clone has real content to explore; point `WIKI_DIR` at
-another folder of notes to explore your own. `npm run check` (typecheck +
-lint) and `npm test` should both pass on a clean clone.
-
-### Semantic-search warm-up
+## Semantic-search warm-up
 
 The wiki's semantic search (the markdown-vault MCP server) indexes the whole
 wiki the first time it starts, which includes downloading a local embedding
