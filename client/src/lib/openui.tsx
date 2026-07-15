@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo } from "react";
+import { createContext, memo, useContext, useEffect, useMemo } from "react";
 import {
   createLibrary,
   defineComponent,
@@ -552,7 +552,7 @@ function coerceContextLevel(raw: unknown): number {
   return Number.parseInt(String(raw), 10) || DEFAULT_CONTEXT_LEVEL;
 }
 
-export function GenerativeView({
+export const GenerativeView = memo(function GenerativeView({
   response,
   isStreaming = false,
   contextLevel,
@@ -596,4 +596,4 @@ export function GenerativeView({
       />
     </ContextLevelContext.Provider>
   );
-}
+});

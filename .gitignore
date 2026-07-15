@@ -9,11 +9,6 @@ server/data/
 .obsidian/
 /sandbox/
 docs/.markdown_vault_mcp/
-# Vault-generated meta docs (docs/meta is a symlink to design/api; the
-# symlink and design/api/.gitkeep are tracked so a clean clone has a valid
-# target dir — the vault errors out of meta auto-creation on a dangling link)
-docs/design/api/contract.md
-docs/design/api/overview.md
 eval/results/
 eval/wiki/.markdown_vault_mcp/
 /sandbox-side/

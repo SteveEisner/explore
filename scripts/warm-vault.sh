@@ -16,6 +16,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 WIKI_DIR="${WIKI_DIR:-$PWD/docs}"
+VAULT_META_PATH="${VAULT_META_PATH:-$PWD/server/data/vault-meta}"
+mkdir -p "$VAULT_META_PATH"
 LOG="$(mktemp)"
 FIFO="$(mktemp -u)"
 mkfifo "$FIFO"
@@ -31,7 +33,8 @@ trap cleanup EXIT
 
 # The server speaks MCP over stdio and treats stdin EOF as the client hanging
 # up, so feed it a fifo we hold open; progress goes to stderr (the log file).
-VAULT_PATH="$WIKI_DIR" node_modules/.bin/markdown-vault-mcp <"$FIFO" >/dev/null 2>"$LOG" &
+VAULT_PATH="$WIKI_DIR" VAULT_META_PATH="$VAULT_META_PATH" \
+  node_modules/.bin/markdown-vault-mcp <"$FIFO" >/dev/null 2>"$LOG" &
 SERVER_PID=$!
 exec 3>"$FIFO"
 

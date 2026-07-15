@@ -377,6 +377,11 @@ export class ClaudeSession extends EventEmitter {
       ui: localServer("ui-mcp", { PORT: String(appPort) }),
     };
     if (this.wikiDir) {
+      const vaultMetaPath = path.join(
+        path.dirname(this.sessionFile),
+        "vault-meta"
+      );
+      mkdirSync(vaultMetaPath, { recursive: true });
       // Third-party markdown-note CRUD/search over the wiki, plus our own
       // wiki server (list/read/create) covering the non-markdown wiki files
       // it can't see.
@@ -385,7 +390,10 @@ export class ClaudeSession extends EventEmitter {
           here,
           "../../node_modules/.bin/markdown-vault-mcp"
         ),
-        env: { VAULT_PATH: this.wikiDir },
+        env: {
+          VAULT_PATH: this.wikiDir,
+          VAULT_META_PATH: vaultMetaPath,
+        },
       };
       mcpServers.wiki = localServer("wiki-mcp", { WIKI_PATH: this.wikiDir });
     }

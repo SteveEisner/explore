@@ -14,7 +14,7 @@
     "lint": "npm run lint -w client && npm run lint -w server",
     "typecheck": "npm run typecheck -w client && npm run typecheck -w server && tsc -p tests",
     "check": "npm run typecheck && npm run lint",
-    "prepare": "git config core.hooksPath .githooks"
+    "prepare": "node scripts/patch-vault-meta.mjs && git config core.hooksPath .githooks"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
