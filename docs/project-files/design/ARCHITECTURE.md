@@ -36,7 +36,7 @@ dArtifactView = Content("<span class='tag'>Client</span><p><b>Purpose:</b> rende
 dChat = Content("<span class='tag'>Client</span><p><b>Purpose:</b> the conversation channel with the model, by text or voice. <b>Responsibilities:</b> streams your <b>messages and multimodal feedback</b> to the Session Bridge and renders replies as they arrive. <b>What you experience:</b> ask a question and get a grounded answer, or give a revision and watch the artifact change &mdash; discussion and building in one thread.</p>")
 dBridge = Content("<span class='tag'>Server</span><p><b>Purpose:</b> the server that wires the browser to the intelligence. <b>Responsibilities:</b> routes chat/feedback &#8646; LLM, watches artifact files for changes, and serves wiki queries; it hands <b>prompts and tools</b> to Claude Code and receives <b>tool calls</b> back. <b>What you experience:</b> nothing directly &mdash; it is the plumbing that makes replies stream and edits reload live.</p>")
 dClaude = Content("<span class='tag'>Intelligence</span><p><b>Purpose:</b> the reasoning that turns a request into an answer or an artifact. <b>Responsibilities:</b> interprets prompts, decides what to do, and issues tool calls to <b>read the Wiki</b> for grounding and <b>write Artifacts</b> to disk. <b>What you experience:</b> answers tied to your actual material and artifacts built from it &mdash; not generic filler.</p>")
-dWiki = Content("<span class='tag'>Store</span><p><b>Purpose:</b> the source of truth &mdash; your documents and data. <b>Responsibilities:</b> a plain file directory read by Claude Code via tool calls; it is never mutated by the generation flow, so your material stays authoritative. <b>What you experience:</b> a folder of files you own, and answers that cite them.</p>")
+dWiki = Content("<span class='tag'>Store</span><p><b>Purpose:</b> the source of truth &mdash; your documents and data. <b>Responsibilities:</b> a plain file directory read by Claude Code via tool calls, and edited only when you ask &mdash; your material stays authoritative. <b>What you experience:</b> a folder of files you own, and answers that cite them.</p>")
 dArtifacts = Content("<span class='tag'>Store</span><p><b>Purpose:</b> persist what you build together. <b>Responsibilities:</b> generated app files on disk, written by Claude Code; the bridge watches them and pushes updates to the Artifact View. <b>What you experience:</b> artifacts you can save, reopen, and keep refining &mdash; the work is yours to return to.</p>")
 ```
 
@@ -95,20 +95,23 @@ Storage is just the directory, but the backend service (session bridge) also exp
 
 | Endpoint | Behavior |
 |---|---|
-| **List** | Enumerate files in the wiki (paths + basic metadata) |
-| **Read** | Read *lines* from a file — chunked/ranged reads (offset + limit), never forcing a whole-document fetch |
-| **Create** | Create a new file with given content |
+| **List** | Enumerate files in the wiki (paths + basic metadata); also exposed over HTTP at `/api/wiki/files` |
+| **Read** | Read *lines* from a file — chunked/ranged reads (offset + limit, 400-line cap), never forcing a whole-document fetch |
+| **Search** | Find files by keyword or semantic query (the markdown-vault index) |
+| **Create** | Create a new file with given content; refuses to overwrite an existing file |
 | **Rename** | Rename/move a file within the wiki |
-| **Edit** | Modify a file via **exact search/replace** (`old_string` → `new_string`, with a uniqueness requirement and an optional replace-all flag) |
+| **Edit** | Modify a file via **exact search/replace** (`old_text` → `new_text`); the match must be unique in the file, and `.oui` results are validated before the write |
+| **Delete** | Remove a file (tool descriptions require explicit user confirmation — there is no trash or history) |
 
 The edit endpoint deliberately uses the `str_replace` style rather than unified diffs or line-number-based patching — see [decisions.md](decisions.md#d1-wiki-edit-api-format-exact-searchreplace-str_replace) for the research behind that choice. Chunked *reads* may include line numbers for orientation, but *edits* never reference line numbers.
 
 ### Intelligence — Claude Code
 
-The already-installed Claude Code is the LLM runtime. The application does not implement its own agent loop; it drives Claude Code as a session and grants it:
+The already-installed Claude Code is the LLM runtime. The application does not implement its own agent loop; it drives the CLI headless (`--print`, stream-json in and out, `--resume` for session continuity — see `server/src/claude.ts`) and grants it:
 
-- **Read access to the wiki** (its native file tools).
-- **An artifact tool** — create/update an artifact. In practice: writing files to the artifacts directory, with guidance on what a good explanation app looks like.
+- **Native file tools confined to a sandbox** — the tool set is cut to `Read, Write, Edit, Glob, Grep, Skill` (no Bash, web, or subagents), with the working directory pinned to the gitignored `sandbox/` folder. Files written there do *not* land in the wiki.
+- **Wiki access via MCP servers** — the wiki server (list/read/create/rename) and the markdown-vault server (note CRUD + semantic search) are the only paths into the wiki, configured with `--strict-mcp-config`.
+- **The `ui` artifact tool** — an MCP server whose `spec` argument is an OpenUI Lang program, plus system-prompt guidance on what a good explanation app looks like.
 
 The **generation guidance** (one of the two novel parts) lives here: system-prompt material, artifact patterns/templates, and component conventions that steer output toward genuinely interactive explanations rather than TLDR documents.
 
@@ -131,7 +134,7 @@ The one piece of durable custom software. Two panes:
 - **Artifact view** — renders the current artifact, hot-reloads when the LLM updates it.
 - **Chat pane** — the feedback channel to the LLM (Phase 2), extended with multimodal operations (Phase 3).
 
-The **collaboration mechanisms** (the second novel part) live here: turning what the user does — not just what they type — into context the LLM can act on. Planned feedback modes:
+The **collaboration mechanisms** (the second novel part) live here: turning what the user does — not just what they type — into context the LLM can act on. Feedback modes (all but design-conversation memory are implemented):
 
 - **Drawing/annotation overlay** — draw directly on the rendered artifact (circle, sketch, point-and-comment); the marked-up view goes back to the LLM as image + structured region data.
 - **Voice agent** — spoken conversation about the *content* or about the *application*; one channel serves both learning and authoring.
@@ -143,9 +146,9 @@ The **collaboration mechanisms** (the second novel part) live here: turning what
 The server-side glue between the web app and Claude Code:
 
 - Forwards chat messages and multimodal feedback into the LLM session; streams responses back.
-- Watches the artifacts directory and pushes updates to the artifact view.
-- Serves wiki queries from artifacts (Phase 4 runtime API).
-- Persists session state: conversation history and artifact versions.
+- Watches the wiki directory (artifacts live in its pages) and pushes `wiki:changed` updates to the view.
+- Serves wiki queries (`/api/wiki/files`, `/docs/*`) and the voice-session endpoint.
+- Persists the Claude session id (`server/data/claude-session.json`) and respawns with `--resume`, so conversation history survives restarts. **Artifact versions are not persisted** — files on disk are the only copy; there is no history or undo.
 
 ## Data flow — the core loop
 
@@ -167,12 +170,12 @@ The server-side glue between the web app and Claude Code:
 | 5. Look and feel | No new components — polish of app shell and generation guidance |
 | 6. Wiki ingestion (stretch) | Importers and normalization in front of the wiki directory |
 
-## Open decisions
+## Open decisions — resolved
 
-Deliberately unresolved; record outcomes in `docs/decisions.md` when made.
+These were deliberately left open at design time; how they landed:
 
-- **Web stack** for the application shell and session bridge (OpenUI's React runtime constrains this somewhat).
-- **Artifact format details** — direction is decided (OpenUI component vocabulary, see decisions.md D2), but the initial vocabulary, on-disk representation, and sandboxing model for escape-hatch raw HTML are open.
-- **Driving Claude Code** — Agent SDK vs. CLI (headless/stream-json); how sessions map to explorations.
-- **Artifact tool shape** — a dedicated tool definition vs. conventions over plain file writes.
-- **Persistence** — how much beyond files-on-disk (likely nothing, initially).
+- **Web stack** — Vite + React + TypeScript with shadcn/ui on the client; Node + TypeScript on the server, front end and websocket served from one process.
+- **Artifact format details** — OpenUI Lang programs in ` ```oui ` blocks embedded in markdown pages; the vocabulary is `Content`/`Stack`/`Tabs`/`Gallery`/`Comparison`/`Aside` with raw HTML inside `Content` as the escape hatch (no CSP sandboxing — an accepted prototype tradeoff).
+- **Driving Claude Code** — the CLI, headless: `--print` with stream-json in/out and `--resume`; one long-lived session per wiki.
+- **Artifact tool shape** — dedicated MCP tools (`ui` for artifact specs, wiki + markdown-vault servers for files), not conventions over plain file writes.
+- **Persistence** — files on disk plus the persisted Claude session id; nothing else (notably, no artifact version history).
