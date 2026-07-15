@@ -1,0 +1,1689 @@
+2026-07-13 04:05:30  USER:             Use the code-clarity and comment-clarity skill. Review the back-end
+                                       code & adjust, where it can be made clearer by those rules.
+2026-07-13 04:05:39  TOOL Skill:       {"skill":"code-clarity"}
+2026-07-13 04:05:39  TOOL Skill:       {"skill":"comment-clarity"}
+2026-07-13 04:05:39  RESULT:           Launching skill: code-clarity
+2026-07-13 04:05:39  USER:             Base directory for this skill:
+                                       /Users/steve/.claude/skills/code-clarity
+
+                                       # Code Clarity Guidelines [SteveE]
+
+                                       ## Overview
+
+                                       Use this skill as both a standard and an enforcement guide for code
+                                       that is easy to read, reason about, review, and safely modify.
+                                       Good code keeps the active problem domain small, makes implicit
+                                       behavior explicit, keeps reasoning local, and pairs implementation
+                                       with tests that prove important behavior.
+
+                                       When acting as the author or owner of the code, update the code so it
+                                       follows the standard.
+                                       When acting as a reviewer of code you do not own, review the code and
+                                       report where it does not follow the standard.
+
+                                       ## Core Principles
+
+                                       - **Review problem state, not syntax.** The more active states,
+                                       branches, invariants, pending side effects, and partially transformed
+                                       values a piece of code has, the larger the problem domain becomes. A
+                                       larger problem domain increases the chance of mistakes when the code
+                                       is written, read, reviewed, or modified.
+
+                                       - **Make implicit proof explicit.** Deep access, chained calls,
+                                       compact destructuring, optional values, marker states, and object
+                                       decomposition all imply facts have been established. If types or
+                                       validation do not make that proof obvious, expose it with clearer
+                                       structure, naming, validation, assertions, or comments.
+
+                                       - **Preserve meaningful packaging.** Cohesive objects often carry
+                                       guarantees that loose fields do not. Avoid decomposing them into
+                                       unrelated parameters when the callee needs the packaged meaning, but
+                                       avoid passing a large dependency when a smaller meaningful type is
+                                       enough.
+
+                                       - **Make active state clear.** In longer methods, it should be
+                                       obvious which values are still in play. If a parameter is decomposed
+                                       into validated or normalized parts, prefer using those parts
+                                       afterward rather than mixing them with the original state.
+
+                                       - **Eliminate cases explicitly.** Early returns, validations,
+                                       assertions, exceptions, type narrowing, and guard clauses reduce
+                                       later complexity by removing states from consideration. Later code
+                                       should be able to rely on the narrower state.
+
+                                       - **Keep process flow clear.** Higher-level process code should read
+                                       as a sequence of meaningful operations. Push subtle variant handling,
+                                       data mutation, and edge-case work into well-named helpers or domain
+                                       operations when that makes the main flow easier to follow.
+
+                                       - **Make causal structure visible.** A reader should be able to see
+                                       which facts establish later facts: validation before reliance,
+                                       contract before caller assumption, state transition before downstream
+                                       use, and root domain decision before derived behavior. If the
+                                       dependency chain has to be reconstructed across scattered names,
+                                       branches, or helpers, the code still has high reasoning cost.
+
+                                       - **Make state transitions auditable.** When code moves domain state
+                                       across phases, revisions, windows, persisted records, or external
+                                       boundaries, name the artifact that carries the state, the operation
+                                       that consumes it, and the successor state it creates. Prefer a
+                                       visible sequence of domain operations over compact control flow when
+                                       ordering is part of correctness.
+
+                                       - **Reason about code and tests together.** Tests are dynamic proof.
+                                       Production code and tests should form a bonded pair: the code shows
+                                       the implementation path, and tests show the behavior space it
+                                       survives, including failure modes and uncommon-but-valid states.
+
+                                       - **Prefer stronger correctness mechanisms.** Static guarantees such
+                                       as types, schemas, enums, constrained data, and narrow interfaces are
+                                       strongest. Runtime validation, assertions, intentional comments, and
+                                       tests add proof when static structure cannot express the full
+                                       behavior.
+
+                                       - **Use comments for block intent.** Simple statements may be
+                                       self-documenting; meaningful blocks often are not. Separate code into
+                                       logical parts with short intent comments that explain why the block
+                                       exists and what state it establishes.
+
+                                       - **Balance specific and general.** Avoid premature abstraction and
+                                       premature specificity. Let names, helpers, and intent describe the
+                                       current role clearly, then generalize only when multiple cases reveal
+                                       a stable shared shape.
+
+                                       - **Keep domain vocabulary stable.** Names, comments, tests, and
+                                       reviewer-facing structure should use the same terms for the same
+                                       concepts. A change that introduces new terms, renames domain
+                                       concepts, or shifts vocabulary should make the new meaning clear
+                                       where it is first used; otherwise readers have to translate between
+                                       old and new concepts while reviewing behavior.
+
+                                       - **Make abstractions delete reasoning.** A helper, type, wrapper, or
+                                       module boundary earns its place only when it removes active state,
+                                       collapses repeated branches, preserves a meaningful domain guarantee,
+                                       or gives a stable name to a real concept. If it merely moves the same
+                                       reasoning somewhere else, prefer the direct flow.
+
+                                       - **Make absent branches legible.** When a state is unsupported,
+                                       impossible, already normalized, or owned by another contract, the
+                                       code should make that invariant visible through types, validation,
+                                       assertions, narrow interfaces, semantic names, or comments. Do not
+                                       leave readers guessing whether an unrepresented state is intentional
+                                       or forgotten.
+
+                                       - **Use ordinary good style in service of comprehension.** Prefer
+                                       clear names, local conventions, reusable helpers after real patterns
+                                       emerge, straightforward code over clever compression, narrow failure
+                                       boundaries, explicit inputs and outputs over hidden state, and no
+                                       broad style rewrites against coherent existing code.
+
+                                       ## Acting As Author
+
+                                       When you own the change, make the smallest code, test, naming,
+                                       validation, helper, or structure update needed to satisfy the
+                                       standard.
+                                       Preserve behavior unless the user explicitly asks for a behavior
+                                       change.
+                                       Do not add broad cleanup, formatting churn, speculative abstraction,
+                                       or style rewrites outside the touched change.
+
+                                       ## Acting As Reviewer
+
+                                       Use this mode when reviewing code you do not own, when the user asks
+                                       for a review, or when direct edits would be inappropriate.
+
+                                       Lead with concrete issues, ordered by severity and grounded in file
+                                       and line references when available.
+                                       Flag places where code increases reasoning cost: too much active
+                                       problem state, unclear proof of validity, lost object guarantees,
+                                       unclear marker states, branch-heavy orchestration, broad failure
+                                       boundaries, hidden state, premature abstraction, premature
+                                       specificity, or tests that do not prove important behavior.
+                                       Hypothesize failure cases and uncommon-but-valid values, not just
+                                       happy paths.
+                                       When a finding involves an abstraction, describe what reasoning it
+                                       removes or fails to remove.
+                                       When a finding involves an absent branch or unsupported state,
+                                       describe what current invariant should make that absence obvious.
+                                       When a finding involves vocabulary drift, name the old and new terms
+                                       and explain what concept boundary became unclear.
+                                       When a finding involves tests, describe the dynamic proof that is
+                                       missing rather than only asking for more coverage.
+
+                                       If there are no issues, say that the newly introduced code follows
+                                       code comprehension style and name any remaining scope limits.
+2026-07-13 04:05:39  RESULT:           Launching skill: comment-clarity
+2026-07-13 04:05:39  USER:             Base directory for this skill:
+                                       /Users/steve/.claude/skills/comment-clarity
+
+                                       # Comment Clarity Guidelines [SteveE]
+
+                                       ## Overview
+
+                                       Use this skill as both a standard and an enforcement guide for
+                                       intentional comments.
+                                       Comments and docstrings must function as intention pseudocode: a
+                                       compact local spec for what the code establishes, preserves,
+                                       transforms, rejects, or guarantees.
+                                       Docstrings should describe stable method contracts, not restate every
+                                       current branch or implementation detail.
+
+                                       When acting as the author or owner of the code, update the code so it
+                                       follows the standard.
+                                       When acting as a reviewer of code you do not own, review the code and
+                                       report where it does not follow the standard.
+
+                                       A reader should be able to compare nearby implementation against the
+                                       written intent and decide whether the code is correct.
+                                       Intentional comments should make implicit purpose, invariants, and
+                                       reasoning steps explicit without making the code harder to
+                                       understand.
+                                       For correctness-sensitive code, the written intent should name the
+                                       condition or guarantee the nearby implementation must satisfy.
+                                       For a non-trivial method, the comments should read as a method-level
+                                       reasoning chain: the docstring establishes the entrance invariants,
+                                       each basic block states the invariants it establishes or preserves,
+                                       and the final state follows logically as the method's exit
+                                       guarantees.
+                                       The reviewer may think in formal proof terms, but the comments should
+                                       usually use the domain language a future maintainer would use to
+                                       explain the behavior.
+                                       Intentional comments must make invariants as clear as
+                                       transformations, so the reader can track what remains true while the
+                                       code changes state.
+                                       Treat comment and docstring changes as local spec changes.
+
+                                       ## Intentional Method
+
+                                       Intentional comments must:
+
+                                       - State intent, not mechanics.
+                                       - Start with the plain-language idea, then add precise terms only
+                                       when they help verify the code.
+                                       - Stand on the current code and contract. Do not rely on deleted
+                                       code, review history, or the author's editing process.
+                                       - Give non-obvious basic blocks a preceding comment that names the
+                                       block's role and the property it establishes.
+                                       - For correctness-sensitive blocks, state the required condition or
+                                       guarantee: what must already be true, why the operation is valid, and
+                                       what holds afterward.
+                                       - Surface inference bridges when correctness depends on a chain of
+                                       facts across blocks, helpers, or external contracts. If the code
+                                       relies on A implying B and B implying C, write the locally relevant
+                                       chain so the leap does not have to be reconstructed.
+                                       - Make inference bridges explicit enough to be read as a local
+                                       correctness argument. Name the source block or helper that
+                                       establishes the first fact, the intermediate artifact or contract
+                                       that carries it forward, the conclusion the current block may draw,
+                                       and why failure of the bridge is an invalid state rather than a case
+                                       to skip.
+                                       - Tie distant state transitions together when a later check depends
+                                       on an earlier block. Name the earlier established fact, the contract
+                                       that carries it forward, and the conclusion the current block is
+                                       allowed to draw.
+                                       - Explain the positive correctness path for transition-heavy code:
+                                       source state, carrier artifact, local conclusion, and resulting
+                                       state. Prefer explaining what the current path does and why it is
+                                       valid over describing old paths, missing paths, or implementation
+                                       history.
+                                       - Explain branch, fallback, loop, and error-path splits when they
+                                       represent domain state, an invariant-preserving path, an external
+                                       contract, or an input-shape workaround. Prefer semantic
+                                       predicate/helper names when they make the split obvious.
+                                       - Use docstrings to teach valid use, entrance invariants,
+                                       preconditions, design role, success guarantees, exit invariants, and
+                                       failure cases. For large or correctness-sensitive methods, include
+                                       designed exceptions or error conditions as part of the method
+                                       contract. Describe error cases by the general invalid state or
+                                       boundary they protect; keep narrow branch-specific triggers in nearby
+                                       block comments when they clarify the code.
+                                       - Connect basic-block comments into a logical path from the
+                                       docstring's entrance invariants to the method's exit invariants. The
+                                       comments should be understandable in isolation as the high-level
+                                       reasoning for why the resulting solution is correct.
+                                       - State the invariant effect of each important block: what remains
+                                       true, what becomes true, what can no longer happen, or what invalid
+                                       state has been rejected.
+                                       - In tests, make names, docstrings, fixtures, comments, and
+                                       assertions explain the behavior, invariant, correctness scenario, or
+                                       regression boundary being tested. Consolidated or table-driven tests
+                                       must preserve the semantic scenario names and proof boundaries that
+                                       make each case understandable.
+                                       - In configuration, explain the runtime, build, deployment,
+                                       ownership, or safety property selected and what depends on it.
+                                       - Choose the right surface for intent. Put stable local contracts,
+                                       invariants, and proof obligations in code comments or docstrings.
+                                       Keep edit history, review routing, temporary migration notes, and
+                                       process narration out of code comments.
+                                       - Stand on their own when jump-to-definition is unavailable.
+                                       Summarize the locally relevant contract of important helpers or
+                                       external systems.
+                                       - Define local terminology and domain concepts in concise, low-jargon
+                                       language, with references when an external contract matters.
+                                       - When it clarifies the local contract, use backticked identifiers to
+                                       anchor the comment to nearby variables, fields, helpers, config keys,
+                                       or API names. This is especially useful when a specific value carries
+                                       an important state transition or invariant. Prefer descriptive domain
+                                       terms when the identifier is incidental or would make the comment
+                                       less clear.
+                                       - Break dense comments into a short readable claim plus any needed
+                                       qualification. Do not force future readers or code-modifying agents
+                                       to unpack several warnings, scope limits, and implementation
+                                       constraints from one sentence.
+                                       - Use helper names, API fields, and error boundaries that communicate
+                                       semantic intent.
+
+                                       Intentional comments must not:
+
+                                       - Explain obvious assignments, simple calls, or syntax-level
+                                       mechanics.
+                                       - Add meta-narrative about why the code was edited, what a reviewer
+                                       asked for, what used to exist, or how a prior implementation behaved.
+                                       - Hide missing intent behind vague verbs such as "handle", "process",
+                                       "validate", or "ensure".
+                                       - Repeat configuration keys, target names, or flag syntax without
+                                       explaining the selected behavior or constraint.
+                                       - Copy large helper implementations into comments. Summarize the
+                                       helper's relevant contract instead.
+                                       - Use unexplained internal shorthand.
+                                       - Lead with jargon, acronyms, framework labels, or abstract
+                                       categories before explaining the concrete behavior they refer to.
+                                       - Compress multiple ideas into one technically accurate but
+                                       hard-to-read sentence.
+                                       - Turn a method docstring into a branch-by-branch trace when a stable
+                                       contract or error boundary would be clearer.
+
+                                       ## Workflow
+
+                                       When applying or reviewing the standard:
+
+                                       1. Identify newly introduced or materially changed code, tests,
+                                       configuration, generated-code controls, API fields, helper names, and
+                                       error boundaries.
+                                       2. Check whether non-trivial docstrings, test names, fixture
+                                       comments, assertions, config names, and block comments explain the
+                                       relevant local contract, correctness condition, state transition,
+                                       invariant, or regression boundary.
+                                       3. Read the docstring and intentional comments as a standalone
+                                       reasoning outline. They should lead from entrance invariants, through
+                                       the facts established or preserved by basic blocks, to the method's
+                                       exit invariants and designed error outcomes. The docstring should
+                                       state those outcomes at the contract level; local comments can name
+                                       the exact current branch that establishes or rejects a fact.
+                                       4. Scan non-trivial bodies for basic blocks: clusters that establish
+                                       a property, reject invalid state, perform a domain transition,
+                                       preserve an invariant, call an external contract, map errors, build a
+                                       correctness fixture, or select configuration behavior.
+                                       5. Look for inference chains between separated blocks. When a later
+                                       block treats something as safe, valid, consumed, scoped, or
+                                       impossible because of earlier work, require comments or semantic
+                                       names that expose the bridge from earlier fact to later conclusion. A
+                                       sufficient bridge should explain the origin, the carried fact, the
+                                       local conclusion, and the error/skip behavior when the chain does not
+                                       hold.
+                                       6. Add or require intentional comments when a block's purpose is not
+                                       locally obvious from code and names.
+                                       7. For correctness-sensitive blocks, check that the code establishes
+                                       the stated preconditions before relying on them, names the invariant
+                                       effect of the block, and preserves the promised postcondition
+                                       afterward.
+                                       8. Inspect branches, fallbacks, loops, exceptions, and early returns.
+                                       Require comments or semantic names when the split is not
+                                       self-evident.
+                                       9. Compare each intention comment to nearby implementation. The code
+                                       block must actually do what the comment says it does. Flag
+                                       comment/code drift as a correctness risk without assuming whether the
+                                       comment or the implementation is the source of truth.
+                                       10. Check whether names for helpers, tests, fixtures, API fields,
+                                       config keys, targets, and error boundaries preserve semantic truth
+                                       rather than implementation mechanics.
+                                       11. Check whether the local intent is understandable without jumping
+                                       to definitions. If a helper, fixture, generated rule, config schema,
+                                       or external contract is essential, require the relevant contract and
+                                       a reference when useful.
+                                       12. Check comment readability for humans or agents with less context
+                                       than the author. Good comments introduce the concrete behavior first,
+                                       avoid dense bundles of caveats, and use specialized terms only after
+                                       the plain meaning is clear.
+
+                                       ## Acting As Author
+
+                                       When you own the change, make the smallest code, comment, docstring,
+                                       or naming updates needed to satisfy the standard.
+                                       Preserve behavior unless the user explicitly asks for a behavior
+                                       change.
+                                       Do not add broad cleanup, formatting churn, or explanatory prose
+                                       outside the code.
+
+                                       ## Acting As Reviewer
+
+                                       Use this mode when reviewing code you do not own, when the user asks
+                                       for a review, or when direct edits would be inappropriate.
+
+                                       Lead with concrete issues, ordered by severity and grounded in file
+                                       and line references when available.
+                                       Keep the review style-focused: do not include formatting nits, broad
+                                       rewrites, or generic cleanup.
+                                       When suggesting a comment change, describe the missing intent or spec
+                                       mismatch instead of drafting long paste-ready text unless asked.
+                                       When code has drifted from its intention comment, call out the
+                                       mismatch without deciding whether the comment or code should change.
+                                       When the issue is a missing correctness condition, name the condition
+                                       or guarantee that should be explicit.
+                                       When a docstring is too specific, name the broader contract or error
+                                       boundary it should describe instead.
+                                       When the issue is a broken method-level reasoning chain, name the
+                                       missing link between entrance invariant, basic-block invariant, and
+                                       exit guarantee.
+                                       When the issue is a missing inference bridge, name the facts that
+                                       need to be connected, such as "A establishes B; B is why C is safe
+                                       here." If the current comment only hints at the bridge, say which
+                                       part is missing: source, carrier, conclusion, or consequence.
+
+                                       Use this shape:
+
+                                       - `Findings`: concrete issues with path/line references.
+                                       - `Intent gaps`: short list of missing state-transition, invariant,
+                                       or design-role comments when they are not severe enough for a
+                                       finding.
+                                       - `Looks good`: brief note on strong intentional comments, only when
+                                       useful.
+                                       - `Residual risk`: anything that could not be checked from the
+                                       available diff.
+
+                                       If there are no issues, say that the newly introduced code follows
+                                       intentional style and name any remaining scope limits.
+2026-07-13 04:05:49  ASSISTANT:        I'll review the modified back-end files (the `server/` changes)
+                                       against the code-clarity and comment-clarity rules, and adjust where
+                                       warranted. First, let me see what's changed.
+2026-07-13 04:05:49  TOOL Bash:        git -C /Users/steve/projects/explore diff --stat -- server/
+                                       why: Show diff stats for server files
+2026-07-13 04:05:51  RESULT:           server/prompts/system-prompt.md | 10 +++++
+                                        server/prompts/voice-agent.md   |  3 +-
+                                        server/prompts/wiki.md          |  7 +++-
+                                        server/src/claude.ts            |  4 +-
+                                        server/src/voice-tools.ts       | 22 ++++++++++
+                                        server/src/wiki-mcp.ts          | 92
+                                       ++++++++++++++++++++++++++++++++++++++++-
+                                        server/src/wiki-service.ts      | 46 ++++++++++++++++++++-
+                                        7 files changed, 177 insertions(+), 7 deletions(-)
+2026-07-13 04:05:57  TOOL Bash:        git -C /Users/steve/projects/explore diff -- server/src/
+                                       why: Show full diff of server source changes
+2026-07-13 04:05:58  RESULT:           [231 lines, 8074 chars; omitted about 7680 chars]
+                                       first lines:
+                                       diff --git a/server/src/claude.ts b/server/src/claude.ts
+                                       index 9f86001..e4ce93d 100644
+                                       --- a/server/src/claude.ts
+                                       +++ b/server/src/claude.ts
+                                       @@ -183,7 +183,9 @@ export class ClaudeSession extends EventEmitter {
+                                       last lines:
+                                        /**
+                                         * Merge an OpenUI Lang edit patch into an existing wiki .oui file —
+                                       the same
+                                         * statement-name semantics as the authoring panel's edit mode (same
+                                       name
+2026-07-13 04:06:08  TOOL Bash:        wc -l /Users/steve/projects/explore/server/src/*.ts | sort -n
+                                       why: List server source files by line count
+2026-07-13 04:06:08  RESULT:           40 /Users/steve/projects/explore/server/src/skills.ts
+                                             42 /Users/steve/projects/explore/server/src/wiki-files.ts
+                                             47 /Users/steve/projects/explore/server/src/logger.ts
+                                             54 /Users/steve/projects/explore/server/src/partial-json.ts
+                                             81 /Users/steve/projects/explore/server/src/static.ts
+                                            110 /Users/steve/projects/explore/server/src/prompt.ts
+                                            123 /Users/steve/projects/explore/server/src/index.ts
+                                            130 /Users/steve/projects/explore/server/src/wiki-mcp.ts
+                                            162 /Users/steve/projects/explore/server/src/voice.ts
+                                            246 /Users/steve/projects/explore/server/src/ui-mcp.ts
+                                            249 /Users/steve/projects/explore/server/src/wiki-service.ts
+                                            259 /Users/steve/projects/explore/server/src/ui-library.ts
+                                            340 /Users/steve/projects/explore/server/src/voice-tools.ts
+                                            346 /Users/steve/projects/explore/server/src/protocol.ts
+                                            409 /Users/steve/projects/explore/server/src/claude.ts
+                                            870 /Users/steve/projects/explore/server/src/chat.ts
+                                           3508 total
+2026-07-13 04:06:14  ASSISTANT:        The whole backend is ~3.5k lines — manageable to review directly.
+                                       I'll read all the files, then make targeted clarity adjustments.
+2026-07-13 04:06:15  TOOL Read:        /Users/steve/projects/explore/server/src/wiki-service.ts
+2026-07-13 04:06:15  RESULT:           [250 lines, 9786 chars; omitted about 9486 chars]
+                                       first lines:
+                                       1       import { existsSync } from "node:fs";
+                                       2       import { mkdir, readFile, writeFile } from
+                                       "node:fs/promises";
+                                       3       import path from "node:path";
+                                       4       import { mergeStatements } from "@openuidev/lang-core";
+                                       5       import { listWikiFiles } from "./wiki-files.js";
+                                       last lines:
+                                       248       return lines;
+                                       249     }
+                                       250
+2026-07-13 04:06:16  TOOL Read:        /Users/steve/projects/explore/server/src/wiki-mcp.ts
+2026-07-13 04:06:16  RESULT:           [131 lines, 4720 chars; omitted about 4330 chars]
+                                       first lines:
+                                       1       import { McpServer } from
+                                       "@modelcontextprotocol/sdk/server/mcp.js";
+                                       2       import { StdioServerTransport } from
+                                       "@modelcontextprotocol/sdk/server/stdio.js";
+                                       3       import { z } from "zod";
+                                       4       import { listWikiFiles } from "./wiki-files.js";
+                                       5       import { createDoc, readDoc, wikiDocPath } from
+                                       "./wiki-service.js";
+                                       last lines:
+                                       129
+                                       130     await server.connect(new StdioServerTransport());
+                                       131
+2026-07-13 04:06:16  TOOL Read:        /Users/steve/projects/explore/server/src/voice-tools.ts
+2026-07-13 04:06:16  RESULT:           [341 lines, 13946 chars; omitted about 13722 chars]
+                                       first lines:
+                                       1       import { z } from "zod";
+                                       2       import { listWikiFiles } from "./wiki-files.js";
+                                       3       import {
+                                       4         createDoc,
+                                       5         editArtifactSpec,
+                                       last lines:
+                                       339       return toolDefinition.execute(parsed.data as never, ctx);
+                                       340     }
+                                       341
+2026-07-13 04:06:23  ASSISTANT:        These files are in strong shape already. Let me read the rest of the
+                                       backend.
+2026-07-13 04:06:23  TOOL Read:        /Users/steve/projects/explore/server/src/claude.ts
+2026-07-13 04:06:23  TOOL Read:        /Users/steve/projects/explore/server/src/chat.ts
+2026-07-13 04:06:24  RESULT:           [410 lines, 16857 chars; omitted about 16549 chars]
+                                       first lines:
+                                       1       import { spawn, type ChildProcessByStdio } from
+                                       "node:child_process";
+                                       2       import { EventEmitter } from "node:events";
+                                       3       import { existsSync, mkdirSync, readFileSync, writeFileSync }
+                                       from "node:fs";
+                                       4       import { tmpdir } from "node:os";
+                                       5       import path from "node:path";
+                                       last lines:
+                                       408       }
+                                       409     }
+                                       410
+2026-07-13 04:06:24  RESULT:           [871 lines, 34927 chars; omitted about 34597 chars]
+                                       first lines:
+                                       1       import { existsSync } from "node:fs";
+                                       2       import { writeFile } from "node:fs/promises";
+                                       3       import path from "node:path";
+                                       4       import type { WebSocket } from "ws";
+                                       5       import type { ClaudeSession, ClaudeStreamEvent } from
+                                       "./claude.js";
+                                       last lines:
+                                       869       return text.length > 120 ? text.slice(0, 117) + "…" : text;
+                                       870     }
+                                       871
+2026-07-13 04:06:35  TOOL Read:        /Users/steve/projects/explore/server/src/index.ts
+2026-07-13 04:06:35  RESULT:           [124 lines, 6090 chars; omitted about 5840 chars]
+                                       first lines:
+                                       1       import { existsSync, watch } from "node:fs";
+                                       2       import { createServer } from "node:http";
+                                       3       import path from "node:path";
+                                       4       import { WebSocketServer } from "ws";
+                                       5       import { ChatService } from "./chat.js";
+                                       last lines:
+                                       122       });
+                                       123     }
+                                       124
+2026-07-13 04:06:35  TOOL Read:        /Users/steve/projects/explore/server/src/voice.ts
+2026-07-13 04:06:35  RESULT:           [163 lines, 5972 chars; omitted about 5635 chars]
+                                       first lines:
+                                       1       import { readFileSync } from "node:fs";
+                                       2       import type { IncomingMessage, ServerResponse } from
+                                       "node:http";
+                                       3       import path from "node:path";
+                                       4       import type { JsonlLogger } from "./logger.js";
+                                       5       import { frontendToolNames, voiceToolSchemas } from
+                                       "./voice-tools.js";
+                                       last lines:
+                                       161       res.end(JSON.stringify(body));
+                                       162     }
+                                       163
+2026-07-13 04:06:36  TOOL Read:        /Users/steve/projects/explore/server/src/ui-mcp.ts
+2026-07-13 04:06:36  RESULT:           [247 lines, 9531 chars; omitted about 9189 chars]
+                                       first lines:
+                                       1       import { randomUUID } from "node:crypto";
+                                       2       import { McpServer } from
+                                       "@modelcontextprotocol/sdk/server/mcp.js";
+                                       3       import { StdioServerTransport } from
+                                       "@modelcontextprotocol/sdk/server/stdio.js";
+                                       4       import WebSocket from "ws";
+                                       5       import { z } from "zod";
+                                       last lines:
+                                       245
+                                       246     await server.connect(new StdioServerTransport());
+                                       247
+2026-07-13 04:06:40  TOOL Read:        /Users/steve/projects/explore/server/src/protocol.ts
+2026-07-13 04:06:41  RESULT:           [347 lines, 11588 chars; omitted about 11306 chars]
+                                       first lines:
+                                       1       /**
+                                       2        * Wire protocol between the front end and the back end.
+                                       3        *
+                                       4        * The back end has no public API: everything is asynchronous
+                                       over a single
+                                       5        * websocket. The front end sends commands (e.g. "chat"), and
+                                       the back end
+                                       last lines:
+                                       345       message: string;
+                                       346     }
+                                       347
+2026-07-13 04:06:41  TOOL Read:        /Users/steve/projects/explore/server/src/ui-library.ts
+2026-07-13 04:06:41  RESULT:           [260 lines, 10894 chars; omitted about 10663 chars]
+                                       first lines:
+                                       1       import { createLibrary, defineComponent } from
+                                       "@openuidev/lang-core";
+                                       2       import { z } from "zod";
+                                       3
+                                       4       /**
+                                       5        * Schema-only mirror of the front end's OpenUI component
+                                       library
+                                       last lines:
+                                       258         .join("\n");
+                                       259     }
+                                       260
+2026-07-13 04:06:46  TOOL Read:        /Users/steve/projects/explore/server/src/prompt.ts
+2026-07-13 04:06:46  RESULT:           [111 lines, 4970 chars; omitted about 4766 chars]
+                                       first lines:
+                                       1       import { readFileSync, readdirSync, statSync } from
+                                       "node:fs";
+                                       2       import path from "node:path";
+                                       3       import { componentSignatures } from "./ui-library.js";
+                                       4
+                                       5       /**
+                                       last lines:
+                                       109       }
+                                       110     }
+                                       111
+2026-07-13 04:06:46  TOOL Read:        /Users/steve/projects/explore/server/src/static.ts
+2026-07-13 04:06:46  RESULT:           [82 lines, 3093 chars; omitted about 2801 chars]
+                                       first lines:
+                                       1       import { createReadStream, existsSync, statSync } from
+                                       "node:fs";
+                                       2       import type { IncomingMessage, ServerResponse } from
+                                       "node:http";
+                                       3       import path from "node:path";
+                                       4
+                                       5       const MIME_TYPES: Record<string, string> = {
+                                       last lines:
+                                       80        createReadStream(filePath).pipe(res);
+                                       81      }
+                                       82
+2026-07-13 04:06:47  TOOL Read:        /Users/steve/projects/explore/server/src/partial-json.ts
+2026-07-13 04:06:47  RESULT:           [55 lines, 1834 chars; omitted about 1493 chars]
+                                       first lines:
+                                       1       /**
+                                       2        * Incrementally extract the `spec` string value from a
+                                       streaming tool-call
+                                       3        * input. The CLI streams tool arguments as partial JSON text
+                                       (e.g.
+                                       4        * `{"spec": "root = St` …), and we want to forward the
+                                       decoded spec to the
+                                       5        * front end token by token, before the JSON is complete.
+                                       last lines:
+                                       53        return out;
+                                       54      }
+                                       55
+2026-07-13 04:06:47  TOOL Read:        /Users/steve/projects/explore/server/src/wiki-files.ts
+2026-07-13 04:06:47  RESULT:           [43 lines, 1477 chars; omitted about 1258 chars]
+                                       first lines:
+                                       1       import { readdirSync, statSync } from "node:fs";
+                                       2       import path from "node:path";
+                                       3
+                                       4       /**
+                                       5        * The wiki file inventory, shared by every listing surface
+                                       (the /api HTTP
+                                       last lines:
+                                       41        return files;
+                                       42      }
+                                       43
+2026-07-13 04:06:48  TOOL Read:        /Users/steve/projects/explore/server/src/skills.ts
+2026-07-13 04:06:48  RESULT:           [41 lines, 1847 chars; omitted about 1610 chars]
+                                       first lines:
+                                       1       import { cpSync, existsSync, mkdirSync, rmSync } from
+                                       "node:fs";
+                                       2       import path from "node:path";
+                                       3
+                                       4       /**
+                                       5        * Agent Skills for the embedded LLM session.
+                                       last lines:
+                                       39        cpSync(source, target, { recursive: true });
+                                       40      }
+                                       41
+2026-07-13 04:06:48  TOOL Read:        /Users/steve/projects/explore/server/src/logger.ts
+2026-07-13 04:06:48  RESULT:           [48 lines, 1702 chars; omitted about 1471 chars]
+                                       first lines:
+                                       1       import { createWriteStream, mkdirSync, type WriteStream }
+                                       from "node:fs";
+                                       2       import path from "node:path";
+                                       3
+                                       4       /**
+                                       5        * Where events reaching the back end are recorded. Each line
+                                       is one JSON
+                                       last lines:
+                                       46        }
+                                       47      }
+                                       48
+2026-07-13 04:08:10  TOOL Read:        /Users/steve/projects/explore/TASKS.md
+2026-07-13 04:08:10  RESULT:           [221 lines, 37068 chars; omitted about 36044 chars]
+                                       first lines:
+                                       1       # Tasks
+                                       2
+                                       3       The single task list: live tracker organized by component
+                                       area (see
+                                       [docs/design/ARCHITECTURE.md](docs/design/ARCHITECTURE.md)), plus the
+                                       phase roadmap and the idea holding bin at the bottom. Phase numbers
+                                       in the tables refer to the [Phases](#phases-roadmap) section.
+                                       4
+                                       5       **How to use:** claim a task by putting your name in Owner.
+                                       Statuses: `todo` · `in progress` · `blocked` · `done`. When a task
+                                       reaches `done`, log it in the worklog (see AGENTS.md).
+                                       last lines:
+                                       219     - **Update the architecture diagram with Mermaid?** Idea:
+                                       redo/refresh the architecture diagram as a Mermaid diagram (still a
+                                       question mark, not committed).
+                                       220     - **Folders / separate information spaces.** Everything
+                                       currently serves from one flat `docs/` — which is also the project's
+                                       own documentation. Need some notion of folders or per-exploration
+                                       spaces so bundles stay separate (the architecture's original "one
+                                       directory per exploration topic" idea; also keeps project docs from
+                                       mixing into the user's wiki content).
+                                       221
+2026-07-13 04:08:26  TOOL Edit:        /Users/steve/projects/explore/server/src/claude.ts (232 chars -> 263
+                                       chars)
+2026-07-13 04:08:26  RESULT:           The file /Users/steve/projects/explore/server/src/claude.ts has been
+                                       updated successfully. (file state is current in your context — no
+                                       need to Read it back)
+2026-07-13 04:08:28  TOOL Edit:        /Users/steve/projects/explore/server/src/claude.ts (147 chars -> 174
+                                       chars)
+2026-07-13 04:08:28  RESULT:           The file /Users/steve/projects/explore/server/src/claude.ts has been
+                                       updated successfully. (file state is current in your context — no
+                                       need to Read it back)
+2026-07-13 04:08:34  ASSISTANT:        **Drift 2** — the `wiki-service.ts` module header still claims it
+                                       serves only "non-MCP" consumers, but the wiki MCP server (and the
+                                       chat service) now go through it too:
+2026-07-13 04:08:38  TOOL Edit:        /Users/steve/projects/explore/server/src/wiki-service.ts (580 chars
+                                       -> 625 chars)
+2026-07-13 04:08:38  RESULT:           The file /Users/steve/projects/explore/server/src/wiki-service.ts has
+                                       been updated successfully. (file state is current in your context —
+                                       no need to Read it back)
+2026-07-13 04:08:49  TOOL Edit:        /Users/steve/projects/explore/server/src/ui-mcp.ts (126 chars -> 351
+                                       chars)
+2026-07-13 04:08:49  RESULT:           The file /Users/steve/projects/explore/server/src/ui-mcp.ts has been
+                                       updated successfully. (file state is current in your context — no
+                                       need to Read it back)
+2026-07-13 04:09:07  TOOL Edit:        /Users/steve/projects/explore/TASKS.md (421 chars -> 1159 chars)
+2026-07-13 04:09:07  RESULT:           The file /Users/steve/projects/explore/TASKS.md has been updated
+                                       successfully. (file state is current in your context — no need to
+                                       Read it back)
+2026-07-13 04:09:11  ASSISTANT:        Now verifying the comment-only edits still typecheck:
+2026-07-13 04:09:11  TOOL Bash:        cd /Users/steve/projects/explore/server && npx tsc --noEmit 2>&1 |
+                                       head -20
+                                       why: Typecheck the server workspace
+2026-07-13 04:09:14  RESULT:           (Bash completed with no output)
+2026-07-13 04:09:32  ASSISTANT:        Done. I reviewed all 16 files under `server/src/` against the
+                                       code-clarity and comment-clarity rules. The backend is already
+                                       written tightly to these standards — nearly everything passes: guard
+                                       clauses narrow state early, error messages teach the model, block
+                                       comments state invariants (the turn-resolver/warm-up choreography in
+                                       `chat.ts` is a model example). What I found and fixed was comment
+                                       drift from today's wiki-MCP expansion, plus one intent gap:
+
+                                       **Adjusted (comment-only, typecheck clean):**
+                                       - `server/src/claude.ts:34` and `claude.ts:379` — both described the
+                                       wiki MCP server as a "file-listing" server, but this session's diff
+                                       grew it to list/read/create. Updated both so the described capability
+                                       matches what's registered.
+                                       - `server/src/wiki-service.ts:7` — the module header claimed it backs
+                                       "every non-MCP way of touching wiki content" with errors forwarded by
+                                       "the voice bridge." The wiki MCP server and the chat service now
+                                       consume it too, so the header now names all three consumers and
+                                       generalizes the forwarded-verbatim contract.
+                                       - `server/src/ui-mcp.ts:39` — the `ui` tool executor counts non-empty
+                                       lines under the name `statements`, which reads as if it parses the
+                                       spec. Added a comment stating the count is acknowledgement flavor
+                                       only and the real spec delivery is the streaming path.
+
+                                       **Banked to the blitz backlog** (behavioral, so not fixed on sight,
+                                       per convention) — one `createDoc` row in TASKS.md covering three
+                                       related nits: its teaching errors name voice-tool names (`edit_doc`)
+                                       that don't exist on the CLI/MCP surface receiving them; the
+                                       empty-content boundary lives in one caller's schema instead of the
+                                       service (an empty MCP create writes a lone `"\n"`); and the
+                                       `existsSync`-then-write pair races where `writeFile` with the `wx`
+                                       flag would be atomic.
+
+                                       **Checked and left alone:** `static.ts` path handling (the
+                                       `normalize`+`join`+prefix check is sound for URL pathnames),
+                                       `partial-json.ts` escape handling, the duplicated
+                                       `requirePath`/`requireWikiPath` helpers (intentional — each surface
+                                       names its own listing tool in the teaching message), and the
+                                       protocol/logger/skills/prompt modules, which are clean. I didn't
+                                       touch `server/prompts/*.md` since those are prompt content, not code.
+2026-07-13 04:14:58  USER:             great, now do the same for the front end code.
+2026-07-13 04:15:07  TOOL Bash:        cd /Users/steve/projects/explore/client && find src -type f | xargs
+                                       wc -l | sort -n | tail -40 && git diff --stat -- .
+                                       why: List client source files by size and show pending diff
+2026-07-13 04:15:08  RESULT:           [40 lines, 1393 chars; omitted about 1131 chars]
+                                       first lines:
+                                       25 src/components/ui/separator.tsx
+                                             32 src/lib/app-state.ts
+                                             39 src/lib/freehand.ts
+                                             43 src/components/ui/toggle.tsx
+                                             48 src/lib/capture.ts
+                                       last lines:
+                                            639 src/hooks/use-chat.ts
+                                            796 src/hooks/use-voice.ts
+                                           6827 total
+2026-07-13 04:15:18  TOOL Read:        /Users/steve/projects/explore/client/src/hooks/use-voice.ts
+2026-07-13 04:15:18  RESULT:           [797 lines, 32850 chars; omitted about 32549 chars]
+                                       first lines:
+                                       1       import * as React from "react";
+                                       2       import type { ChatState } from "@/hooks/use-chat";
+                                       3       import { collectAppState } from "@/lib/app-state";
+                                       4       import { frontendLog } from "@/lib/frontend-log";
+                                       5       import { indicate, type IndicateTarget } from
+                                       "@/lib/indicate";
+                                       last lines:
+                                       795       };
+                                       796     }
+                                       797
+2026-07-13 04:15:18  TOOL Read:        /Users/steve/projects/explore/client/src/hooks/use-chat.ts
+2026-07-13 04:15:18  RESULT:           [640 lines, 24685 chars; omitted about 24427 chars]
+                                       first lines:
+                                       1       import * as React from "react";
+                                       2       import { mergeStatements } from "@openuidev/react-lang";
+                                       3       import type { ServerEvent } from "@/lib/chat-protocol";
+                                       4       import { collectAppState } from "@/lib/app-state";
+                                       5       import {
+                                       last lines:
+                                       638       };
+                                       639     }
+                                       640
+2026-07-13 04:15:24  ASSISTANT:        These two are in excellent shape. Continuing with the rest of the app
+                                       code.
+2026-07-13 04:15:25  TOOL Read:        /Users/steve/projects/explore/client/src/lib/openui.tsx
+2026-07-13 04:15:25  RESULT:           [553 lines, 22531 chars; omitted about 22187 chars]
+                                       first lines:
+                                       1       import { createContext, useContext, useEffect } from "react";
+                                       2       import { createLibrary, defineComponent, Renderer } from
+                                       "@openuidev/react-lang";
+                                       3       import { z } from "zod";
+                                       4       import { frontendLog } from "@/lib/frontend-log";
+                                       5       import { seedState, setState, useStoreValue } from
+                                       "@/lib/state-store";
+                                       last lines:
+                                       551       );
+                                       552     }
+                                       553
+2026-07-13 04:15:25  TOOL Read:        /Users/steve/projects/explore/client/src/App.tsx
+2026-07-13 04:15:25  RESULT:           [316 lines, 13923 chars; omitted about 13609 chars]
+                                       first lines:
+                                       1       import * as React from "react";
+                                       2       import { SparklesIcon, SquarePenIcon } from "lucide-react";
+                                       3       import { ChatBar } from "@/components/chat-bar";
+                                       4       import { ChatSidebar } from "@/components/chat-sidebar";
+                                       5       import { DrawingOverlay } from
+                                       "@/components/drawing-overlay";
+                                       last lines:
+                                       314       );
+                                       315     }
+                                       316
+2026-07-13 04:15:31  TOOL Read:        /Users/steve/projects/explore/client/src/lib/chat-protocol.ts
+2026-07-13 04:15:31  RESULT:           [257 lines, 7732 chars; omitted about 7513 chars]
+                                       first lines:
+                                       1       /**
+                                       2        * Wire protocol with the back end (mirror of
+                                       server/src/protocol.ts).
+                                       3        * The front end sends commands; the back end publishes
+                                       "chat:*" events.
+                                       4        */
+                                       5
+                                       last lines:
+                                       255       message: string;
+                                       256     }
+                                       257
+2026-07-13 04:15:31  TOOL Read:        /Users/steve/projects/explore/client/src/lib/state-store.ts
+2026-07-13 04:15:31  RESULT:           [106 lines, 3909 chars; omitted about 3686 chars]
+                                       first lines:
+                                       1       import * as React from "react";
+                                       2       import { frontendLog } from "@/lib/frontend-log";
+                                       3
+                                       4       /**
+                                       5        * The hierarchical key-value store for app and artifact UI
+                                       state
+                                       last lines:
+                                       104       return [value, set];
+                                       105     }
+                                       106
+2026-07-13 04:15:32  TOOL Read:        /Users/steve/projects/explore/client/src/lib/indicate.ts
+2026-07-13 04:15:32  RESULT:           [192 lines, 7336 chars; omitted about 7064 chars]
+                                       first lines:
+                                       1       /**
+                                       2        * Point at content in the main panel for the agents: scroll
+                                       the target into
+                                       3        * view (when it isn't already visible) and blink it a few
+                                       times. Targets:
+                                       4        *
+                                       5        * - `lines`  — markdown source lines, resolved through the
+                                       last lines:
+                                       190       );
+                                       191     }
+                                       192
+2026-07-13 04:15:32  TOOL Read:        /Users/steve/projects/explore/client/src/lib/snapshot.ts
+2026-07-13 04:15:32  RESULT:           [132 lines, 4862 chars; omitted about 4540 chars]
+                                       first lines:
+                                       1       import { sourceLineOf, visibleSourceLines } from
+                                       "@/lib/source-lines";
+                                       2       import { stateSnapshot } from "@/lib/state-store";
+                                       3
+                                       4       /**
+                                       5        * Assemble the structured "what is the user looking at"
+                                       snapshot for the
+                                       last lines:
+                                       130       return text.length > max ? text.slice(0, max) + `…
+                                       [truncated]` : text;
+                                       131     }
+                                       132
+2026-07-13 04:15:39  TOOL Read:        /Users/steve/projects/explore/client/src/components/chat-sidebar.tsx
+2026-07-13 04:15:39  RESULT:           [349 lines, 12773 chars; omitted about 12597 chars]
+                                       first lines:
+                                       1       import * as React from "react";
+                                       2       import { Markdown } from "@/components/markdown";
+                                       3       import {
+                                       4         AlertCircleIcon,
+                                       5         AtSignIcon,
+                                       last lines:
+                                       347       }
+                                       348     }
+                                       349
+2026-07-13 04:15:40  TOOL Read:        /Users/steve/projects/explore/client/src/components/home-view.tsx
+2026-07-13 04:15:40  RESULT:           [244 lines, 8291 chars; omitted about 8102 chars]
+                                       first lines:
+                                       1       import * as React from "react";
+                                       2       import {
+                                       3         FileIcon,
+                                       4         FileTextIcon,
+                                       5         FileWarningIcon,
+                                       last lines:
+                                       242       return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+                                       243     }
+                                       244
+2026-07-13 04:15:40  TOOL Read:        /Users/steve/projects/explore/client/src/components/main-toolbar.tsx
+2026-07-13 04:15:40  RESULT:           [202 lines, 6959 chars; omitted about 6811 chars]
+                                       first lines:
+                                       1       import type * as React from "react";
+                                       2       import {
+                                       3         FileTextIcon,
+                                       4         HomeIcon,
+                                       5         MessageSquareIcon,
+                                       last lines:
+                                       200       );
+                                       201     }
+                                       202
+2026-07-13 04:15:49  TOOL Bash:        find src -name "*.ts" -o -name "*.tsx" | sort
+                                       why: List all client TS/TSX files
+2026-07-13 04:15:49  RESULT:           src/App.tsx
+                                       src/components/chat-bar.tsx
+                                       src/components/chat-sidebar.tsx
+                                       src/components/drawing-overlay.tsx
+                                       src/components/file-viewer.tsx
+                                       src/components/home-view.tsx
+                                       src/components/main-toolbar.tsx
+                                       src/components/markdown-code.tsx
+                                       src/components/markdown.tsx
+                                       src/components/oui-embed.tsx
+                                       src/components/ui/attachment.tsx
+                                       src/components/ui/badge.tsx
+                                       src/components/ui/bubble.tsx
+                                       src/components/ui/button-group.tsx
+                                       src/components/ui/button.tsx
+                                       src/components/ui/input.tsx
+                                       src/components/ui/marker.tsx
+                                       src/components/ui/message-scroller.tsx
+                                       src/components/ui/message.tsx
+                                       src/components/ui/scroll-area.tsx
+                                       src/components/ui/separator.tsx
+                                       src/components/ui/tabs.tsx
+                                       src/components/ui/toggle-group.tsx
+                                       src/components/ui/toggle.tsx
+                                       src/hooks/use-chat.ts
+                                       src/hooks/use-voice.ts
+                                       src/lib/app-state.ts
+                                       src/lib/capture.ts
+                                       src/lib/chat-protocol.ts
+                                       src/lib/freehand.ts
+                                       src/lib/frontend-log.ts
+                                       src/lib/indicate.ts
+                                       src/lib/layout.ts
+                                       src/lib/openui.tsx
+                                       src/lib/snapshot.ts
+                                       src/lib/sound-cues.ts
+                                       src/lib/source-lines.ts
+                                       src/lib/state-store.ts
+                                       src/lib/utils.ts
+                                       src/lib/view-history.ts
+                                       src/main.tsx
+                                       src/types/highlight.d.ts
+2026-07-13 04:15:56  TOOL Read:        /Users/steve/projects/explore/client/src/components/file-viewer.tsx
+2026-07-13 04:15:56  RESULT:           [147 lines, 5621 chars; omitted about 5323 chars]
+                                       first lines:
+                                       1       import * as React from "react";
+                                       2       import { FileWarningIcon, LoaderIcon } from "lucide-react";
+                                       3       import { Markdown } from "@/components/markdown";
+                                       4       import { frontendLog } from "@/lib/frontend-log";
+                                       5       import { READING_COLUMN_CLASS } from "@/lib/layout";
+                                       last lines:
+                                       145       );
+                                       146     }
+                                       147
+2026-07-13 04:15:57  TOOL Read:        /Users/steve/projects/explore/client/src/components/markdown.tsx
+2026-07-13 04:15:57  RESULT:           [151 lines, 5845 chars; omitted about 5548 chars]
+                                       first lines:
+                                       1       import * as React from "react";
+                                       2       import ReactMarkdown, { type Components } from
+                                       "react-markdown";
+                                       3       import rehypeRaw from "rehype-raw";
+                                       4       import rehypeSanitize, { defaultSchema } from
+                                       "rehype-sanitize";
+                                       5       import rehypeSlug from "rehype-slug";
+                                       last lines:
+                                       149       return "";
+                                       150     }
+                                       151
+2026-07-13 04:15:57  TOOL Read:        /Users/steve/projects/explore/client/src/components/oui-embed.tsx
+2026-07-13 04:15:57  RESULT:           [199 lines, 7539 chars; omitted about 7233 chars]
+                                       first lines:
+                                       1       import * as React from "react";
+                                       2       import { FileWarningIcon, LoaderIcon, Maximize2Icon } from
+                                       "lucide-react";
+                                       3       import { Button } from "@/components/ui/button";
+                                       4       import { frontendLog } from "@/lib/frontend-log";
+                                       5       import { GenerativeView } from "@/lib/openui";
+                                       last lines:
+                                       197       );
+                                       198     }
+                                       199
+2026-07-13 04:15:57  TOOL Read:        /Users/steve/projects/explore/client/src/components/chat-bar.tsx
+2026-07-13 04:15:57  RESULT:           [116 lines, 4352 chars; omitted about 4224 chars]
+                                       first lines:
+                                       1       import {
+                                       2         ChevronDownIcon,
+                                       3         MicIcon,
+                                       4         MicOffIcon,
+                                       5       } from "lucide-react";
+                                       last lines:
+                                       114       }
+                                       115     }
+                                       116
+2026-07-13 04:16:08  ASSISTANT:        Interesting — `oui-embed.tsx` claims "App mounts the full-screen
+                                       view" off the `app/expanded-artifact` store key, but I didn't see
+                                       App.tsx read that key. Let me check, and read the remaining
+                                       lib/component files.
+2026-07-13 04:16:10  TOOL Bash:        grep -rn "expanded-artifact" src/ ../docs/design/journeys.md
+                                       2>/dev/null | head; grep -rn "app/indicate\b" src/lib/snapshot.ts
+                                       src/lib/state-store.ts 2>/dev/null | head -3
+                                       why: Find consumers of app/expanded-artifact store key
+2026-07-13 04:16:10  RESULT:           src/components/expanded-artifact.tsx:9: * `app/expanded-artifact`
+                                       store key — an embed's Expand button, the user,
+                                       src/components/oui-embed.tsx:23: * for interacting here". The Expand
+                                       button writes the `app/expanded-artifact`
+                                       src/components/oui-embed.tsx:130:    "app/expanded-artifact",
+2026-07-13 04:16:11  TOOL Read:        /Users/steve/projects/explore/client/src/lib/view-history.ts
+2026-07-13 04:16:11  RESULT:           [145 lines, 5818 chars; omitted about 5613 chars]
+                                       first lines:
+                                       1       import * as React from "react";
+                                       2       import type { MainView } from "@/App";
+                                       3       import { getState, setState, subscribeState } from
+                                       "@/lib/state-store";
+                                       4
+                                       5       /**
+                                       last lines:
+                                       143       }, []);
+                                       144     }
+                                       145
+2026-07-13 04:16:11  TOOL Read:        /Users/steve/projects/explore/client/src/lib/capture.ts
+2026-07-13 04:16:11  RESULT:           [49 lines, 2019 chars; omitted about 1748 chars]
+                                       first lines:
+                                       1       import { toCanvas } from "html-to-image";
+                                       2
+                                       3       /**
+                                       4        * Screenshot the main content area as the user currently
+                                       sees it. html-to-image
+                                       5        * clones the DOM, which loses inner scroll positions, so
+                                       instead of capturing
+                                       last lines:
+                                       47        return "#ffffff";
+                                       48      }
+                                       49
+2026-07-13 04:16:11  TOOL Read:        /Users/steve/projects/explore/client/src/lib/sound-cues.ts
+2026-07-13 04:16:11  RESULT:           [50 lines, 2048 chars; omitted about 1779 chars]
+                                       first lines:
+                                       1       import * as React from "react";
+                                       2       import { play } from "cuelume";
+                                       3       import { useStoreValue } from "@/lib/state-store";
+                                       4       import type { MainView } from "@/App";
+                                       5       import type { VoiceStatus } from "@/hooks/use-voice";
+                                       last lines:
+                                       48        }, [status]);
+                                       49      }
+                                       50
+2026-07-13 04:16:20  TOOL Read:        /Users/steve/projects/explore/client/src/components/expanded-artifact
+                                       .tsx
+2026-07-13 04:16:20  RESULT:           [46 lines, 1648 chars; omitted about 1403 chars]
+                                       first lines:
+                                       1       import * as React from "react";
+                                       2       import { FileTextIcon, SparklesIcon } from "lucide-react";
+                                       3       import { FileViewer } from "@/components/file-viewer";
+                                       4       import { Button } from "@/components/ui/button";
+                                       5
+                                       last lines:
+                                       44        );
+                                       45      }
+                                       46
+2026-07-13 04:16:21  TOOL Read:        /Users/steve/projects/explore/client/src/lib/source-lines.ts
+2026-07-13 04:16:21  RESULT:           [54 lines, 2204 chars; omitted about 1979 chars]
+                                       first lines:
+                                       1       import type { Element, Root } from "hast";
+                                       2       import { visit } from "unist-util-visit";
+                                       3
+                                       4       /**
+                                       5        * Rehype plugin: stamp each rendered element with the
+                                       markdown source line
+                                       last lines:
+                                       52        return null;
+                                       53      }
+                                       54
+2026-07-13 04:16:21  TOOL Read:        /Users/steve/projects/explore/client/src/lib/app-state.ts
+2026-07-13 04:16:21  RESULT:           1       /**
+                                       2        * Registry connecting the websocket layer to the app's live
+                                       state. App
+                                       3        * registers a provider; when the back end forwards a
+                                       state:request (the
+                                       4        * LLM's `state` MCP tool), the chat hook calls the provider
+                                       and ships the
+                                       5        * snapshot back.
+                                       6        */
+                                       7
+                                       8       export interface AppStateResult {
+                                       9         state: unknown;
+                                       10        /** Compressed JPEG data URL of the main window, when
+                                       requested. */
+                                       11        screenshot?: string;
+                                       12      }
+                                       13
+                                       14      export type AppStateProvider = (options: {
+                                       15        screenshot: boolean;
+                                       16      }) => Promise<AppStateResult>;
+                                       17
+                                       18      let provider: AppStateProvider | null = null;
+                                       19
+                                       20      export function registerAppStateProvider(p:
+                                       AppStateProvider): () => void {
+                                       21        provider = p;
+                                       22        return () => {
+                                       23          if (provider === p) provider = null;
+                                       24        };
+                                       25      }
+                                       26
+                                       27      export async function collectAppState(options: {
+                                       28        screenshot: boolean;
+                                       29      }): Promise<AppStateResult> {
+                                       30        if (!provider) throw new Error("no app state provider
+                                       registered");
+                                       31        return provider(options);
+                                       32      }
+                                       33
+2026-07-13 04:16:23  TOOL Read:        /Users/steve/projects/explore/client/src/lib/frontend-log.ts
+2026-07-13 04:16:23  TOOL Read:        /Users/steve/projects/explore/client/src/lib/freehand.ts
+2026-07-13 04:16:23  TOOL Read:        /Users/steve/projects/explore/client/src/lib/layout.ts
+2026-07-13 04:16:23  RESULT:           [57 lines, 1666 chars; omitted about 1388 chars]
+                                       first lines:
+                                       1       /**
+                                       2        * Front-end observability. Entries are queued locally and
+                                       shipped to the
+                                       3        * back end over the existing websocket as {type: "log"}
+                                       messages; the back
+                                       4        * end appends them to its JSONL event log tagged source:
+                                       "frontend".
+                                       5        */
+                                       last lines:
+                                       55        );
+                                       56      }
+                                       57
+2026-07-13 04:16:23  RESULT:           1       // Shared reading-column layout for full-page prose (Markdown
+                                       view, home
+                                       2       // page). Left-biased centering:
+                                       `ml-[clamp(0px,100%-72rem,(100%-48rem)/2)]`
+                                       3       // caps the left margin at true center ((100% - max-w-3xl) /
+                                       2) but lets it
+                                       4       // shrink first — the middle term keeps the right gutter >=
+                                       24rem where space
+                                       5       // allows, so the floating chat panel (w-96) opens over
+                                       gutter, not text.
+                                       6       // Clamp floor 0: px-8 still pads narrow windows.
+                                       7       export const READING_COLUMN_CLASS =
+                                       8         "mr-auto ml-[clamp(0px,100%-72rem,(100%-48rem)/2)]
+                                       max-w-3xl px-8 py-10";
+                                       9
+2026-07-13 04:16:23  RESULT:           [40 lines, 1363 chars; omitted about 1117 chars]
+                                       first lines:
+                                       1       import { getStroke } from "perfect-freehand";
+                                       2
+                                       3       /** One freehand stroke: input points as [x, y, pressure] in
+                                       overlay-local px. */
+                                       4       export type StrokePoints = [number, number, number][];
+                                       5
+                                       last lines:
+                                       38        return d + "Z";
+                                       39      }
+                                       40
+2026-07-13 04:16:34  TOOL Bash:        cd /Users/steve/projects/explore && git status --short -- client/ &&
+                                       git log --oneline -3 -- client/src/components/oui-embed.tsx
+                                       client/src/components/expanded-artifact.tsx client/src/App.tsx | cat
+                                       why: Check uncommitted client changes and recent history
+2026-07-13 04:16:34  TOOL Read:        /Users/steve/projects/explore/client/src/components/drawing-overlay.t
+                                       sx
+2026-07-13 04:16:35  TOOL Read:        /Users/steve/projects/explore/client/src/components/markdown-code.tsx
+2026-07-13 04:16:35  RESULT:           M client/src/App.tsx
+                                        M client/src/components/oui-embed.tsx
+                                       ?? client/src/components/expanded-artifact.tsx
+                                       3d2592e Chat collapses into the toolbar; the conversation pane is
+                                       expander-only
+                                       5837885 Voice auto-starts with the chat panel; mic controls move to
+                                       the header
+                                       1805270 Floating chat follow-ups: toolbar slides clear; one toggle;
+                                       asymmetric gutter
+2026-07-13 04:16:35  RESULT:           [76 lines, 2798 chars; omitted about 2558 chars]
+                                       first lines:
+                                       1       import * as React from "react";
+                                       2       import { INK_COLOR, strokeToPath, type StrokePoints } from
+                                       "@/lib/freehand";
+                                       3
+                                       4       /**
+                                       5        * Freehand annotation layer, rendered with perfect-freehand.
+                                       Mounted inside
+                                       last lines:
+                                       74        );
+                                       75      }
+                                       76
+2026-07-13 04:16:35  RESULT:           [100 lines, 3168 chars; omitted about 2995 chars]
+                                       first lines:
+                                       1       import * as React from "react";
+                                       2       import hljs from "highlight.js/lib/common";
+                                       3       import { LoaderIcon } from "lucide-react";
+                                       4
+                                       5       /**
+                                       last lines:
+                                       98        }
+                                       99      }
+                                       100
+2026-07-13 04:16:47  ASSISTANT:        App.tsx is also modified in the working tree — another agent may be
+                                       mid-flight on the expanded-artifact feature. Let me see what's
+                                       uncommitted there before judging that comment as drift.
+2026-07-13 04:16:47  TOOL Bash:        git diff -- client/src/App.tsx client/src/components/oui-embed.tsx |
+                                       head -120
+                                       why: Show uncommitted App.tsx and oui-embed diffs
+2026-07-13 04:16:47  RESULT:           [120 lines, 5099 chars; omitted about 4679 chars]
+                                       first lines:
+                                       diff --git a/client/src/App.tsx b/client/src/App.tsx
+                                       index a5b7ac0..7554938 100644
+                                       --- a/client/src/App.tsx
+                                       +++ b/client/src/App.tsx
+                                       @@ -36,16 +36,6 @@ export type MainView =
+                                       last lines:
+                                         * Always use an explicit closing tag: the HTML parser treats an
+                                       unknown
+                                         * self-closing tag as an open tag and nests the rest of the page
+                                       inside it
+                                         * (which we render as `children` below so the content still shows).
+2026-07-13 04:17:43  TOOL Read:        /Users/steve/projects/explore/client/src/main.tsx
+2026-07-13 04:17:43  RESULT:           1       import { StrictMode } from 'react'
+                                       2       import { createRoot } from 'react-dom/client'
+                                       3       import './index.css'
+                                       4       import App from './App.tsx'
+                                       5
+                                       6       createRoot(document.getElementById('root')!).render(
+                                       7         <StrictMode>
+                                       8           <App />
+                                       9         </StrictMode>,
+                                       10      )
+                                       11
+2026-07-13 04:17:44  TOOL Read:        /Users/steve/projects/explore/client/src/lib/utils.ts
+2026-07-13 04:17:44  RESULT:           1       import { clsx, type ClassValue } from "clsx"
+                                       2       import { twMerge } from "tailwind-merge"
+                                       3
+                                       4       export function cn(...inputs: ClassValue[]) {
+                                       5         return twMerge(clsx(inputs))
+                                       6       }
+                                       7
+2026-07-13 04:17:44  TOOL Read:        /Users/steve/projects/explore/client/src/components/ui/message-scroll
+                                       er.tsx
+2026-07-13 04:17:44  RESULT:           [130 lines, 4459 chars; omitted about 4238 chars]
+                                       first lines:
+                                       1       import * as React from "react"
+                                       2       import {
+                                       3         MessageScroller as MessageScrollerPrimitive,
+                                       4         useMessageScroller,
+                                       5         useMessageScrollerScrollable,
+                                       last lines:
+                                       128       useMessageScrollerVisibility,
+                                       129     }
+                                       130
+2026-07-13 04:18:15  TOOL Edit:        /Users/steve/projects/explore/client/src/lib/chat-protocol.ts (175
+                                       chars -> 354 chars)
+2026-07-13 04:18:15  RESULT:           The file
+                                       /Users/steve/projects/explore/client/src/lib/chat-protocol.ts has
+                                       been updated successfully. (file state is current in your context —
+                                       no need to Read it back)
+2026-07-13 04:18:27  TOOL Edit:        /Users/steve/projects/explore/TASKS.md (39 chars -> 507 chars)
+2026-07-13 04:18:27  RESULT:           The file /Users/steve/projects/explore/TASKS.md has been updated
+                                       successfully. (note: the file had been modified on disk since you
+                                       last read it — the edit applied cleanly, but the file contains other
+                                       changes not in your context. Read it before edits that depend on
+                                       surrounding content.)
+2026-07-13 04:18:33  TOOL Bash:        cd /Users/steve/projects/explore/client && npx tsc -b --dry
+                                       2>/dev/null; npx tsc --noEmit -p tsconfig.app.json 2>&1 | head -10
+                                       why: Typecheck the client workspace
+2026-07-13 04:18:37  RESULT:           9:18:36 PM - A non-dry build would build project
+                                       '/Users/steve/projects/explore/client/tsconfig.app.json'
+
+                                       9:18:36 PM - A non-dry build would build project
+                                       '/Users/steve/projects/explore/client/tsconfig.node.json'
+2026-07-13 04:18:44  TOOL Bash:        npx tsc --noEmit -p tsconfig.app.json 2>&1 | head -10 && echo
+                                       TYPECHECK_OK
+                                       why: Typecheck client app project
+2026-07-13 04:18:48  RESULT:           TYPECHECK_OK
+2026-07-13 04:19:08  ASSISTANT:        Done. I reviewed all of `client/src` (~30 app files plus a skim of
+                                       the shadcn-style `components/ui/*` primitives) against the
+                                       code-clarity and comment-clarity rules. The front end matches the
+                                       backend's quality: state is narrowed early, comments carry real
+                                       invariants (the `view-history` loop guards, `use-chat`'s
+                                       streaming-patch merge rationale, and `use-voice`'s single-exit
+                                       `end()` funnel are exemplary), and the failure paths teach.
+
+                                       **Adjusted (one type-only fix, client typecheck clean):**
+                                       - `client/src/lib/chat-protocol.ts:206` — the file declares itself a
+                                       mirror of `server/src/protocol.ts`, but `ChatStatusEvent.status` was
+                                       missing `"warming"` and `"ready"`, two statuses the server actually
+                                       broadcasts and that `statusText()` in `use-chat.ts` already renders.
+                                       Added them (plus the server side's short docstring), so the
+                                       runtime-handled states are now representable in the type and the
+                                       mirror claim holds.
+
+                                       **Banked to the blitz backlog** (a bug, not a clarity edit):
+                                       `oui-embed.tsx`'s same-origin guard `src.includes("://")` rejects
+                                       `https://evil.com/x` but passes a protocol-relative `//evil.com/x`,
+                                       which then reads as a site-absolute path and fetches cross-origin —
+                                       contradicting the header's "Cross-origin sources are refused." The
+                                       fix is resolving through `new URL(src, location.origin)` and
+                                       comparing origins.
+
+                                       **Deliberately not touched:** `App.tsx`, `oui-embed.tsx`, and the new
+                                       `expanded-artifact.tsx` have uncommitted changes from another agent's
+                                       in-flight expanded-artifact work — App.tsx even changed on disk
+                                       between my read and my diff check. Their comments (e.g. oui-embed's
+                                       "App mounts the full-screen view") describe that in-flight state
+                                       accurately, so nothing there is drift; I banked the oui-embed nit
+                                       rather than edit a file mid-flight.
+
+                                       **Checked and clean:** `state-store` (seed-vs-set semantics well
+                                       specified), `indicate` (target resolution and blink-restart reflow),
+                                       `snapshot`, `capture`, `view-history`, `source-lines`,
+                                       `frontend-log`, `freehand`, `sound-cues`, `home-view`, `file-viewer`,
+                                       `markdown`/`markdown-code`, `chat-bar`, `chat-sidebar`,
+                                       `main-toolbar`, `drawing-overlay`, and `openui.tsx`. The
+                                       client/server protocol files differ structurally in a few places
+                                       besides the status fix, but those differences are correct — the
+                                       browser genuinely never sends `state:update`/`artifact:edit` or
+                                       receives `state:response`/`artifact:edited`; only the status union
+                                       was true drift.
+2026-07-13 04:25:59  USER:             make sure your changes are documented and committed, if youmade any
+2026-07-13 04:26:49  ASSISTANT:        Another agent has since added more to `chat-protocol.ts` (a
+                                       `"reasoning"` status, a `"start"` tool phase), so several files now
+                                       mix my edits with others' in-flight work. Before committing I'll
+                                       check the repo's conventions and what's actually entangled.
+2026-07-13 04:26:50  TOOL Bash:        cd /Users/steve/projects/explore && tail -40
+                                       docs/worklogs/worklog-2026-07-12.md && echo ---- && grep -n "commit"
+                                       AGENTS.md | head
+                                       why: Check worklog format and commit conventions
+2026-07-13 04:26:50  RESULT:           [41 lines, 10457 chars; omitted about 5996 chars]
+                                       first lines:
+                                       Voice row 11 closed: `delegationModel` returns full model ids instead
+                                       of CLI aliases, so `smart` on the production default
+                                       (claude-opus-4-8) is a same-model no-op — the spurious
+                                       every-delegation CLI respawn (and its 11–21K uncached tokens per API
+                                       call) is gone, and `fast` moves from Haiku (6.6–8.2s of silent
+                                       thinking per the agent-timing report) to Sonnet 5. Verified by rerun:
+                                       smart 3.5s total, respawn=no, no client-visible silent gaps —
+                                       squarely in the 3.3–3.8s no-switch band (was 4–12s). Fast on Sonnet 5
+                                       crosses a real model switch at ~8s with one 3.8s silent gap; that gap
+                                       is row 12's streaming-progress work, not a model problem. Bonus
+                                       observation: both delegated writes used the wiki create tool
+                                       correctly (row 13's sandbox-miss didn't recur after the
+                                       capability-parity commit).
+                                       ## 2026-07-12 21:14 — Chat collapses into the toolbar; the pane is
+                                       opt-in via an expander (Worker 2)
+                                       Per Steve's direction, chat's resting state is now "neatly hidden in
+                                       the toolbar": the chat toggle slides open a compact voice cluster
+                                       beside the title — mic (pulsing red when live), input-level bar, and
+                                       a chevron expander — no pane, no text input. The conversation pane
+                                       (bubbles, D6 chips, the typed composer with screenshot/send, the
+                                       delegation-progress and voice-problem strips) appears only via the
+                                       expander, dropping down below the toolbar (`app/chat-expanded` in the
+                                       D3 store); the toolbar's old `mr-96` slide-clear hack is gone since
+                                       nothing overlaps it anymore. Voice auto-start/stop still keys off
+                                       `app/chat-open`. With the pane collapsed, the mic button doubles as
+                                       the problem indicator (amber tint for warnings, red for failures,
+                                       message in the tooltip) and the expander carries the
+                                       reply-in-progress dot. New `chat-bar.tsx`; ChatSidebar is now the
+                                       pane behind the expander. Browser-verified: open → cluster +
+                                       auto-start, expand → pane below toolbar, close → mic released
+                                       (log-confirmed start/end pairs).
+                                       ## 2026-07-12 21:21 — Embeds become launchable previews; agent-driven
+                                       create→navigate→write→embed flow proven (main session)
+                                       `<oui-embed>` reworked from a break-out card to a **preview inside
+                                       the document margins**: the artifact renders live at a 1024px virtual
+                                       width and scales down uniformly to the column (aspect kept — measured
+                                       matrix(0.686, 0, 0, 0.686) in the reading layout), height snug to
+                                       content with a 360px cap, under a gradient/desaturate shader that
+                                       blocks all interaction — "ready to launch, not for poking". One
+                                       action: **Expand** (button or clicking the shader), which writes the
+                                       new `app/expanded-artifact` store key. App mounts a full-panel view
+                                       over the content area — title bar with the artifact name and a
+                                       **Source** button that minimizes back; the document view underneath
+                                       stays mounted and open the whole time (verified: scrollTop 300
+                                       unchanged through expand→minimize). The store key is documented in
+                                       both agents' set-state tool descriptions, so either agent can launch
+                                       or minimize an artifact. Also removed the "New Artifact" / "Edit
+                                       Artifact" floating test buttons (per Steve).
+                                       last lines:
+                                       New suite `eval/agent-timing.ts` drives `ask_artifact_agent` over
+                                       `voice:tool` exactly as the browser does (isolated server, throwaway
+                                       wiki copy) and reconstructs the backend waterfall from the event log.
+                                       Findings (eval/agent-timing-report.md): every delegation respawns the
+                                       CLI — `smart`'s "opus" alias never string-matches `claude-opus-4-8`,
+                                       so even same-model delegations restart; each respawned turn pays
+                                       11–21K uncached tokens per API call (model-scoped cache + resume
+                                       fork); Haiku `fast` adds 6.6–8.2s silent thinking and picked the
+                                       wrong tool (sandbox `Write` instead of wiki tools — file lands
+                                       outside the wiki while reporting success) in 2/4 runs. No-switch
+                                       control: 3.3–3.8s, correct 2/2, no silent gaps. Streamability:
+                                       client-visible silence 3.1–9.6s per run; cover signals (tool-call
+                                       block starts, thinking starts) exist within ~2s but chat:tool
+                                       broadcasts only at message completion and the voice model gets
+                                       nothing until the blocking tool returns. Fixes banked as voice rows
+                                       11–13.
+                                       ----
+                                       22:`npm run check` (typecheck + lint for both workspaces) must pass
+                                       before every commit. A pre-commit hook in `.githooks/` enforces this;
+                                       `npm install` wires it up via the root `prepare` script
+                                       (`core.hooksPath`). Lint *errors* block; warnings don't. Don't bypass
+                                       with `git commit --no-verify` except in a genuine emergency — and say
+                                       so in the commit message. TypeScript `strict` is on in both
+                                       workspaces; keep it that way.
+2026-07-13 04:27:00  TOOL Bash:        git status --short && echo ---- && git log --oneline -8 | cat
+                                       why: Current git status and recent commits
+2026-07-13 04:27:00  RESULT:           M TASKS.md
+                                        M client/src/hooks/use-chat.ts
+                                        M client/src/lib/chat-protocol.ts
+                                        M docs/design/journeys.md
+                                        M docs/oui-embed-demo.md
+                                        M server/src/chat.ts
+                                        M server/src/protocol.ts
+                                       ?? docs/design/2026-07-12-update.md
+                                       ?? docs/design/explainer.md
+                                       ?? docs/design/explainer.oui
+                                       ?? docs/wiki-deck.oui
+                                       ----
+                                       a65ede7 Chat pane stays pinned to the newest message while streaming
+                                       9b44463 Toolbar chat bar is a recording pill: red wash, live
+                                       equalizer, action ticker
+                                       8632bab Embeds are launchable previews: scaled to the margins,
+                                       shaded, Expand/Source
+                                       94d1a54 Tracking: delegation-respawn fix verified — smart 3.5s, no
+                                       respawn, no silent gaps
+                                       fcf72d1 Delegation uses full model ids: smart stops respawning the
+                                       CLI; fast re-tiered to Sonnet 5
+                                       3d2592e Chat collapses into the toolbar; the conversation pane is
+                                       expander-only
+                                       468635f Voice screenshot fits the data channel: downscale + re-encode
+                                       before send
+                                       3add472 Home page shares the Markdown view's reading-column gutters
+2026-07-13 04:27:11  TOOL Bash:        git log --oneline -1 -- server/src/wiki-service.ts | cat && git show
+                                       HEAD:server/src/wiki-service.ts | sed -n '7,18p' && git show
+                                       HEAD:server/src/claude.ts | sed -n '33,40p' && git show
+                                       HEAD:server/src/ui-mcp.ts | sed -n '39,43p'
+                                       why: Verify server comment edits reached HEAD
+2026-07-13 04:27:11  RESULT:           [26 lines, 1349 chars; omitted about 833 chars]
+                                       first lines:
+                                       8632bab Embeds are launchable previews: scaled to the margins,
+                                       shaded, Expand/Source
+                                       /**
+                                        * Wiki content service: read, search, create, and edit files inside
+                                       the
+                                        * wiki directory. This is the internal surface behind every
+                                       agent-facing
+                                        * way of touching wiki content — the voice agent's server tools, the
+                                       wiki
+                                       last lines:
+                                           // statements (nothing here parses the spec — see the header; the
+                                       back
+                                           // end streams the real spec to the front end from the tool-call
+                                       tokens).
+                                           const statements = spec
+2026-07-13 04:27:12  TOOL Bash:        git diff -- client/src/lib/chat-protocol.ts TASKS.md | head -100
+                                       why: Show uncommitted diff of chat-protocol and TASKS
+2026-07-13 04:27:12  RESULT:           [65 lines, 6556 chars; omitted about 6282 chars]
+                                       first lines:
+                                       diff --git a/TASKS.md b/TASKS.md
+                                       index 0317cb5..9903065 100644
+                                       --- a/TASKS.md
+                                       +++ b/TASKS.md
+                                       @@ -46,15 +46,9 @@ Little things deliberately *not* fixed on sight —
+                                       banked here until there are
+                                       last lines:
+                                          name?: string;
+                                          detail?: string;
+                                          isError?: boolean;
+2026-07-13 04:27:54  TOOL Bash:        head -12 docs/worklogs/worklog-2026-07-12.md && git show
+                                       HEAD:client/src/lib/chat-protocol.ts | sed -n '190,212p'
+                                       why: Check worklog ordering and HEAD version of chat-protocol
+2026-07-13 04:27:54  RESULT:           [35 lines, 1504 chars; omitted about 1033 chars]
+                                       first lines:
+                                       # Worklog — 2026-07-12
+                                       Dated log of milestones. Newest entries at the top. See AGENTS.md for
+                                       conventions.
+                                       ## 2026-07-12 21:27 — Blitz round four: eight agents, seven backlog
+                                       rows cleared (the Cleaner)
+                                       Steve called the blitz; eight agents ran in parallel, each item its
+                                       own gated commit:
+                                       - **Vite dev proxy follows PORT** — /ws, /docs, /api targets read
+                                       `process.env.PORT`.
+                                       last lines:
+                                       }
+                                       /**
+                                        * A complete message in the conversation. User echoes carry the D6
+2026-07-13 04:28:23  TOOL Bash:        date +%H:%M
+                                       why: Get current time for the worklog entry
+2026-07-13 04:28:23  RESULT:           21:28
+2026-07-13 04:28:27  TOOL Write:       /private/tmp/claude-501/-Users-steve-projects-explore/87339b84-d135-4
+                                       5ab-b5d2-49ccabd1087d/scratchpad/chat-protocol-mine.patch (514 chars
+                                       written)
+2026-07-13 04:28:27  RESULT:           File created successfully at: /private/tmp/claude-501/-Users-steve-pr
+                                       ojects-explore/87339b84-d135-45ab-b5d2-49ccabd1087d/scratchpad/chat-p
+                                       rotocol-mine.patch (file state is current in your context — no need
+                                       to Read it back)
+2026-07-13 04:28:37  TOOL Bash:        git apply --cached --recount /private/tmp/claude-501/-Users-steve-pro
+                                       jects-explore/87339b84-d135-45ab-b5d2-49ccabd1087d/scratchpad/chat-pr
+                                       otocol-mine.patch && git diff --cached --stat && echo ---- && git
+                                       diff --stat -- client/src/lib/chat-protocol.ts
+                                       why: Stage only my chat-protocol lines and verify split
+2026-07-13 04:28:42  RESULT:           error: patch failed: client/src/lib/chat-protocol.ts:194
+                                       error: client/src/lib/chat-protocol.ts: patch does not apply
+2026-07-13 04:29:00  TOOL Bash:        git show HEAD:client/src/lib/chat-protocol.ts | python3 -c "
+                                       import sys
+                                       text = sys.stdin.read()
+                                       doc = '/**\n * Lifecycle/status updates. \"warming\"/\"ready\"
+                                       bracket the back end\'s\n * pre-warm turn (see server protocol.ts) —
+                                       statusText() renders both.\n */\nexport interface ChatStatusEvent {'
+                                       assert text.count('export interface ChatStatusEvent {') == 1
+                                       text = text.replace('export interface ChatStatusEvent {', doc)
+                                       old = '    | \"thinking\"\n    | \"exited\";'
+                                       assert text.count(old) == 1
+                                       text = text.replace(old, '    | \"thinking\"\n    | \"warming\"\n
+                                       | \"ready\"\n    | \"exited\";')
+                                       sys.stdout.write(text)
+                                       " > /private/tmp/claude-501/-Users-steve-projects-explore/87339b84-d1
+                                       35-45ab-b5d2-49ccabd1087d/scratchpad/chat-protocol-staged.ts
+                                       blob=$(git hash-object -w /private/tmp/claude-501/-Users-steve-projec
+                                       ts-explore/87339b84-d135-45ab-b5d2-49ccabd1087d/scratchpad/chat-proto
+                                       col-staged.ts)
+                                       git update-index --cacheinfo
+                                       100644,$blob,client/src/lib/chat-protocol.ts
+                                       git diff --cached -- client/src/lib/chat-protocol.ts | head -40 &&
+                                       echo ==== UNSTAGED ==== && git diff --
+                                       client/src/lib/chat-protocol.ts | grep '^[+-]' | head -20
+                                       why: Stage HEAD+my-lines version of chat-protocol.ts
+2026-07-13 04:29:06  ERROR:            [45 lines, 1475 chars; omitted about 1412 chars]
+                                       signal lines:
+                                       Traceback (most recent call last):
+                                       AssertionError
+2026-07-13 04:29:27  ASSISTANT:        The index got a bad (empty) blob staged — let me restore it and redo
+                                       this with a script file instead of shell-quoted Python:
+2026-07-13 04:29:28  TOOL Bash:        git reset -q -- client/src/lib/chat-protocol.ts && git diff --cached
+                                       --stat | head -3; git status --short --
+                                       client/src/lib/chat-protocol.ts
+                                       why: Reset index entry for chat-protocol.ts to HEAD
+2026-07-13 04:29:36  RESULT:           (Bash completed with no output)
+2026-07-13 04:29:42  TOOL Bash:        git status --short -- client/src/lib/chat-protocol.ts && git diff
+                                       --cached --stat | wc -l
+                                       why: Verify index is back to HEAD for the file
+2026-07-13 04:29:42  RESULT:           0
+2026-07-13 04:29:51  TOOL Bash:        git status --short | head; echo ----; head -5
+                                       client/src/lib/chat-protocol.ts; wc -l
+                                       client/src/lib/chat-protocol.ts
+                                       why: Full status check and verify working file intact
+2026-07-13 04:29:51  RESULT:           M client/src/components/chat-bar.tsx
+                                        M client/src/components/main-toolbar.tsx
+                                        M docs/design/journeys.md
+                                        M docs/oui-embed-demo.md
+                                       ?? docs/design/2026-07-12-update.md
+                                       ?? docs/design/explainer.md
+                                       ?? docs/design/explainer.oui
+                                       ?? docs/wiki-deck.oui
+                                       ----
+                                       /**
+                                        * Wire protocol with the back end (mirror of
+                                       server/src/protocol.ts).
+                                        * The front end sends commands; the back end publishes "chat:*"
+                                       events.
+                                        */
+
+                                            270 client/src/lib/chat-protocol.ts
+2026-07-13 04:29:58  ASSISTANT:        The tree moved again mid-operation — another agent just committed the
+                                       protocol work. Let me check whether my changes are now in HEAD:
+2026-07-13 04:29:59  TOOL Bash:        git log --oneline -3 | cat && git show
+                                       HEAD:client/src/lib/chat-protocol.ts | sed -n '194,216p' && git show
+                                       HEAD:TASKS.md | grep -c "Cleaner's 2026-07-12 clarity review"
+                                       why: Check HEAD for my protocol fix and TASKS rows
+2026-07-13 04:29:59  RESULT:           feeda48 D8: artifacts live inline in markdown; both agents observe
+                                       the screen screenshot-first
+                                       6b82ae1 Voice rows 11-13: no-switch delegation, streamed tool starts,
+                                       wiki preamble
+                                       b3b90aa Blitz round four bookkeeping: seven rows cleared; worklog
+                                       entry
+                                         name?: string;
+                                       }
+
+                                       /**
+                                        * Lifecycle/status updates. "warming"/"ready" bracket the back end's
+                                        * pre-warm turn (see server protocol.ts) — statusText() renders
+                                       both.
+                                        */
+                                       export interface ChatStatusEvent {
+                                         type: "chat:status";
+                                         status:
+                                           | "connected"
+                                           | "starting"
+                                           | "session"
+                                           | "session-resumed"
+                                           | "thinking"
+                                           /** Thinking-block heartbeat — a live "reasoning…" signal, no
+                                       content. */
+                                           | "reasoning"
+                                           | "warming"
+                                           | "ready"
+                                           | "exited";
+                                         sessionId?: string;
+                                         model?: string;
+                                         detail?: string;
+                                       2
+2026-07-13 04:30:22  TOOL Edit:        /Users/steve/projects/explore/docs/worklogs/worklog-2026-07-12.md (82
+                                       chars -> 1404 chars)
+2026-07-13 04:30:22  ERROR:            <tool_use_error>File has not been read yet. Read it first before
+                                       writing to it.</tool_use_error>
+2026-07-13 04:30:27  TOOL Read:        /Users/steve/projects/explore/docs/worklogs/worklog-2026-07-12.md
+                                       (limit=6)
+2026-07-13 04:30:27  RESULT:           1       # Worklog — 2026-07-12
+                                       2
+                                       3       Dated log of milestones. Newest entries at the top. See
+                                       AGENTS.md for conventions.
+                                       4
+                                       5       ## 2026-07-12 21:28 — D8: artifacts live inline in markdown;
+                                       screenshot-first observation (The Optimizer)
+                                       6
+2026-07-13 04:30:39  TOOL Edit:        /Users/steve/projects/explore/docs/worklogs/worklog-2026-07-12.md (82
+                                       chars -> 1419 chars)
+2026-07-13 04:30:39  RESULT:           The file
+                                       /Users/steve/projects/explore/docs/worklogs/worklog-2026-07-12.md has
+                                       been updated successfully. (file state is current in your context —
+                                       no need to Read it back)
+2026-07-13 04:30:46  TOOL Bash:        git add docs/worklogs/worklog-2026-07-12.md && git commit -m "$(cat
+                                       <<'EOF'
+                                       Worklog: clarity pass over server and client (Cleaner)
+
+                                       The code changes themselves already landed via concurrent commits
+                                       8632bab and 6b82ae1; this records what was reviewed, fixed, and
+                                       banked.
+
+                                       Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+                                       EOF
+                                       )"
+                                       why: Commit worklog entry for the clarity pass
+2026-07-13 04:30:54  COMMIT:           67618f0 Worklog: clarity pass over server and client (Cleaner)
+2026-07-13 04:30:54  RESULT:           [40 lines, 2723 chars; omitted about 2401 chars]
+                                       first lines:
+                                       > explore@0.1.0 check
+                                       > npm run typecheck && npm run lint
+                                       > explore@0.1.0 typecheck
+                                       > npm run typecheck -w client && npm run typecheck -w server && tsc
+                                       -p tests
+                                       > client@0.0.0 typecheck
+                                       last lines:
+                                       > oxlint
+                                       [main 67618f0] Worklog: clarity pass over server and client (Cleaner)
+                                        1 file changed, 4 insertions(+)
+2026-07-13 04:31:08  ASSISTANT:        All done — everything I changed is committed and documented:
+
+                                       - **Server comment fixes** (`claude.ts` ×2, `wiki-service.ts` header,
+                                       `ui-mcp.ts` intent comment): already in HEAD — they rode along in
+                                       another agent's commit `8632bab` of those shared files.
+                                       - **Client protocol fix** (`ChatStatusEvent` gaining
+                                       `"warming"`/`"ready"` plus its docstring): in HEAD via commit
+                                       `6b82ae1`, merged cleanly with the other agent's concurrent
+                                       `"reasoning"`/`"start"` additions.
+                                       - **TASKS.md banked nits** (createDoc polish, oui-embed
+                                       protocol-relative URL check): both rows are in HEAD's blitz backlog.
+                                       - **Documentation**: I added a worklog entry ("Clarity pass over both
+                                       codebases (Cleaner)", 21:30) recording what was reviewed, what was
+                                       fixed and where it landed, what was banked, and what was deliberately
+                                       left alone — committed as `67618f0` with the pre-commit
+                                       typecheck+lint gate passing (only pre-existing fast-refresh warnings,
+                                       which don't block).
+
+                                       One note: mid-operation I briefly staged a bad (empty) blob for
+                                       `chat-protocol.ts` while trying to split my hunk from the other
+                                       agent's in-flight edits; I reset that index entry immediately, and
+                                       the working tree was never touched — the concurrent commit then made
+                                       the whole exercise moot. Nothing of mine remains uncommitted; the
+                                       only dirty files left in the tree (`chat-bar.tsx`,
+                                       `main-toolbar.tsx`, some docs) are other agents' active work.

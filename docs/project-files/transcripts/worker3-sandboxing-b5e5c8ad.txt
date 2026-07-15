@@ -1,0 +1,821 @@
+2026-07-08 01:19:25  USER:             Hello, you're worker 3.
+                                       We're going to work on hardening the LLM in the server component so
+                                       it can't do anything dangerous.
+                                       Please "sandbox" it so that it can only work through MCPs - it has no
+                                       direct access to content outside of a sandbox directory inside the
+                                       project, which is .gitignored, but it can work on tmp files if it
+                                       wants
+2026-07-08 01:19:31  ASSISTANT:        I'll look at the server component to understand how the LLM is
+                                       currently wired up and what access it has.
+2026-07-08 01:19:32  TOOL Bash:        ls /Users/steve/projects/explore/server/src/ && cat
+                                       /Users/steve/projects/explore/.gitignore 2>/dev/null
+                                       why: List server source files and show gitignore
+2026-07-08 01:19:33  TOOL Read:        /Users/steve/projects/explore/server/src/claude.ts
+2026-07-08 01:19:33  RESULT:           [228 lines, 8008 chars; omitted about 7679 chars]
+                                       first lines:
+                                       1       import { spawn, type ChildProcessByStdio } from
+                                       "node:child_process";
+                                       2       import { EventEmitter } from "node:events";
+                                       3       import { existsSync, mkdirSync, readFileSync, writeFileSync }
+                                       from "node:fs";
+                                       4       import path from "node:path";
+                                       5       import type { Readable, Writable } from "node:stream";
+                                       last lines:
+                                       226       }
+                                       227     }
+                                       228
+2026-07-08 01:19:33  RESULT:           chat.ts
+                                       claude.ts
+                                       index.ts
+                                       logger.ts
+                                       partial-json.ts
+                                       protocol.ts
+                                       static.ts
+                                       ui-library.ts
+                                       ui-mcp.ts
+                                       node_modules/
+                                       dist/
+                                       *.log
+                                       .DS_Store
+                                       .env
+                                       .env.*
+                                       server/data/
+                                       .obsidian/
+2026-07-08 01:20:10  TOOL Bash:        grep -n -i "sandbox\|worker 3\|harden"
+                                       /Users/steve/projects/explore/TASKS.md | head -30
+                                       why: Search TASKS.md for sandbox/hardening task
+2026-07-08 01:20:10  RESULT:           35:| Raw-HTML escape hatch sandboxing model (Content renders
+                                       unsandboxed today) | 1 | — | todo |
+2026-07-08 01:20:11  TOOL Bash:        claude --help 2>&1 | grep -iE
+                                       "tool|permission|mcp|setting|add-dir|sandbox|dir"
+                                       why: List relevant claude CLI flags
+2026-07-08 01:20:11  RESULT:           [39 lines, 2894 chars; omitted about 2300 chars]
+                                       first lines:
+                                       --add-dir <directories...>            Additional directories to allow
+                                       tool
+                                                                               the 'agent' setting.
+                                         --allow-dangerously-skip-permissions  Enable bypassing all
+                                       permission checks
+                                                                               sandboxes with no internet
+                                       access.
+                                         --allowedTools, --allowed-tools <tools...>
+                                       last lines:
+                                                                               .mcp.json are spawned for
+                                       health checks.
+                                                                               Only use this command in
+                                       directories you
+                                         mcp                                   Configure and manage MCP
+                                       servers
+2026-07-08 01:20:12  TOOL Bash:        grep -rn "ClaudeSession\|new ClaudeSession\|dataDir\|cwd"
+                                       /Users/steve/projects/explore/server/src/chat.ts
+                                       /Users/steve/projects/explore/server/src/index.ts | head -20
+                                       why: Find where ClaudeSession is constructed
+2026-07-08 01:20:12  RESULT:           /Users/steve/projects/explore/server/src/index.ts:5:import {
+                                       ClaudeSession } from "./claude.js";
+                                       /Users/steve/projects/explore/server/src/index.ts:29:const claude =
+                                       new ClaudeSession({
+                                       /Users/steve/projects/explore/server/src/index.ts:30:  cwd:
+                                       path.resolve(import.meta.dirname, "../.."),
+                                       /Users/steve/projects/explore/server/src/index.ts:31:  dataDir:
+                                       path.resolve(import.meta.dirname, "../data"),
+                                       /Users/steve/projects/explore/server/src/chat.ts:2:import type {
+                                       ClaudeSession, ClaudeStreamEvent } from "./claude.js";
+                                       /Users/steve/projects/explore/server/src/chat.ts:27:    private
+                                       readonly claude: ClaudeSession,
+2026-07-08 01:20:21  TOOL Bash:        claude --help 2>&1 | grep -B2 -A8 -- "--tools\b"; echo ---; claude
+                                       --help 2>&1 | grep -A6 -- "--setting-sources"; echo ---; claude
+                                       --version
+                                       why: Show full help for --tools and --setting-sources flags
+2026-07-08 01:20:23  RESULT:           [21 lines, 1311 chars; omitted about 835 chars]
+                                       first lines:
+                                       native panes when available; use
+                                                                               --tmux=classic for
+                                       traditional tmux.
+                                         --tools <tools...>                    Specify the list of available
+                                       tools from
+                                                                               the built-in set. Use "" to
+                                       disable all
+                                                                               tools, "default" to use all
+                                       tools, or
+                                       last lines:
+                                         --system-prompt <prompt>              System prompt to use for the
+                                       session
+                                       ---
+                                       2.1.204 (Claude Code)
+2026-07-08 01:21:05  TOOL Read:        /Users/steve/projects/explore/server/src/index.ts
+2026-07-08 01:21:05  RESULT:           [55 lines, 2204 chars; omitted about 1957 chars]
+                                       first lines:
+                                       1       import { createServer } from "node:http";
+                                       2       import path from "node:path";
+                                       3       import { WebSocketServer } from "ws";
+                                       4       import { ChatService } from "./chat.js";
+                                       5       import { ClaudeSession } from "./claude.js";
+                                       last lines:
+                                       53        });
+                                       54      }
+                                       55
+2026-07-08 01:21:22  TOOL Bash:        mkdir -p /private/tmp/claude-501/-Users-steve-projects-explore/b5e5c8
+                                       ad-6fc6-4dbc-8910-5d71691541f5/scratchpad/sbxtest && cd /private/tmp/
+                                       claude-501/-Users-steve-projects-explore/b5e5c8ad-6fc6-4dbc-8910-5d71
+                                       691541f5/scratchpad/sbxtest && claude --print --setting-sources ""
+                                       --strict-mcp-config --tools "Read,Write,Edit,Glob,Grep"
+                                       --permission-mode acceptEdits "Do these steps and report results
+                                       tersely: 1) Use the Read tool on
+                                       /Users/steve/projects/explore/package.json — report the exact error
+                                       or success. 2) Use Bash to run 'ls' — report whether a Bash tool
+                                       exists. 3) Write a file ./test.txt containing 'hi' — report result."
+                                       2>&1; echo "EXIT=$?"; ls -la
+                                       why: Smoke-test sandboxed claude CLI flag combination
+2026-07-08 01:21:33  RESULT:           Results:
+
+                                       1. **Read** `/Users/steve/projects/explore/package.json` — Failed:
+                                       permission not granted (not a "file not found" error — the read was
+                                       blocked awaiting permission approval).
+                                       2. **Bash** `ls` — No Bash tool exists in my available toolset, so I
+                                       could not run it. (My shell-adjacent tools are Grep/Glob, not
+                                       arbitrary command execution.)
+                                       3. **Write** `./test.txt` with `hi` — Success: file created.
+                                       EXIT=0
+                                       total 8
+                                       drwxr-xr-x@ 3 steve  wheel  96 Jul  7 18:21 .
+                                       drwx------@ 3 steve  wheel  96 Jul  7 18:21 ..
+                                       -rw-r--r--@ 1 steve  wheel   2 Jul  7 18:21 test.txt
+                                       Shell cwd was reset to /Users/steve/projects/explore
+2026-07-08 01:22:10  TOOL Edit:        /Users/steve/projects/explore/server/src/claude.ts (485 chars -> 1575
+                                       chars)
+2026-07-08 01:22:10  RESULT:           The file /Users/steve/projects/explore/server/src/claude.ts has been
+                                       updated successfully. (file state is current in your context — no
+                                       need to Read it back)
+2026-07-08 01:22:18  TOOL Edit:        /Users/steve/projects/explore/server/src/claude.ts (107 chars -> 141
+                                       chars)
+2026-07-08 01:22:19  RESULT:           The file /Users/steve/projects/explore/server/src/claude.ts has been
+                                       updated successfully. (file state is current in your context — no
+                                       need to Read it back)
+2026-07-08 01:22:21  TOOL Edit:        /Users/steve/projects/explore/server/src/claude.ts (168 chars -> 292
+                                       chars)
+2026-07-08 01:22:21  RESULT:           The file /Users/steve/projects/explore/server/src/claude.ts has been
+                                       updated successfully. (file state is current in your context — no
+                                       need to Read it back)
+2026-07-08 01:22:26  ASSISTANT:        Now update the class documentation and point `index.ts` at the
+                                       sandbox directory.
+2026-07-08 01:22:29  TOOL Edit:        /Users/steve/projects/explore/server/src/claude.ts (99 chars -> 275
+                                       chars)
+2026-07-08 01:22:29  RESULT:           The file /Users/steve/projects/explore/server/src/claude.ts has been
+                                       updated successfully. (file state is current in your context — no
+                                       need to Read it back)
+2026-07-08 01:22:32  TOOL Edit:        /Users/steve/projects/explore/server/src/index.ts (334 chars -> 428
+                                       chars)
+2026-07-08 01:22:32  RESULT:           The file /Users/steve/projects/explore/server/src/index.ts has been
+                                       updated successfully. (file state is current in your context — no
+                                       need to Read it back)
+2026-07-08 01:22:39  TOOL Bash:        printf '/sandbox/\n' >> /Users/steve/projects/explore/.gitignore &&
+                                       tail -3 /Users/steve/projects/explore/.gitignore
+                                       why: Add /sandbox/ to .gitignore
+2026-07-08 01:22:39  RESULT:           server/data/
+                                       .obsidian/
+                                       /sandbox/
+2026-07-08 01:22:52  TOOL Bash:        grep -n "exit\|resume\|sessionId"
+                                       /Users/steve/projects/explore/server/src/chat.ts | head -20; ls
+                                       /Users/steve/projects/explore/server/data/ 2>/dev/null
+                                       why: Check exit/resume handling in chat.ts and server data dir
+2026-07-08 01:22:52  RESULT:           34:    claude.on("started", ({ resumed }: { resumed: boolean }) => {
+                                       35:      this.wasResumed = resumed;
+                                       36:      this.logger.log("server", { type: "claude:started", resumed
+                                       });
+                                       40:        detail: resumed
+                                       41:          ? `resuming session ${claude.sessionId}`
+                                       45:    claude.on("exit", (code: number | null) => {
+                                       46:      this.logger.log("server", { type: "claude:exit", code });
+                                       49:        status: "exited",
+                                       50:        detail: `claude exited (code ${code ?? "unknown"})`,
+                                       78:      sessionId: this.claude.sessionId ?? undefined,
+                                       79:      detail: this.claude.sessionId
+                                       80:        ? `back end ready, known session ${this.claude.sessionId}`
+                                       160:            status: this.wasResumed ? "session-resumed" :
+                                       "session",
+                                       161:            sessionId: event.session_id,
+                                       272:          sessionId: event.session_id,
+                                       claude-session.json
+                                       mcp.json
+2026-07-08 01:23:09  TOOL Edit:        /Users/steve/projects/explore/server/src/claude.ts (130 chars -> 184
+                                       chars)
+2026-07-08 01:23:09  RESULT:           The file /Users/steve/projects/explore/server/src/claude.ts has been
+                                       updated successfully. (file state is current in your context — no
+                                       need to Read it back)
+2026-07-08 01:23:12  TOOL Edit:        /Users/steve/projects/explore/server/src/claude.ts (308 chars -> 522
+                                       chars)
+2026-07-08 01:23:13  RESULT:           The file /Users/steve/projects/explore/server/src/claude.ts has been
+                                       updated successfully. (file state is current in your context — no
+                                       need to Read it back)
+2026-07-08 01:23:27  ASSISTANT:        Now let me typecheck and verify end-to-end with the exact argument
+                                       set the server will use.
+2026-07-08 01:23:28  TOOL Bash:        cat server/package.json | grep -A8 '"scripts"'; cat
+                                       server/data/mcp.json 2>/dev/null
+                                       why: Show server scripts and existing mcp.json
+2026-07-08 01:23:29  RESULT:           "scripts": {
+                                           "dev": "tsx watch src/index.ts",
+                                           "build": "tsc -p tsconfig.json",
+                                           "start": "node dist/index.js",
+                                           "typecheck": "tsc -p tsconfig.json --noEmit"
+                                         },
+                                         "dependencies": {
+                                           "@modelcontextprotocol/sdk": "^1.29.0",
+                                           "@openuidev/lang-core": "^0.2.7",
+                                       {"mcpServers":{"ui":{"command":"/Users/steve/projects/explore/node_mo
+                                       dules/.bin/tsx","args":["/Users/steve/projects/explore/server/src/ui-
+                                       mcp.ts"]}}}
+2026-07-08 01:23:33  TOOL Bash:        cd /Users/steve/projects/explore/server && npm run typecheck 2>&1 |
+                                       tail -5
+                                       why: Typecheck server
+2026-07-08 01:23:36  RESULT:           > server@0.1.0 typecheck
+                                       > tsc -p tsconfig.json --noEmit
+2026-07-08 01:23:51  ASSISTANT:        Typecheck passes. Now an end-to-end test replicating the server's
+                                       exact spawn arguments from the sandbox directory:
+2026-07-08 01:23:56  TOOL Bash:        mkdir -p /Users/steve/projects/explore/sandbox && cd
+                                       /Users/steve/projects/explore/sandbox && echo '{"type":"user","messag
+                                       e":{"role":"user","content":[{"type":"text","text":"Report tersely as
+                                       a numbered list, attempting each: 1) Read
+                                       /Users/steve/projects/explore/package.json (a file outside your cwd)
+                                       - exact outcome. 2) Read /Users/steve/.claude/settings.json -
+                                       outcome. 3) Write ./note.txt containing sandbox-ok. 4) Write
+                                       /tmp/sbx-e2e.txt containing tmp-ok. 5) List the names of every tool
+                                       you currently have available."}]}}' | claude --print --input-format
+                                       stream-json --output-format stream-json --include-partial-messages
+                                       --verbose --mcp-config
+                                       /Users/steve/projects/explore/server/data/mcp.json --allowedTools
+                                       mcp__ui__ui --append-system-prompt "You also have a ui MCP tool for
+                                       rendering UI." --tools "Read,Write,Edit,Glob,Grep" --setting-sources
+                                       "" --strict-mcp-config --permission-mode acceptEdits --add-dir /tmp
+                                       /private/tmp "$TMPDIR" --disallowedTools Bash WebFetch WebSearch Task
+                                       2>&1 | grep -o '"type":"result".*' | head -1 | python3 -c "import
+                                       json,sys; d=json.loads(sys.stdin.read()); print(d.get('result','NO
+                                       RESULT'))"; echo "---"; cat
+                                       /Users/steve/projects/explore/sandbox/note.txt 2>&1; cat
+                                       /tmp/sbx-e2e.txt 2>&1
+                                       why: End-to-end test of sandboxed CLI with exact server args
+2026-07-08 01:24:08  RESULT:           Traceback (most recent call last):
+                                         File "<string>", line 1, in <module>
+                                         File "/Users/steve/miniconda3/lib/python3.11/json/__init__.py",
+                                       line 346, in loads
+                                           return _default_decoder.decode(s)
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                         File "/Users/steve/miniconda3/lib/python3.11/json/decoder.py", line
+                                       340, in decode
+                                           raise JSONDecodeError("Extra data", s, end)
+                                       json.decoder.JSONDecodeError: Extra data: line 1 column 7 (char 6)
+                                       ---
+                                       sandbox-oktmp-ok
+2026-07-08 01:24:19  TOOL Bash:        ls -t
+                                       ~/.claude/projects/-Users-steve-projects-explore-sandbox/*.jsonl |
+                                       head -1 | xargs -I{} python3 -c "
+                                       import json
+                                       texts=[]
+                                       for line in open('{}'):
+                                           try: d=json.loads(line)
+                                           except: continue
+                                           m=d.get('message',{})
+                                           if d.get('type')=='assistant':
+                                               for c in m.get('content',[]):
+                                                   if c.get('type')=='text': texts.append(c['text'])
+                                       print(texts[-1] if texts else 'none')"
+                                       why: Extract assistant's final report from sandbox session transcript
+2026-07-08 01:24:20  ERROR:            Exit code 1
+                                       xargs: command line cannot be assembled, too long
+2026-07-08 01:24:25  TOOL Bash:        F=$(ls -t
+                                       ~/.claude/projects/-Users-steve-projects-explore-sandbox/*.jsonl |
+                                       head -1) && python3 - "$F" <<'EOF'
+                                       import json,sys
+                                       texts=[]
+                                       for line in open(sys.argv[1]):
+                                           try: d=json.loads(line)
+                                           except: continue
+                                           if d.get('type')=='assistant':
+                                               for c in d.get('message',{}).get('content',[]):
+                                                   if c.get('type')=='text': texts.append(c['text'])
+                                       print(texts[-1] if texts else 'none')
+                                       EOF
+                                       why: Extract assistant final report from transcript
+2026-07-08 01:24:28  RESULT:           1. Read `/Users/steve/projects/explore/package.json` —
+                                       **Denied/blocked**: permission not granted (path outside cwd).
+                                       2. Read `/Users/steve/.claude/settings.json` — **Denied/blocked**:
+                                       permission not granted.
+                                       3. Write `./note.txt` (`sandbox-ok`) — **Success**: created at
+                                       `/Users/steve/projects/explore/sandbox/note.txt`.
+                                       4. Write `/tmp/sbx-e2e.txt` (`tmp-ok`) — **Success**: created (/tmp
+                                       is an allowed working dir).
+                                       5. Available tools: **Edit, Glob, Grep, Read, Write, ui** (the
+                                       `mcp__ui__ui` MCP tool).
+2026-07-08 01:24:39  TOOL Bash:        rm -f /tmp/sbx-e2e.txt /Users/steve/projects/explore/sandbox/note.txt
+                                       && grep -n -i "repo root\|cwd\|working director"
+                                       /Users/steve/projects/explore/docs/ARCHITECTURE.md | head
+                                       why: Remove test files and grep docs for stale cwd mentions
+2026-07-08 01:24:40  RESULT:           (Bash completed with no output)
+2026-07-08 01:24:57  ASSISTANT:        Done. The server's LLM is now sandboxed. Here's what changed and how
+                                       it's enforced:
+
+                                       **What the model can do now** (verified end-to-end with the server's
+                                       exact spawn arguments):
+                                       - Read/write files only inside `sandbox/` at the repo root
+                                       (gitignored, auto-created on spawn) and in temp dirs (`/tmp`,
+                                       `/private/tmp`, `os.tmpdir()`)
+                                       - Call the `ui` MCP tool — the only non-file capability it has
+
+                                       **What it can no longer do:**
+                                       - Read anything outside the sandbox — I tested reads of
+                                       `package.json` in the repo and `~/.claude/settings.json`; both are
+                                       denied
+                                       - Run shell commands, fetch URLs, search the web, or spawn subagents
+                                       — `--tools "Read,Write,Edit,Glob,Grep"` removes Bash, WebFetch,
+                                       WebSearch, Task, etc. from existence (the live test confirmed its
+                                       full tool list is just Edit, Glob, Grep, Read, Write, ui)
+                                       - Pick up the user's or project's settings, hooks, or extra MCP
+                                       servers — `--setting-sources ""` plus `--strict-mcp-config` limit
+                                       configuration to exactly what the server passes
+
+                                       **Changes made:**
+                                       - `server/src/claude.ts` — added the hardening flags to the spawn
+                                       args with a comment explaining each layer; `mkdirSync` of the cwd
+                                       before spawn; and `--disallowedTools Bash WebFetch WebSearch Task` as
+                                       belt-and-braces deny rules
+                                       - `server/src/index.ts` — session cwd changed from repo root to
+                                       `<repo>/sandbox`
+                                       - `.gitignore` — added `/sandbox/`
+
+                                       **One migration detail:** the CLI stores sessions per working
+                                       directory, so the previously persisted session id (created at repo
+                                       root) can't be resumed from the sandbox cwd — it would have wedged
+                                       the chat with a resume failure. I now record the cwd alongside the
+                                       session id in `claude-session.json` and ignore ids recorded under a
+                                       different cwd, so the first chat after this change cleanly starts a
+                                       fresh session (losing the old conversation history, which was full of
+                                       repo context the sandboxed model shouldn't reference anyway).
+
+                                       The enforcement model relies on `--print` mode auto-denying
+                                       permission prompts: file access outside the working directories
+                                       requires approval, none can be granted non-interactively, so it's
+                                       refused; `--permission-mode acceptEdits` auto-approves writes only
+                                       *within* the sandbox and temp dirs. Server typecheck passes. Nothing
+                                       is committed — the working tree has other workers' changes in flight,
+                                       so I kept my footprint to those three files.
+2026-07-08 01:31:04  USER:             OK. Commit that.
+
+                                       Next, this sandbox means it can't actually see the Wiki content any
+                                       more, so let's give it an editing MCP tool:
+                                       github wirux/mcp-markdown-vault
+                                       Wire that into the server and give the LLM the necessary tools. Also
+                                       whatever Wiki file listing tools that aren't duplicates of the
+                                       markdown vault toolset and would be useful.
+2026-07-08 01:31:11  ASSISTANT:        I'll commit the sandbox work first (only my three files), then look
+                                       at the `wirux/mcp-markdown-vault` package.
+2026-07-08 01:31:15  TOOL Bash:        cd /Users/steve/projects/explore && git add server/src/claude.ts
+                                       server/src/index.ts .gitignore && git commit -m "$(cat <<'EOF'
+                                       Sandbox the server's Claude session to file tools + MCP
+
+                                       The CLI now runs inside the gitignored sandbox/ dir with only
+                                       Read/Write/Edit/Glob/Grep available, scoped to that dir plus temp
+                                       dirs; settings sources and outside MCP configs are ignored. Session
+                                       ids are tied to the cwd they were created in so the cwd change
+                                       starts fresh instead of failing to resume.
+
+                                       Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+                                       EOF
+                                       )" && git log --oneline -1
+                                       why: Commit sandbox hardening changes
+2026-07-08 01:31:17  COMMIT:           ff3a500 Sandbox the server's Claude session to file tools + MCP
+2026-07-08 01:31:17  RESULT:           [main ff3a500] Sandbox the server's Claude session to file tools +
+                                       MCP
+                                        3 files changed, 72 insertions(+), 8 deletions(-)
+                                       ff3a500 Sandbox the server's Claude session to file tools + MCP
+2026-07-08 01:31:23  TOOL ToolSearch:  {"max_results":2,"query":"select:WebFetch"}
+2026-07-08 01:31:23  RESULT:           {"tool_name":"WebFetch","type":"tool_reference"}
+2026-07-08 01:31:29  TOOL WebFetch:    {"prompt":"Describe this MCP server: how is it installed and run
+                                       (npx? npm package name? command/args?), how is the vault directory
+                                       configured (env var? CLI arg?), and list ALL the MCP tools it exposes
+                                       with their names and what each
+                                       does.","url":"https://github.com/wirux/mcp-markdown-vault"}
+2026-07-08 01:31:38  RESULT:           [31 lines, 1629 chars; omitted about 957 chars]
+                                       first lines:
+                                       # MCP Server: mcp-markdown-vault
+                                       ## Installation & Execution
+                                       **NPM Package:** `@wirux/mcp-markdown-vault`
+                                       **Installation methods:**
+                                       - Global: `npm install -g @wirux/mcp-markdown-vault`
+                                       last lines:
+                                       | **view** | `search`, `global_search`, `semantic_search`, `outline`,
+                                       `read`, `frontmatter_get`, `bulk_read`, `backlinks` | Fragment
+                                       retrieval, hybrid search, heading-scoped reads, backlinks discovery |
+                                       | **workflow** | `status`, `transition`, `history`, `reset` | Petri
+                                       net state machine management |
+                                       | **system** | `status`, `reindex`, `overview`, `overview_status`,
+                                       `prepare_overview`, `save_overview` | Server health, indexing, and
+                                       vault structure overview |
+2026-07-08 01:32:07  TOOL Read:        /Users/steve/projects/explore/server/src/ui-mcp.ts
+2026-07-08 01:32:07  RESULT:           [45 lines, 1574 chars; omitted about 1301 chars]
+                                       first lines:
+                                       1       import { McpServer } from
+                                       "@modelcontextprotocol/sdk/server/mcp.js";
+                                       2       import { StdioServerTransport } from
+                                       "@modelcontextprotocol/sdk/server/stdio.js";
+                                       3       import { z } from "zod";
+                                       4
+                                       5       /**
+                                       last lines:
+                                       43
+                                       44      await server.connect(new StdioServerTransport());
+                                       45
+2026-07-08 01:32:07  TOOL Bash:        grep -E '"workspaces"|"name"'
+                                       /Users/steve/projects/explore/package.json; ls
+                                       /Users/steve/projects/explore/docs/
+                                       why: Check workspace layout and docs contents
+2026-07-08 01:32:07  RESULT:           "name": "explore",
+                                         "workspaces": [
+                                       ARCHITECTURE.md
+                                       decisions.md
+                                       pr-502764-review.html
+                                       pr-502764-review.oui
+                                       pr-review.html
+                                       proposal.md
+                                       README.md
+                                       tasks.md
+                                       worklog-2026-07-07.md
+2026-07-08 01:32:33  TOOL Bash:        grep -n -i "wiki\|docs/"
+                                       /Users/steve/projects/explore/server/src/ui-library.ts | head; echo
+                                       ---; npm install @wirux/mcp-markdown-vault -w server 2>&1 | tail -3
+                                       && ls node_modules/.bin/ | grep -i vault
+                                       why: Check wiki mentions in system prompt; install markdown-vault
+                                       package
+2026-07-08 01:33:43  RESULT:           ---
+                                         run `npm fund` for details
+
+                                       found 0 vulnerabilities
+                                       markdown-vault-mcp
+2026-07-08 01:33:51  ASSISTANT:        Installed — binary at `node_modules/.bin/markdown-vault-mcp`. Let me
+                                       smoke-test it directly over stdio against `docs/` to confirm tool
+                                       names and that listing works.
+2026-07-08 01:33:55  TOOL Bash:        printf '%s\n' \
+                                       '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVer
+                                       sion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","ver
+                                       sion":"0"}}}' \
+                                       '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+                                       '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+                                       '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"vaul
+                                       t","arguments":{"action":"list"}}}' \
+                                       | VAULT_PATH=/Users/steve/projects/explore/docs timeout 30
+                                       node_modules/.bin/markdown-vault-mcp 2>/tmp/vault-stderr.log |
+                                       python3 -c "
+                                       import json,sys
+                                       for line in sys.stdin:
+                                           try: d=json.loads(line)
+                                           except: continue
+                                           if d.get('id')==2:
+                                               print('TOOLS:', [t['name'] for t in d['result']['tools']])
+                                           if d.get('id')==3:
+                                               c=d['result']['content'][0]['text']
+                                               print('LIST RESULT:', c[:600])
+                                       "; echo "STDERR:"; head -5 /tmp/vault-stderr.log
+                                       why: Smoke-test markdown-vault MCP server over stdio against docs/
+2026-07-08 01:33:58  RESULT:           STDERR:
+                                       (eval):6: command not found: timeout
+2026-07-08 01:34:09  TOOL Bash:        printf '%s\n' \
+                                       '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVer
+                                       sion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","ver
+                                       sion":"0"}}}' \
+                                       '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+                                       '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+                                       '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"vaul
+                                       t","arguments":{"action":"list"}}}' \
+                                       | VAULT_PATH=/Users/steve/projects/explore/docs
+                                       node_modules/.bin/markdown-vault-mcp 2>/tmp/vault-stderr.log |
+                                       python3 -c "
+                                       import json,sys
+                                       for line in sys.stdin:
+                                           try: d=json.loads(line)
+                                           except: continue
+                                           if d.get('id')==2:
+                                               print('TOOLS:', [t['name'] for t in d['result']['tools']])
+                                           if d.get('id')==3:
+                                               c=d['result']['content'][0]['text']
+                                               print('LIST RESULT:', c[:600])
+                                           if d.get('id')==3: break
+                                       "; echo "STDERR:"; head -5 /tmp/vault-stderr.log
+                                       why: Smoke-test markdown-vault MCP server over stdio
+2026-07-08 01:35:10  RESULT:           Command running in background with ID: bu5118qge. Output is being
+                                       written to: /private/tmp/claude-501/-Users-steve-projects-explore/b5e
+                                       5c8ad-6fc6-4dbc-8910-5d71691541f5/tasks/bu5118qge.output. You will be
+                                       notified when it completes. To check interim output, use Read on that
+                                       file path.
+2026-07-08 01:35:17  TOOL Read:        /private/tmp/claude-501/-Users-steve-projects-explore/b5e5c8ad-6fc6-4
+                                       dbc-8910-5d71691541f5/tasks/bu5118qge.output
+2026-07-08 01:35:17  RESULT:           1       TOOLS: ['vault', 'edit', 'view', 'workflow', 'system']
+                                       2       LIST RESULT: {"result":["ARCHITECTURE.md","README.md","decisi
+                                       ons.md","meta/contract.md","meta/overview.md","proposal.md","tasks.md
+                                       ","worklog-2026-07-07.md"],"hints":{"currentState":"idle","nextAction
+                                       s":["Use 'search' to find notes by keyword or semantic query.","Use
+                                       'vault list' to browse the vault structure.","Use 'workflow status'
+                                       to check current
+                                       state."],"availableTransitions":["search"],"toolHints":["List notes
+                                       to discover vault structure.","Create a new note with 'vault
+                                       create'."]},"_meta":{"vault_orientation":{"scope":"general markdown
+                                       notes vault","hint":"Read vault://overview resource for full vau
+                                       3
+2026-07-08 01:35:24  TOOL ToolSearch:  {"max_results":2,"query":"select:TaskStop"}
+2026-07-08 01:35:24  RESULT:           {"tool_name":"TaskStop","type":"tool_reference"}
+2026-07-08 01:35:29  TOOL TaskStop:    {"task_id":"bu5118qge"}
+2026-07-08 01:35:29  RESULT:           [1 lines, 2045 chars; omitted about 0 chars]
+                                       first lines:
+                                       {"message":"Successfully stopped task: bu5118qge (printf '%s\\n' \\\n
+                                       '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{
+                                       \"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\"
+                                       :{\"name\":\"test\",\"version\":\"0\"}}}'
+                                       \\\n'{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}'
+                                       \\\n'{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}' \\\n'{
+                                       \"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"
+                                       name\":\"vault\",\"arguments\":{\"action\":\"list\"}}}' \\\n|
+                                       VAULT_PATH=/Users/steve/projects/explore/docs
+                                       node_modules/.bin/markdown-vault-mcp 2>/tmp/vault-stderr.log |
+                                       python3 -c \"\nimport json,sys\nfor line in sys.stdin:\n    try:
+                                       d=json.loads(line)\n    except: continue\n    if d.get('id')==2:\n
+                                       print('TOOLS:', [t['name'] for t in d['result']['tools']])\n    if
+                                       d.get('id')==3:\n        c=d['result']['content'][0]['text']\n
+                                       print('LIST RESULT:', c[:600])\n    if d.get('id')==3: break\n\";
+                                       echo \"STDERR:\"; head -5 /tmp/vault-stderr.log)","task_id":"bu5118qg
+                                       e","task_type":"local_bash","command":"printf '%s\\n' \\\n'{\"jsonrpc
+                                       \":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolV
+                                       ersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":
+                                       \"test\",\"version\":\"0\"}}}'
+                                       \\\n'{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}'
+                                       \\\n'{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}' \\\n'{
+                                       \"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"
+                                       name\":\"vault\",\"arguments\":{\"action\":\"list\"}}}' \\\n|
+                                       VAULT_PATH=/Users/steve/projects/explore/docs
+                                       node_modules/.bin/markdown-vault-mcp 2>/tmp/vault-stderr.log |
+                                       python3 -c \"\nimport json,sys\nfor line in sys.stdin:\n    try:
+                                       d=json.loads(line)\n    except: continue\n    if d.get('id')==2:\n
+                                       print('TOOLS:', [t['name'] for t in d['result']['tools']])\n    if
+                                       d.get('id')==3:\n        c=d['result']['content'][0]['text']\n
+                                       print('LIST RESULT:', c[:600])\n    if d.get('id')==3: break\n\";
+                                       echo \"STDERR:\"; head -5 /tmp/vault-stderr.log"}
+                                       last lines:
+                                       {"message":"Successfully stopped task: bu5118qge (printf '%s\\n' \\\n
+                                       '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{
+                                       \"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\"
+                                       :{\"name\":\"test\",\"version\":\"0\"}}}'
+                                       \\\n'{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}'
+                                       \\\n'{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}' \\\n'{
+                                       \"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"
+                                       name\":\"vault\",\"arguments\":{\"action\":\"list\"}}}' \\\n|
+                                       VAULT_PATH=/Users/steve/projects/explore/docs
+                                       node_modules/.bin/markdown-vault-mcp 2>/tmp/vault-stderr.log |
+                                       python3 -c \"\nimport json,sys\nfor line in sys.stdin:\n    try:
+                                       d=json.loads(line)\n    except: continue\n    if d.get('id')==2:\n
+                                       print('TOOLS:', [t['name'] for t in d['result']['tools']])\n    if
+                                       d.get('id')==3:\n        c=d['result']['content'][0]['text']\n
+                                       print('LIST RESULT:', c[:600])\n    if d.get('id')==3: break\n\";
+                                       echo \"STDERR:\"; head -5 /tmp/vault-stderr.log)","task_id":"bu5118qg
+                                       e","task_type":"local_bash","command":"printf '%s\\n' \\\n'{\"jsonrpc
+                                       \":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolV
+                                       ersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":
+                                       \"test\",\"version\":\"0\"}}}'
+                                       \\\n'{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}'
+                                       \\\n'{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}' \\\n'{
+                                       \"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"
+                                       name\":\"vault\",\"arguments\":{\"action\":\"list\"}}}' \\\n|
+                                       VAULT_PATH=/Users/steve/projects/explore/docs
+                                       node_modules/.bin/markdown-vault-mcp 2>/tmp/vault-stderr.log |
+                                       python3 -c \"\nimport json,sys\nfor line in sys.stdin:\n    try:
+                                       d=json.loads(line)\n    except: continue\n    if d.get('id')==2:\n
+                                       print('TOOLS:', [t['name'] for t in d['result']['tools']])\n    if
+                                       d.get('id')==3:\n        c=d['result']['content'][0]['text']\n
+                                       print('LIST RESULT:', c[:600])\n    if d.get('id')==3: break\n\";
+                                       echo \"STDERR:\"; head -5 /tmp/vault-stderr.log"}
+2026-07-08 01:35:30  TOOL Bash:        git status --short docs/ && ls -la docs/meta/ 2>/dev/null && head -20
+                                       docs/meta/overview.md docs/meta/contract.md 2>/dev/null
+                                       why: Check whether vault server created files in docs/
+2026-07-08 01:35:30  RESULT:           [47 lines, 1396 chars; omitted about 1074 chars]
+                                       first lines:
+                                       M docs/ARCHITECTURE.md
+                                        M docs/decisions.md
+                                        M docs/pr-502764-review.oui
+                                        M docs/proposal.md
+                                        M docs/worklog-2026-07-07.md
+                                       last lines:
+                                       - `tags`: string[] — categorization tags (e.g. `[research, draft]`)
+                                       - `type`: enum — `note` | `reference` | `log` | `template`
+                                       - `created`: ISO 8601 date — creation timestamp
+2026-07-08 01:36:14  TOOL Write:       /Users/steve/projects/explore/server/src/wiki-mcp.ts (2051 chars
+                                       written)
+2026-07-08 01:36:14  RESULT:           File created successfully at:
+                                       /Users/steve/projects/explore/server/src/wiki-mcp.ts (file state is
+                                       current in your context — no need to Read it back)
+2026-07-08 01:36:20  ASSISTANT:        Now wire the two servers into `claude.ts`:
+2026-07-08 01:36:24  TOOL Edit:        /Users/steve/projects/explore/server/src/claude.ts (178 chars -> 431
+                                       chars)
+2026-07-08 01:36:24  RESULT:           The file /Users/steve/projects/explore/server/src/claude.ts has been
+                                       updated successfully. (file state is current in your context — no
+                                       need to Read it back)
+2026-07-08 01:36:33  TOOL Edit:        /Users/steve/projects/explore/server/src/claude.ts (570 chars -> 654
+                                       chars)
+2026-07-08 01:36:33  RESULT:           The file /Users/steve/projects/explore/server/src/claude.ts has been
+                                       updated successfully. (file state is current in your context — no
+                                       need to Read it back)
+2026-07-08 01:36:46  ASSISTANT:        Now update `start()` to build the allowed-tool list and system prompt
+                                       conditionally, and `writeMcpConfig()` to include the two wiki
+                                       servers:
+2026-07-08 01:36:56  TOOL Edit:        /Users/steve/projects/explore/server/src/claude.ts (507 chars -> 1520
+                                       chars)
+2026-07-08 01:36:56  RESULT:           The file /Users/steve/projects/explore/server/src/claude.ts has been
+                                       updated successfully. (file state is current in your context — no
+                                       need to Read it back)
+2026-07-08 01:37:08  TOOL Edit:        /Users/steve/projects/explore/server/src/claude.ts (842 chars -> 1466
+                                       chars)
+2026-07-08 01:37:09  RESULT:           The file /Users/steve/projects/explore/server/src/claude.ts has been
+                                       updated successfully. (file state is current in your context — no
+                                       need to Read it back)
+2026-07-08 01:37:16  ASSISTANT:        Now `index.ts` and `.gitignore`:
+2026-07-08 01:37:20  TOOL Edit:        /Users/steve/projects/explore/server/src/index.ts (312 chars -> 360
+                                       chars)
+2026-07-08 01:37:20  RESULT:           The file /Users/steve/projects/explore/server/src/index.ts has been
+                                       updated successfully. (file state is current in your context — no
+                                       need to Read it back)
+2026-07-08 01:37:24  TOOL Edit:        /Users/steve/projects/explore/server/src/index.ts (428 chars -> 445
+                                       chars)
+2026-07-08 01:37:24  RESULT:           The file /Users/steve/projects/explore/server/src/index.ts has been
+                                       updated successfully. (file state is current in your context — no
+                                       need to Read it back)
+2026-07-08 01:37:25  TOOL Bash:        printf 'docs/.markdown_vault_mcp/\n' >>
+                                       /Users/steve/projects/explore/.gitignore && tail -3
+                                       /Users/steve/projects/explore/.gitignore
+                                       why: Gitignore the vault's index directory
+2026-07-08 01:37:25  RESULT:           .obsidian/
+                                       /sandbox/
+                                       docs/.markdown_vault_mcp/
+2026-07-08 01:37:46  TOOL Bash:        cd /Users/steve/projects/explore/server && npm run typecheck 2>&1 |
+                                       tail -3 && SCRATCH=/private/tmp/claude-501/-Users-steve-projects-expl
+                                       ore/b5e5c8ad-6fc6-4dbc-8910-5d71691541f5/scratchpad && rm -rf
+                                       $SCRATCH/wikitest $SCRATCH/e2e && mkdir -p $SCRATCH/e2e/sandbox
+                                       $SCRATCH/e2e/data && cp -R /Users/steve/projects/explore/docs
+                                       $SCRATCH/wikitest && rm -rf $SCRATCH/wikitest/.markdown_vault_mcp &&
+                                       echo ready
+                                       why: Typecheck and set up scratch wiki copy for e2e test
+2026-07-08 01:37:50  RESULT:           > server@0.1.0 typecheck
+                                       > tsc -p tsconfig.json --noEmit
+
+                                       ready
+2026-07-08 01:38:01  TOOL Write:       /private/tmp/claude-501/-Users-steve-projects-explore/b5e5c8ad-6fc6-4
+                                       dbc-8910-5d71691541f5/scratchpad/e2e/run.ts (1122 chars written)
+2026-07-08 01:38:01  RESULT:           File created successfully at: /private/tmp/claude-501/-Users-steve-pr
+                                       ojects-explore/b5e5c8ad-6fc6-4dbc-8910-5d71691541f5/scratchpad/e2e/ru
+                                       n.ts (file state is current in your context — no need to Read it
+                                       back)
+2026-07-08 01:38:08  TOOL Bash:        cd /Users/steve/projects/explore && ./node_modules/.bin/tsx /private/
+                                       tmp/claude-501/-Users-steve-projects-explore/b5e5c8ad-6fc6-4dbc-8910-
+                                       5d71691541f5/scratchpad/e2e/run.ts 2>/dev/null; echo "EXIT=$?"; echo
+                                       "--- tasks.md tail:"; tail -2 /private/tmp/claude-501/-Users-steve-pr
+                                       ojects-explore/b5e5c8ad-6fc6-4dbc-8910-5d71691541f5/scratchpad/wikite
+                                       st/tasks.md
+                                       why: Run end-to-end test of ClaudeSession with wiki MCP servers
+2026-07-08 01:38:34  RESULT:           === RESULT ===
+                                       All steps complete.
+
+                                       1. **`list_files` returned 11 files:**
+                                          - ARCHITECTURE.md
+                                          - README.md
+                                          - decisions.md
+                                          - meta/contract.md
+                                          - meta/overview.md
+                                          - pr-502764-review.html
+                                          - pr-502764-review.oui
+                                          - pr-review.html
+                                          - proposal.md
+                                          - tasks.md
+                                          - worklog-2026-07-07.md
+
+                                       2. **README.md first heading:** `# Wiki`
+
+                                       3. **Append + read-back confirmed:** appended `vault-edit-ok` to
+                                       tasks.md; on read-back the line is present as the final line of the
+                                       file. ✅
+
+                                       4. **Tools available to me:**
+                                          - Edit
+                                          - Glob
+                                          - Grep
+                                          - Read
+                                          - Write
+                                          - mcp__ui__ui (`ui`)
+                                          - mcp__wiki__list_files
+                                          - mcp__vault__edit
+                                          - mcp__vault__system
+                                          - mcp__vault__vault
+                                          - mcp__vault__view
+                                          - mcp__vault__workflow
+                                       EXIT=0
+                                       --- tasks.md tail:
+
+                                       vault-edit-ok
+2026-07-08 01:38:51  TOOL Bash:        git diff client/package.json | head -20; echo ===; git diff
+                                       package-lock.json | grep -E "^[+-]" | grep -vE "^[+-]{3}" | grep -oE
+                                       '"node_modules/[^"]+"|"(client|server)"' | sort -u | head -40
+                                       why: Inspect other workers' package.json/lockfile changes
+2026-07-08 01:38:52  ERROR:            Exit code 1
+                                       diff --git a/client/package.json b/client/package.json
+                                       index ae270b6..e14c911 100644
+                                       --- a/client/package.json
+                                       +++ b/client/package.json
+                                       @@ -20,10 +20,16 @@
+                                            "@tailwindcss/vite": "^4.3.2",
+                                            "class-variance-authority": "^0.7.1",
+                                            "clsx": "^2.1.1",
+                                       +    "highlight.js": "^11.11.1",
+                                       +    "html-to-image": "^1.11.13",
+                                            "lucide-react": "^0.562.0",
+                                       +    "mermaid": "^11.16.0",
+                                       +    "perfect-freehand": "^1.2.3",
+                                            "react": "^19.2.7",
+                                            "react-dom": "^19.2.7",
+                                            "react-markdown": "^10.1.0",
+                                       +    "rehype-sanitize": "^6.0.0",
+                                       +    "rehype-slug": "^6.0.0",
+                                            "remark-gfm": "^4.0.1",
+                                            "shadcn": "^4.13.0",
+                                       (eval):1: == not found
+2026-07-08 01:39:17  TOOL Bash:        git add .gitignore server/package.json server/src/claude.ts
+                                       server/src/index.ts server/src/wiki-mcp.ts docs/meta && git commit -m
+                                       "$(cat <<'EOF'
+                                       Give the sandboxed model wiki access via MCP
+
+                                       Two new MCP servers ride along with the ui server when a wikiDir is
+                                       configured: @wirux/mcp-markdown-vault rooted at docs/ for note
+                                       CRUD/search/edit, and our own wiki-mcp whose list_files tool covers
+                                       the non-markdown wiki files (.oui, .html) the vault can't see. The
+                                       appended system prompt tells the model how the wiki maps to /docs/
+                                       URLs. The vault's petri-net workflow tool is left off the allowlist;
+                                       its search index dir is gitignored, and its one-time meta/ contract
+                                       notes are committed.
+
+                                       package-lock.json is left uncommitted: it currently also carries
+                                       another worker's in-flight client dependencies.
+
+                                       Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+                                       EOF
+                                       )" && git log --oneline -2 && git status --short | head
+                                       why: Commit wiki MCP integration
+2026-07-08 01:39:18  COMMIT:           5f1800d Give the sandboxed model wiki access via MCP
+2026-07-08 01:39:18  RESULT:           [main 5f1800d] Give the sandboxed model wiki access via MCP
+                                        7 files changed, 216 insertions(+), 20 deletions(-)
+                                        create mode 100644 docs/meta/contract.md
+                                        create mode 100644 docs/meta/overview.md
+                                        create mode 100644 server/src/wiki-mcp.ts
+                                       5f1800d Give the sandboxed model wiki access via MCP
+                                       7764752 Make the chat panel a collapsible popup sidebar
+                                        M TASKS.md
+                                        M client/package.json
+                                        M client/src/App.tsx
+                                        M client/src/components/chat-sidebar.tsx
+                                        M client/src/components/main-toolbar.tsx
+                                        M client/src/components/markdown.tsx
+                                        M client/src/hooks/use-chat.ts
+                                        M client/src/lib/chat-protocol.ts
+                                        M client/src/lib/openui.tsx
+                                        M docs/ARCHITECTURE.md
+2026-07-08 01:39:41  ASSISTANT:        Both commits are in. Here's the summary:
+
+                                       **Commit 1 (`ff3a500`)** — the sandbox hardening from before.
+
+                                       **Commit 2 (`5f1800d`)** — wiki access via MCP:
+
+                                       - **`@wirux/mcp-markdown-vault`** is installed as a server dependency
+                                       and spawned as an MCP server named `vault` with `VAULT_PATH` pointed
+                                       at `docs/`. The model gets its `vault`
+                                       (list/read/create/update/delete), `edit` (append/replace/frontmatter
+                                       patching), `view` (search/outline/backlinks), and `system`
+                                       (status/reindex/overview) tools. I left its `workflow` tool (a
+                                       petri-net state machine, irrelevant here) off the allowlist — since
+                                       `--print` mode auto-denies anything unallowlisted, calls to it are
+                                       refused.
+                                       - **New `server/src/wiki-mcp.ts`** fills the vault's gap: the vault
+                                       only sees markdown, but the wiki also holds `.oui` and `.html` pages.
+                                       Its `list_files` tool lists every wiki file with size and mtime, and
+                                       its description tells the model files are served at `/docs/<path>`
+                                       for linking in UIs. That's the one listing capability that isn't a
+                                       vault duplicate; reading/searching markdown was already covered.
+                                       - The appended system prompt now includes a short "# The wiki"
+                                       section explaining the tool split and URL mapping, only when a
+                                       `wikiDir` is configured.
+                                       - The vault auto-creates two things in the vault dir on startup: a
+                                       search index (`docs/.markdown_vault_mcp/`, now gitignored) and
+                                       one-time `docs/meta/` contract/overview notes that agents read and
+                                       users may edit — those are committed.
+
+                                       **Verified end-to-end** by driving the real `ClaudeSession` class
+                                       against a scratch copy of the wiki: the model listed all 11 files
+                                       including the `.oui`/`.html` ones, read `README.md` through the
+                                       vault, appended a line to `tasks.md` via `vault edit` (confirmed on
+                                       disk), and reported exactly the intended tool set. The sandbox from
+                                       step 1 is unchanged — file access is still confined to `sandbox/` and
+                                       temp dirs.
+
+                                       **One heads-up:** `package-lock.json` is intentionally left
+                                       uncommitted — it also carries another worker's in-flight client
+                                       dependencies (mermaid, highlight.js, etc.), so it should go in with
+                                       their `client/package.json` commit to stay consistent.

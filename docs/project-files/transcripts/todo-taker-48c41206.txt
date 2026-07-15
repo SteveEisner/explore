@@ -1,0 +1,1302 @@
+2026-07-08 03:48:52  USER:             You're my TODO note taker. I'll tell you little things I notice, you
+                                       track 'em with appropriate priority in TODO.md
+                                       Nits go in their own list at the end, not mixed in with more
+                                       important things
+
+                                       * backticks aren't quoting things in the Markdown
+2026-07-08 03:48:57  TOOL Read:        /Users/steve/projects/explore/docs/TODO.md
+2026-07-08 03:48:57  RESULT:           [16 lines, 1648 chars; omitted about 1288 chars]
+                                       first lines:
+                                       1       # TODO — Idea Holding Bin
+                                       2
+                                       3       Loose ends and ideas that aren't yet tasks. When one becomes
+                                       real work, move it to [TASKS.md](../TASKS.md) (claim it there) and
+                                       delete it here. Anything goes; this list is allowed to be messy.
+                                       4
+                                       5       ## Open
+                                       last lines:
+                                       14
+                                       15      - ~~Model evals~~ → promoted to TASKS.md crunch track
+                                       "Optimize model cost" (2026-07-07).
+                                       16
+2026-07-08 03:49:06  ASSISTANT:        Adding a Nits section to `docs/TODO.md` and filing this one there —
+                                       it's a small rendering defect, not a structural issue.
+2026-07-08 03:49:08  TOOL Edit:        /Users/steve/projects/explore/docs/TODO.md (109 chars -> 197 chars)
+2026-07-08 03:49:08  RESULT:           The file /Users/steve/projects/explore/docs/TODO.md has been updated
+                                       successfully. (file state is current in your context — no need to
+                                       Read it back)
+2026-07-08 03:49:13  ASSISTANT:        Tracked. Added a **Nits** section at the end of `docs/TODO.md` and
+                                       filed the backtick issue there — Markdown inline code (backticks)
+                                       isn't rendering as code. Keep 'em coming and I'll sort each into the
+                                       main Open list or Nits by weight.
+2026-07-08 03:49:31  USER:             NOTE: Anythign I tell you is NOT a command to do something, it's a
+                                       todo for me to record
+
+                                       Update the architecture diagram with mermaid?
+2026-07-08 03:49:37  ASSISTANT:        Got it — recording only, not doing. Filing this in the Open list.
+2026-07-08 03:49:38  TOOL Edit:        /Users/steve/projects/explore/docs/TODO.md (44 chars -> 201 chars)
+2026-07-08 03:49:38  RESULT:           The file /Users/steve/projects/explore/docs/TODO.md has been updated
+                                       successfully. (file state is current in your context — no need to
+                                       Read it back)
+2026-07-08 03:49:42  ASSISTANT:        Recorded in the Open list: "Update the architecture diagram with
+                                       Mermaid?" — kept the question mark since it reads as an idea to
+                                       consider rather than a commitment. And understood going forward:
+                                       everything you tell me gets logged as a todo, not acted on.
+2026-07-08 03:55:44  USER:             What are the remaining requirements for us to be able to do this? In
+                                       terms of current capabilities
+                                       Scenario:
+                                       Tell the LLM "find information about X in the Wiki. read it all.
+                                       build an explorer telling me about it"
+2026-07-08 03:55:52  ASSISTANT:        This one reads as a real question, so I'll answer it — let me look at
+                                       the current state of the system first.
+2026-07-08 03:55:53  TOOL Bash:        ls /Users/steve/projects/explore && ls
+                                       /Users/steve/projects/explore/docs | head -30
+                                       why: List project and docs contents
+2026-07-08 03:55:53  TOOL Read:        /Users/steve/projects/explore/AGENTS.md
+2026-07-08 03:55:53  RESULT:           [34 lines, 2440 chars; omitted about 2022 chars]
+                                       first lines:
+                                       1       # Agent Instructions
+                                       2
+                                       3       ## Project docs
+                                       4
+                                       5       - `docs/proposal.md` — project vision and phases
+                                       last lines:
+                                       32
+                                       33      The user is holding themselves to a **two-hour work limit**
+                                       per session (initial policy). Use the worklog timestamps to track
+                                       session length: if roughly two hours have passed since the session's
+                                       first entry (or since the last break entry) and the user hasn't
+                                       stopped, gently point it out.
+                                       34
+2026-07-08 03:55:54  RESULT:           AGENTS.md
+                                       client
+                                       docs
+                                       node_modules
+                                       package-lock.json
+                                       package.json
+                                       README.md
+                                       sandbox
+                                       server
+                                       TASKS.md
+                                       ARCHITECTURE.md
+                                       decisions.md
+                                       journeys.md
+                                       meta
+                                       pr-502764-review.html
+                                       pr-502764-review.oui
+                                       proposal.md
+                                       README.md
+                                       tasks.md
+                                       TODO.md
+                                       two-hour-review.md
+                                       worklog-2026-07-07.md
+2026-07-08 03:55:57  TOOL Read:        /Users/steve/projects/explore/docs/ARCHITECTURE.md
+2026-07-08 03:55:57  RESULT:           [139 lines, 10329 chars; omitted about 9799 chars]
+                                       first lines:
+                                       1       # Architecture
+                                       2
+                                       3       How the system described in [proposal.md](proposal.md) fits
+                                       together. Guiding principle: **don't reinvent the wheel** — reuse
+                                       commodity infrastructure for storage, hosting, and intelligence, and
+                                       spend the novelty budget on artifact-generation guidance and
+                                       collaboration mechanisms.
+                                       4
+                                       5       ## Overview
+                                       last lines:
+                                       137     - **Artifact tool shape** — a dedicated tool definition vs.
+                                       conventions over plain file writes.
+                                       138     - **Persistence** — how much beyond files-on-disk (likely
+                                       nothing, initially).
+                                       139
+2026-07-08 03:56:03  TOOL Read:        /Users/steve/projects/explore/TASKS.md
+2026-07-08 03:56:03  RESULT:           [132 lines, 9413 chars; omitted about 8816 chars]
+                                       first lines:
+                                       1       # Tasks
+                                       2
+                                       3       The live task tracker, organized by component area (see
+                                       [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)). The phase roadmap
+                                       lives in [docs/tasks.md](docs/tasks.md); phase numbers here refer to
+                                       it.
+                                       4
+                                       5       **How to use:** claim a task by putting your name in Owner.
+                                       Statuses: `todo` · `in progress` · `blocked` · `done`. When a task
+                                       reaches `done`, log it in the worklog (see AGENTS.md).
+                                       last lines:
+                                       130     | Dogfood on a real task; log friction and fix top items | 5
+                                       | — | todo |
+                                       131     | Record architecture decisions in docs/decisions.md as
+                                       they're made | — | — | in progress |
+                                       132
+2026-07-08 03:56:11  ASSISTANT:        TASKS.md statuses look partly stale relative to recent commits, so
+                                       let me check the journeys doc and the latest worklog for the real
+                                       current state.
+2026-07-08 03:56:11  TOOL Read:        /Users/steve/projects/explore/docs/journeys.md
+2026-07-08 03:56:11  RESULT:           [64 lines, 4777 chars; omitted about 4106 chars]
+                                       first lines:
+                                       1       # Customer Journeys
+                                       2
+                                       3       The top journeys the app must nail, in priority order. Each
+                                       journey is the unit we demo, test, and harden — features matter only
+                                       insofar as a journey needs them. (Written at the pivot from
+                                       exploratory build-out to "respectable app": the shape is now clear
+                                       enough to lock these in.)
+                                       4
+                                       5       ## J1 — Explore a bundle (the core promise)
+                                       last lines:
+                                       62      - **Observability** — the JSONL event log exists; add
+                                       per-turn timing (ask→first-token→render-complete) so J3's "fast" is a
+                                       number, not a feeling.
+                                       63      - **Deployability** — README quickstart, API-key/env
+                                       handling, seed wiki content, and a clean-clone verification.
+                                       Dockerfile if cheap.
+                                       64
+2026-07-08 03:56:12  TOOL Read:        /Users/steve/projects/explore/docs/worklog-2026-07-07.md
+2026-07-08 03:56:12  RESULT:           [122 lines, 15957 chars; omitted about 15403 chars]
+                                       first lines:
+                                       1       # Worklog
+                                       2
+                                       3       Newest entries first. Each entry heading: `## YYYY-MM-DD
+                                       HH:MM — <milestone>`, followed by a short description of the work.
+                                       (Times before 16:07 are approximate — reconstructed from file
+                                       timestamps after the timestamp convention was adopted; `~` marks
+                                       them.)
+                                       4
+                                       5       ---
+                                       last lines:
+                                       120
+                                       121     Created `docs/proposal.md` (project vision, problem
+                                       statement, motivating examples, reuse-vs-novel split, six phases) and
+                                       `docs/tasks.md` (phase-by-phase task breakdown). No code yet; next up
+                                       is Phase 1 stack selection and scaffolding.
+                                       122
+2026-07-08 03:56:26  TOOL Bash:        grep -rn "tool" /Users/steve/projects/explore/server --include="*.ts"
+                                       -l | head; echo ---; ls /Users/steve/projects/explore/server
+                                       why: Find server files defining LLM tools
+2026-07-08 03:56:27  RESULT:           /Users/steve/projects/explore/server/node_modules/typescript/lib/lib.
+                                       es2021.intl.d.ts
+                                       /Users/steve/projects/explore/server/node_modules/typescript/lib/lib.
+                                       es2020.intl.d.ts
+                                       /Users/steve/projects/explore/server/node_modules/typescript/lib/lib.
+                                       es2022.intl.d.ts
+                                       /Users/steve/projects/explore/server/node_modules/typescript/lib/lib.
+                                       dom.d.ts
+                                       /Users/steve/projects/explore/server/src/wiki-mcp.ts
+                                       /Users/steve/projects/explore/server/src/partial-json.ts
+                                       /Users/steve/projects/explore/server/src/protocol.ts
+                                       /Users/steve/projects/explore/server/src/chat.ts
+                                       /Users/steve/projects/explore/server/src/ui-library.ts
+                                       /Users/steve/projects/explore/server/src/index.ts
+                                       ---
+                                       data
+                                       dist
+                                       node_modules
+                                       package.json
+                                       src
+                                       tsconfig.json
+2026-07-08 03:56:31  TOOL Bash:        grep -n "registerTool\|server.tool\|name:"
+                                       /Users/steve/projects/explore/server/src/wiki-mcp.ts | head -30
+                                       why: List tools defined in wiki-mcp.ts
+2026-07-08 03:56:31  RESULT:           47:const server = new McpServer({ name: "wiki", version: "0.1.0" });
+                                       49:server.registerTool(
+2026-07-08 03:56:34  TOOL Read:        /Users/steve/projects/explore/server/src/wiki-mcp.ts
+2026-07-08 03:56:34  RESULT:           [70 lines, 2251 chars; omitted about 1928 chars]
+                                       first lines:
+                                       1       import { readdirSync, statSync } from "node:fs";
+                                       2       import path from "node:path";
+                                       3       import { McpServer } from
+                                       "@modelcontextprotocol/sdk/server/mcp.js";
+                                       4       import { StdioServerTransport } from
+                                       "@modelcontextprotocol/sdk/server/stdio.js";
+                                       5
+                                       last lines:
+                                       68
+                                       69      await server.connect(new StdioServerTransport());
+                                       70
+2026-07-08 03:56:43  TOOL Bash:        grep -n "vault\|mcp" /Users/steve/projects/explore/server/src/chat.ts
+                                       | head -30
+                                       why: See how chat session wires MCP servers
+2026-07-08 03:56:43  RESULT:           7:/** The `ui` MCP tool as the model sees it (mcp__<server>__<tool>).
+                                       */
+                                       8:const UI_TOOL_NAME = "mcp__ui__ui";
+2026-07-08 03:56:47  TOOL Bash:        grep -rn "vault\|mcpServers\|allowedTools\|--mcp"
+                                       /Users/steve/projects/explore/server/src/index.ts | head -30
+                                       why: Find MCP server wiring in index.ts
+2026-07-08 03:56:47  RESULT:           (Bash completed with no output)
+2026-07-08 03:56:52  TOOL Bash:        grep -rln "vault\|mcp-config\|mcpServers"
+                                       /Users/steve/projects/explore/server/src
+                                       /Users/steve/projects/explore/*.json
+                                       /Users/steve/projects/explore/.mcp.json 2>/dev/null | grep -v
+                                       node_modules; echo ---; ls -a /Users/steve/projects/explore | grep -i
+                                       mcp
+                                       why: Locate MCP config files
+2026-07-08 03:56:52  RESULT:           /Users/steve/projects/explore/server/src/wiki-mcp.ts
+                                       /Users/steve/projects/explore/server/src/claude.ts
+                                       /Users/steve/projects/explore/package-lock.json
+                                       ---
+2026-07-08 03:56:56  TOOL Bash:        grep -n "vault\|mcpServers\|allowedTools\|wiki"
+                                       /Users/steve/projects/explore/server/src/claude.ts | head -40
+                                       why: See MCP wiring in claude.ts
+2026-07-08 03:56:56  RESULT:           [32 lines, 1700 chars; omitted about 1213 chars]
+                                       first lines:
+                                       33:   * The wiki directory. When set, the model gets the
+                                       markdown-vault MCP
+                                       34:   * server (note CRUD/search) plus the wiki file-listing MCP
+                                       server, both
+                                       37:  wikiDir?: string;
+                                       62:  private readonly wikiDir: string | undefined;
+                                       69:    this.wikiDir = options.wikiDir;
+                                       last lines:
+                                       302:        env: { VAULT_PATH: this.wikiDir },
+                                       304:      mcpServers.wiki = localServer("wiki-mcp", { WIKI_PATH:
+                                       this.wikiDir });
+                                       309:    writeFileSync(configPath, JSON.stringify({ mcpServers }));
+2026-07-08 03:57:03  TOOL Read:        /Users/steve/projects/explore/server/src/claude.ts (offset=100,
+                                       limit=100)
+2026-07-08 03:57:03  RESULT:           [100 lines, 4265 chars; omitted about 3979 chars]
+                                       first lines:
+                                       100               data: image.data,
+                                       101             },
+                                       102           });
+                                       103         }
+                                       104         if (text) content.push({ type: "text", text });
+                                       last lines:
+                                       197
+                                       198         // The sandbox working directory is gitignored, so it may
+                                       not exist yet.
+                                       199         mkdirSync(this.cwd, { recursive: true });
+2026-07-08 03:57:32  ASSISTANT:        Short answer: **nothing hard-blocks a first attempt anymore — this
+                                       scenario is exactly J1 ("explore a bundle"), every piece exists, and
+                                       it's never been run end-to-end.** The remaining requirements are
+                                       mostly about making the result *good* rather than making it
+                                       *possible*. Here's the gap analysis against current capabilities:
+
+                                       **What already works**
+                                       - **"Find information about X"** — the LLM session gets the
+                                       markdown-vault MCP tools (`vault`, `view`, `edit`, `system`:
+                                       list/read/search over notes) plus `wiki list_files` for the full file
+                                       inventory. Search over markdown exists today.
+                                       - **"Build an explorer"** — the `ui` tool is live with the
+                                       six-component vocabulary (Stack, Content, Tabs, Gallery, Aside,
+                                       Comparison), context levels, D4 hooks, and artifact CSS. The
+                                       benchmark `.oui` proves the vocabulary *can* express an
+                                       archetype-class exploration. Rendering, hot-reload, and chat feedback
+                                       all work.
+
+                                       **Remaining requirements**
+
+                                       1. **Generation guidance (the big one).** Nothing currently steers a
+                                       from-scratch generation toward archetype-class output — the model
+                                       gets the OpenUI language prompt plus a few rules, but no patterns for
+                                       "multi-section interactive exploration, not a TLDR." This is the open
+                                       J1 task, and the wake-up-prompt audit (in progress) is part of it.
+                                       2. **"Read it all" only covers markdown.** Non-markdown wiki files
+                                       (`.html`, `.oui`, images) are listable via `list_files` but there's
+                                       no read path: the vault only sees markdown, and the CLI's native
+                                       Read/Grep are sandboxed to `sandbox/` + tmp — the wiki dir is not in
+                                       `--add-dir` (claude.ts:175-185). A bundle containing a PR diff as
+                                       `.patch` or an HTML export can't actually be read.
+                                       3. **No real bundle to run it on.** The wiki is the flat `docs/` dir,
+                                       which is the project's own documentation — "find information about X"
+                                       will retrieve project noise. Needs either a sample wiki (task: todo)
+                                       or the folders/spaces idea from TODO.md.
+                                       4. **Explorer interactivity has a ceiling.** Context levels are
+                                       authored but the app is pinned to level 0 with no context-switcher
+                                       component; the D3 KV state store isn't wired; and there's no runtime
+                                       API, so the artifact must bake all data in at generation time — it
+                                       can't query the wiki as the user explores.
+                                       5. **Scale is unmeasured.** "Read it all" for a large bundle has no
+                                       context-management strategy; nobody knows where it falls over.
+
+                                       Practical reading: for a markdown-only bundle, you could run this
+                                       scenario today and the requirement is really #1 + #3 — guidance and a
+                                       clean test bundle. Items #2, #4, #5 determine how far past the first
+                                       demo it goes.
+2026-07-08 04:01:48  USER:             Create a task that the server (and the LLM, through tools) should be
+                                       able to make any state changes the front end can (within the content
+                                       panel).  Broadly that means that if the front end can navigate to a
+                                       file, so can the back end, if the front end can navigate to a
+                                       specific tab, so can the back end. That will require a synchronized
+                                       state, from the front end controls keepiing their state in the key
+                                       value store, to the key value store being sent to the back end, to
+                                       the back end being able to update the key value store incrementally,
+                                       to the front end reacting to the state change.
+
+                                       Also, content changes: when the LLM updates content in the Wiki, it
+                                       should hot-module-reload in the content pane IF the pane was showing
+                                       that content. This will require a file watcher and a server
+                                       notification over the websocket channel
+2026-07-08 04:02:05  ASSISTANT:        These are real tasks, not idea-bin material — adding both to
+                                       `TASKS.md`. The state-parity one builds on the existing D3 KV-store
+                                       task; the wiki hot-reload one parallels the existing artifact-watcher
+                                       task in the Session bridge section.
+2026-07-08 04:02:09  TOOL Edit:        /Users/steve/projects/explore/TASKS.md (156 chars -> 706 chars)
+2026-07-08 04:02:09  RESULT:           The file /Users/steve/projects/explore/TASKS.md has been updated
+                                       successfully. (file state is current in your context — no need to
+                                       Read it back)
+2026-07-08 04:02:15  ASSISTANT:        Added both to the **Session bridge (server)** section of `TASKS.md`:
+
+                                       1. **State parity (phase 4)** — the server/LLM, through tools, can
+                                       make any content-panel state change the front end can (navigate to a
+                                       file, switch a tab, etc.). Captured the full required chain you
+                                       described: front-end controls keep state in the D3 KV store → store
+                                       synced to the back end → back end applies incremental updates → front
+                                       end reacts. It's placed right where it composes with the existing
+                                       "hierarchical KV state store" task, which it depends on.
+
+                                       2. **Wiki content hot-reload (phase 2)** — LLM edits a wiki file →
+                                       content pane live-reloads if that file is on screen, via a file
+                                       watcher on the wiki dir plus a websocket notification. Sits next to
+                                       the analogous artifacts-directory watcher task.
+2026-07-08 04:04:22  USER:             The Markdown Vault seems pretty powerful. Does it have search?
+2026-07-08 04:04:26  ASSISTANT:        Let me check the installed package.
+2026-07-08 04:04:28  TOOL Bash:        ls /Users/steve/projects/explore/node_modules/markdown-vault-mcp
+                                       2>/dev/null || ls /Users/steve/projects/explore/node_modules/.bin |
+                                       grep -i vault; find /Users/steve/projects/explore/node_modules
+                                       -maxdepth 2 -name "*vault*" -not -path
+                                       "*/node_modules/*/node_modules/*" 2>/dev/null | head
+                                       why: Locate markdown-vault-mcp package
+2026-07-08 04:04:28  RESULT:           markdown-vault-mcp
+                                       /Users/steve/projects/explore/node_modules/@wirux/mcp-markdown-vault
+                                       /Users/steve/projects/explore/node_modules/.bin/markdown-vault-mcp
+2026-07-08 04:04:32  TOOL Bash:        ls
+                                       /Users/steve/projects/explore/node_modules/@wirux/mcp-markdown-vault;
+                                       grep -ril "search"
+                                       /Users/steve/projects/explore/node_modules/@wirux/mcp-markdown-vault
+                                       --include="*.md" | head
+                                       why: List vault package contents and find search docs
+2026-07-08 04:04:32  RESULT:           dist
+                                       LICENSE
+                                       package.json
+                                       README.md
+                                       /Users/steve/projects/explore/node_modules/@wirux/mcp-markdown-vault/
+                                       README.md
+2026-07-08 04:04:38  TOOL Bash:        grep -n -i -B2 -A8 "search" /Users/steve/projects/explore/node_module
+                                       s/@wirux/mcp-markdown-vault/README.md | head -80
+                                       why: Read search sections of vault README
+2026-07-08 04:04:38  RESULT:           [80 lines, 7179 chars; omitted about 6563 chars]
+                                       first lines:
+                                       5-**Headless semantic [MCP](https://modelcontextprotocol.io/) server
+                                       for Obsidian, Logseq, Dendron, Foam, and any folder of markdown
+                                       files.**
+                                       6-
+                                       7:`npm install` and point it at a folder. Hybrid search, AST editing,
+                                       zero-config embeddings. No app, no plugins, no API keys.
+                                       8-
+                                       9-[![CI / Release](https://github.com/wirux/mcp-markdown-vault/action
+                                       s/workflows/release.yml/badge.svg)](https://github.com/wirux/mcp-mark
+                                       down-vault/actions/workflows/release.yml)
+                                       last lines:
+                                       --
+                                       284-|---|---|---|
+                                       285-| `meta/overview.md` | Vault description + `vault_scope` routing
+                                       hint | Host agent (assisted) or you (manual) |
+2026-07-08 04:04:48  ASSISTANT:        Yes — it's actually one of the package's headline features. The
+                                       `view` tool (which your LLM session already has allowlisted as
+                                       `mcp__vault__view` in claude.ts:136) exposes three search actions:
+
+                                       - **`search`** — fragment retrieval within scope: heading-aware
+                                       chunking scored with TF-IDF + word proximity, returning only the
+                                       relevant sections rather than whole files.
+                                       - **`global_search`** — lexical search across the whole vault.
+                                       - **`semantic_search`** — hybrid vector + lexical search. Embeddings
+                                       are local and zero-config (`all-MiniLM-L6-v2` via
+                                       `@huggingface/transformers`, 384-dim, downloads on first run; Ollama
+                                       optional for higher quality), with background auto-indexing as notes
+                                       change.
+
+                                       Both `global_search` and `semantic_search` also take an optional
+                                       directory filter to scope results to specific folders — which happens
+                                       to line up nicely with your "folders / separate information spaces"
+                                       TODO item, since it would let searches stay inside one exploration's
+                                       space even in a shared vault.
+
+                                       Adjacent goodies in the same `view` tool: `outline` (headings across
+                                       a folder), `bulk_read` (fast multi-file reads), and `backlinks`.
+
+                                       Two practical caveats for the J1 scenario: it only sees markdown
+                                       (`.oui`/`.html`/images stay invisible to search — that's the
+                                       read-path gap we identified), and the first `semantic_search` will
+                                       pay a one-time model download + indexing cost, so it may be worth a
+                                       warm-up run before demoing.
+2026-07-08 04:05:54  USER:             Note that one-time indexing cost in the deployment setup notes. Also
+                                       that I have to test that it even works, as a test task.
+2026-07-08 04:06:07  ASSISTANT:        Recording both. The deployment notes live in the J0 quickstart task
+                                       and the deployability bar, so I'll attach the indexing-cost note
+                                       there, and add the "does it even work" check as a test task.
+2026-07-08 04:06:11  TOOL Edit:        /Users/steve/projects/explore/TASKS.md (117 chars -> 470 chars)
+2026-07-08 04:06:11  RESULT:           The file /Users/steve/projects/explore/TASKS.md has been updated
+                                       successfully. (file state is current in your context — no need to
+                                       Read it back)
+2026-07-08 04:06:15  ASSISTANT:        Both recorded in the `TASKS.md` priority table:
+
+                                       1. The **J0 clean-clone quickstart** task now carries the deployment
+                                       note: vault semantic search pays a one-time cost on first run (local
+                                       embedding model download + initial indexing), so warm it during setup
+                                       rather than letting it land mid-demo.
+                                       2. New **test task** (filed under the respectable-app bar): verify
+                                       vault search actually works — exercise `search`, `global_search`, and
+                                       `semantic_search` over the wiki, confirm sane results and that the
+                                       semantic index builds. Flagged that it's never been exercised.
+2026-07-08 04:10:34  USER:             make sure there are tasks about tuning the "personality" and role
+                                       awareness of the LLM
+2026-07-08 04:10:41  ASSISTANT:        There are related tasks (wake-up prompt audit, chat brevity,
+                                       generation guidance) but nothing that names personality or role
+                                       awareness specifically — adding it to the Intelligence section.
+2026-07-08 04:10:44  TOOL Edit:        /Users/steve/projects/explore/TASKS.md (118 chars -> 524 chars)
+2026-07-08 04:10:44  RESULT:           The file /Users/steve/projects/explore/TASKS.md has been updated
+                                       successfully. (file state is current in your context — no need to
+                                       Read it back)
+2026-07-08 04:10:49  ASSISTANT:        Added to the **Intelligence & generation guidance** section of
+                                       `TASKS.md`: tune the LLM's personality and role awareness — it should
+                                       behave as an exploration guide / co-author embedded in this app
+                                       rather than a generic coding assistant, knowing what the app is, the
+                                       panes it lives in, its tools, and its role per journey (explainer in
+                                       J1, discussion partner in J2, fast editor in J3). I noted the overlap
+                                       with the wake-up-prompt audit sitting in `docs/TODO.md`, so whoever
+                                       picks it up either folds that audit in or sequences after it.
+
+                                       The adjacent concerns were already tracked (chat brevity, J2
+                                       chat-vs-artifact guidance, generation guidance), so this fills the
+                                       one real gap rather than duplicating them.
+2026-07-08 04:24:34  USER:             I think J1 is actually doing pretty good. Add a task that the "new
+                                       artifact" view needs to be able to save the artifact as a .oui file.
+                                       You do this by clicking into the filename bar and giving it a name.
+                                       Inside that bar, on the far right side, is a Save button. That button
+                                       only shows when the artifact is new - not when viewing one. You can't
+                                       save an artifact until you give it a name.  But the UI generation
+                                       process should also be able to give the artifact a default name.
+
+                                       Add a task that hitting home is not a view of README.md - it should
+                                       be a folder view, with an excerpt of README.md at the top, a <more>
+                                       link to open README.md, and a hierarchical list of folders, markdown
+                                       files, and .oui files in the Wiki under that. They're linked to open
+                                       the doc/OUI.
+
+                                       Add a task that the LLM's ui tool must now be a way to edit ANY .oui
+                                       file, not just the one in the "new artifact" pane.
+2026-07-08 04:24:57  ASSISTANT:        Filing all three. The first and third flesh out J4
+                                       (save/reopen/continue-editing), and the second overlaps the phase-6
+                                       "wiki browser" stretch item, so I'll cross-reference rather than
+                                       duplicate.
+2026-07-08 04:25:01  TOOL Edit:        /Users/steve/projects/explore/TASKS.md (83 chars -> 435 chars)
+2026-07-08 04:25:01  RESULT:           The file /Users/steve/projects/explore/TASKS.md has been updated
+                                       successfully. (file state is current in your context — no need to
+                                       Read it back)
+2026-07-08 04:25:09  TOOL Edit:        /Users/steve/projects/explore/TASKS.md (88 chars -> 389 chars)
+2026-07-08 04:25:09  RESULT:           The file /Users/steve/projects/explore/TASKS.md has been updated
+                                       successfully. (file state is current in your context — no need to
+                                       Read it back)
+2026-07-08 04:25:15  TOOL Edit:        /Users/steve/projects/explore/TASKS.md (110 chars -> 279 chars)
+2026-07-08 04:25:15  RESULT:           The file /Users/steve/projects/explore/TASKS.md has been updated
+                                       successfully. (file state is current in your context — no need to
+                                       Read it back)
+2026-07-08 04:25:27  ASSISTANT:        All three recorded in `TASKS.md`:
+
+                                       1. **Save-as-.oui UI** — replaced the old one-line J4 row in the
+                                       priority table with your full spec: name via the filename bar, Save
+                                       button at the far right inside the bar, shown only for new artifacts,
+                                       name required before saving, and the generation process supplying a
+                                       default name. The "reopen and continue editing" half of the old row
+                                       got its own J4 row so it doesn't get lost.
+                                       2. **Home as folder view** — in the Web app section: README.md
+                                       excerpt at top with a `<more>` link, then a hierarchical list of the
+                                       wiki's folders, markdown files, and .oui files, each linked to open.
+                                       Noted it subsumes the phase-6 "wiki browser" stretch task.
+                                       3. **`ui` tool edits any .oui** — in the Intelligence section: the
+                                       tool must target any .oui file in the wiki, not just the new-artifact
+                                       pane's, cross-referenced as a prerequisite for J4's
+                                       reopen-and-continue-editing.
+
+                                       Also noticed and preserved: Worker 1 has claimed the state-parity and
+                                       wiki hot-reload tasks (both now in progress).
+2026-07-08 05:21:53  USER:             time?
+2026-07-08 05:21:59  TOOL Bash:        date "+%Y-%m-%d %H:%M"
+                                       why: Show current date and time
+2026-07-08 05:21:59  RESULT:           2026-07-07 22:21
+2026-07-08 05:22:03  ASSISTANT:        **22:21.** Against tonight's plan (resumed 20:36, ~2h session to
+                                       ~22:40): you're about 1h45m in, with roughly 20 minutes left in the
+                                       window. Per the worklog plan that's buffer time now — Blocks A and B
+                                       should be wrapping up.
+2026-07-12 05:34:13  USER:             TODO: make back button navigation work - I keep pressing back and it
+                                       loses the entire app
+2026-07-12 05:34:22  ASSISTANT:        Real usability bug, bigger than a blitz item (needs history/routing
+                                       integration) — filing it in the Web app section.
+2026-07-12 05:34:22  TOOL Read:        /Users/steve/projects/explore/TASKS.md (offset=100, limit=40)
+2026-07-12 05:34:22  RESULT:           [40 lines, 5134 chars; omitted about 4508 chars]
+                                       first lines:
+                                       100
+                                       101     **Story: the LLM as a clear explainer.** Teach the LLM to
+                                       present information with clarity — an explainer (not a pedantic
+                                       know-it-all) who gently introduces a concept to a newcomer and
+                                       answers a domain expert at full depth. Source doctrine synthesized
+                                       from the four clarity skills.
+                                       102
+                                       103     | Task | Journey | Owner | Status |
+                                       104     |---|---|---|---|
+                                       last lines:
+                                       137     |---|---|---|---|
+                                       138     | Minimal UI shell with rendered artifact view, hot-reload on
+                                       artifact change | 1 | — | todo |
+                                       139     | Chat pane alongside the artifact, with streaming,
+                                       in-progress indicator, errors in chat, cancel/retry | 2 | — | todo |
+2026-07-12 05:34:26  TOOL Read:        /Users/steve/projects/explore/TASKS.md (offset=139, limit=25)
+2026-07-12 05:34:26  RESULT:           [25 lines, 1900 chars; omitted about 914 chars]
+                                       first lines:
+                                       139     | Chat pane alongside the artifact, with streaming,
+                                       in-progress indicator, errors in chat, cancel/retry | 2 | — | todo |
+                                       140     | Support artifact updates mid-conversation without losing
+                                       view state where possible | 2 | — | todo |
+                                       141     | Chat header cleanup: drop the session id and connected
+                                       badge from the chat pane | 5 | Worker 2 | done |
+                                       142     | Markdown viewer upgrades: rehype-sanitize, rehype-slug,
+                                       highlight.js, mermaid diagrams | 5 | Worker 2 | done |
+                                       143     | Home is a folder view, not README.md: excerpt of README.md
+                                       at top with a &lt;more&gt; link that opens the full README, then a
+                                       hierarchical list of the wiki's folders, markdown files, and .oui
+                                       files, each linked to open the doc/OUI (subsumes the phase-6 "wiki
+                                       browser" stretch task) | 5 | Worker 1 | done |
+                                       last lines:
+                                       161     |---|---|---|---|
+                                       162     | Drag-and-drop / file import into the wiki directory | 6 | —
+                                       | todo |
+                                       163     | Importers for common bundles (a PR via `gh`, a URL list, a
+                                       docs export) | 6 | — | todo |
+2026-07-12 05:34:31  TOOL Edit:        /Users/steve/projects/explore/TASKS.md (88 chars -> 335 chars)
+2026-07-12 05:34:31  RESULT:           The file /Users/steve/projects/explore/TASKS.md has been updated
+                                       successfully. (file state is current in your context — no need to
+                                       Read it back)
+2026-07-12 05:34:36  ASSISTANT:        Tracked in the **Web app** section of `TASKS.md`: browser back-button
+                                       navigation — pressing back currently loses the entire app, so in-app
+                                       navigation (doc/OUI views, home) needs to integrate with browser
+                                       history so back/forward move between views instead of leaving the
+                                       SPA. Filed as a real task rather than a nit since it needs
+                                       routing/history work, and it sits right next to the usability-pass
+                                       task it'll likely ride along with.
+2026-07-12 06:04:38  USER:             which small TODOs are still undone?
+2026-07-12 06:04:44  TOOL Read:        /Users/steve/projects/explore/TASKS.md
+2026-07-12 06:04:44  RESULT:           [212 lines, 31138 chars; omitted about 30128 chars]
+                                       first lines:
+                                       1       # Tasks
+                                       2
+                                       3       The single task list: live tracker organized by component
+                                       area (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)), plus the
+                                       phase roadmap and the idea holding bin at the bottom. Phase numbers
+                                       in the tables refer to the [Phases](#phases-roadmap) section.
+                                       4
+                                       5       **How to use:** claim a task by putting your name in Owner.
+                                       Statuses: `todo` · `in progress` · `blocked` · `done`. When a task
+                                       reaches `done`, log it in the worklog (see AGENTS.md).
+                                       last lines:
+                                       210     - **Update the architecture diagram with Mermaid?** Idea:
+                                       redo/refresh the architecture diagram as a Mermaid diagram (still a
+                                       question mark, not committed).
+                                       211     - **Folders / separate information spaces.** Everything
+                                       currently serves from one flat `docs/` — which is also the project's
+                                       own documentation. Need some notion of folders or per-exploration
+                                       spaces so bundles stay separate (the architecture's original "one
+                                       directory per exploration topic" idea; also keeps project docs from
+                                       mixing into the user's wiki content).
+                                       212
+2026-07-12 06:04:57  ASSISTANT:        Four blitz-backlog items are still open (five were cleared in the
+                                       2026-07-11 Cleaner blitz):
+
+                                       1. **Align TypeScript versions across workspaces** (client `~6.0.2`
+                                       vs server `^5.8.0`) — deferred from the blitz because it needs `npm
+                                       install` + lockfile edits that were carrying in-flight work at the
+                                       time; that work is now committed, so it's unblocked.
+                                       2. **Teach the generation prompts about `<oui-embed
+                                       src="file.oui">`** — wiki markdown can embed live OpenUI apps but the
+                                       LLM doesn't know; needs the always-explicit-closing-tag note.
+                                       3. **Container-responsive artifact components** — Gallery/Aside fixed
+                                       pixel widths collapse to one-word lines in narrow containers (seen
+                                       via oui-embed in a 48rem column).
+                                       4. **Chat markdown vs typeset consistency** — chat still uses `prose
+                                       prose-sm` while file viewing moved to `typeset typeset-docs`, and the
+                                       backtick-chip fix only targets `.prose`; decide whether chat gets a
+                                       `typeset-chat` preset.
+
+                                       Adjacent small stuff outside the backlog proper, if you're hunting
+                                       for quick wins: Worker 1's banked test-coverage TODO for the
+                                       state/set_state/edit_artifact dial-back chain (Session bridge
+                                       section), and the Ideas bin still holds four loose ends (rendering
+                                       polish, wake-up-context audit umbrella, the Mermaid diagram question,
+                                       folders/spaces) — those are ideas rather than scoped tasks, though.
+
+                                       Everything you had me file as a nit earlier is now done or promoted —
+                                       the backtick rendering fix landed in the blitz.
+2026-07-13 03:19:17  USER:             /compact
+2026-07-13 03:20:45  SUMMARY:          This session is being continued from a previous conversation that ran
+                                       out of context. The summary below covers the earlier portion of the
+                                       conversation.
+
+                                       Summary:
+                                       1. Primary Request and Intent:
+                                          - Steve appointed me his **TODO note taker** for the explore
+                                       project: "I'll tell you little things I notice, you track 'em with
+                                       appropriate priority in TODO.md. Nits go in their own list at the
+                                       end, not mixed in with more important things."
+                                          - Critical standing rule (verbatim): "NOTE: Anythign I tell you is
+                                       NOT a command to do something, it's a todo for me to record." I
+                                       record todos; I do not implement them. Direct questions, however, get
+                                       real answers (he asked several).
+                                          - Over the session he filed todos/tasks and asked questions:
+                                       markdown backtick rendering nit; mermaid architecture-diagram idea; a
+                                       J1 capability gap analysis; state-parity and wiki hot-reload tasks;
+                                       vault search question; indexing-cost deployment note + vault-search
+                                       test task; LLM personality/role-awareness task; save-as-.oui UI spec,
+                                       home-as-folder-view, ui-tool-edits-any-.oui tasks; time check;
+                                       back-button navigation task; and finally "which small TODOs are still
+                                       undone?" (unanswered — compaction interrupted).
+
+                                       2. Key Technical Concepts:
+                                          - **Project**: "explore" — wiki (plain file dir, currently flat
+                                       docs/) + Claude Code as intelligence + OpenUI artifacts (.oui,
+                                       six-component vocabulary: Stack, Content, Tabs, Gallery, Aside,
+                                       Comparison) + session bridge server + web app (artifact view + chat
+                                       pane).
+                                          - **Journeys** (docs/journeys.md): J1 explore-a-bundle (core), J2
+                                       talk-about-bundle, J3 refine loop, J4 keep/persist, J0 get-running,
+                                       plus "respectable-app bar" (tests/observability/deployability).
+                                          - **Decisions**: D1 str_replace edits, D2 OpenUI medium, D3
+                                       hierarchical KV state store, D4 structural components as named
+                                       editing points, D5 voice agent (gpt-realtime), D6 feedback envelope
+                                       {text?, screenshot?, statementRef?, stateSnapshot}.
+                                          - **LLM session wiring** (server/src/claude.ts): CLI in --print
+                                       stream-json mode; allowedTools = mcp__ui__ui, mcp__ui__state,
+                                       mcp__vault__{vault,edit,view,system}, mcp__wiki__list_files; native
+                                       tools limited to Read,Write,Edit,Glob,Grep sandboxed to sandbox/ +
+                                       tmp dirs (wiki NOT in --add-dir → non-markdown wiki files
+                                       unreadable); Bash/WebFetch/WebSearch/Task disallowed.
+                                          - **markdown-vault-mcp** (@wirux/mcp-markdown-vault): view tool
+                                       has `search` (TF-IDF+proximity fragment retrieval), `global_search`,
+                                       `semantic_search` (hybrid vector+lexical, local all-MiniLM-L6-v2 384d
+                                       embeddings, one-time first-run download + indexing), directory
+                                       scoping, outline, bulk_read, backlinks.
+                                          - **Multi-agent shared checkout**: named agents Worker 1, Worker
+                                       2, The Optimizer, Cleaner concurrently edit TASKS.md mid-session —
+                                       their changes must be preserved, never reverted.
+                                          - **Task organization** (current): TASKS.md is now the single list
+                                       — priority journey table, Blitz backlog (small ≤30min fixes banked
+                                       for 5+ agent blitzes, NOT fixed on sight), Crunch tracks,
+                                       per-component sections, Voice agent section, Phases roadmap, and "##
+                                       Ideas (holding bin)" (docs/TODO.md was merged in by other agents).
+                                          - Session timing convention: two-hour work limit tracked via
+                                       worklog timestamps (AGENTS.md).
+
+                                       3. Files and Code Sections:
+                                          - **/Users/steve/projects/explore/TASKS.md** — the main artifact
+                                       of this session; I made these edits (all still present in latest
+                                       read, some rows since claimed/completed by other agents):
+                                            - Session bridge: state-parity row ("**State parity: server/LLM
+                                       can make any content-panel state change the front end can** (navigate
+                                       to a file, select a tab, ...). Full chain: front-end controls keep
+                                       their state in the KV store (D3) → store synced to the back end →
+                                       back end applies incremental store updates via tools → front end
+                                       reacts to store changes") — now done (Worker 1); wiki hot-reload row
+                                       ("file watcher on the wiki dir + server notification over the
+                                       websocket channel") — now done (Worker 1).
+                                            - J0 quickstart row appended: "Note: vault semantic search has a
+                                       one-time cost on first run (local embedding model download + initial
+                                       indexing) — warm it during setup, don't let it land mid-demo".
+                                            - New bar row: "Test that vault search actually works (search /
+                                       global_search / semantic_search over the wiki): never exercised;
+                                       verify results are sane and the semantic index builds" — still todo.
+                                            - Intelligence row: "Tune the LLM's personality and role
+                                       awareness: it's an exploration guide / co-author embedded in this app
+                                       — not a generic coding assistant... (explainer in J1, discussion
+                                       partner in J2, fast editor in J3). Overlaps the wake-up-prompt audit"
+                                       — still todo, phase 5.
+                                            - J4 save-as-.oui row (full UI spec: filename bar, Save button
+                                       far right inside bar, only for new artifacts, name required,
+                                       generation supplies default name) — now done (Worker 2); separate
+                                       reopen-and-continue row — done (Worker 2).
+                                            - Web app row: home-as-folder-view (README excerpt +
+                                       &lt;more&gt; link + hierarchical folders/md/.oui list; subsumes
+                                       phase-6 wiki browser) — done (Worker 1).
+                                            - Intelligence row: "The `ui` tool must be able to edit ANY .oui
+                                       file in the wiki, not just the one in the 'new artifact' pane" — done
+                                       (Worker 1).
+                                            - Web app row: "Browser back-button navigation: pressing back
+                                       currently loses the entire app (SPA state gone). Integrate in-app
+                                       navigation (doc/OUI views, home) with browser history so back/forward
+                                       move between views instead of leaving the app" — phase 5, todo.
+                                          - **/Users/steve/projects/explore/docs/TODO.md** — early edits
+                                       (Nits section with backticks item; Mermaid-diagram idea). Since
+                                       merged by other agents into TASKS.md "## Ideas (holding bin)"; the
+                                       file's items now live there.
+                                          - **server/src/claude.ts** (read) — CLI spawn config; key lines:
+                                       allowedTools list (~121-139), `--tools Read,Write,Edit,Glob,Grep`,
+                                       `--add-dir /tmp /private/tmp tmpdir()` (wiki absent → non-md read
+                                       gap), disallowed Bash/WebFetch/WebSearch/Task.
+                                          - **server/src/wiki-mcp.ts** (read) — standalone MCP stdio server
+                                       exposing only `list_files` over WIKI_PATH (all file types).
+                                          - **docs/journeys.md, docs/ARCHITECTURE.md, AGENTS.md,
+                                       docs/worklog-2026-07-07.md** (read) — grounding for the J1 gap
+                                       analysis and time tracking.
+                                          - **node_modules/@wirux/mcp-markdown-vault/README.md** (grepped) —
+                                       source for the vault search answer.
+
+                                       4. Errors and fixes:
+                                          - No tool errors. Course corrections from the user:
+                                            - After my first two responses, Steve clarified "Anythign I tell
+                                       you is NOT a command to do something, it's a todo for me to record" —
+                                       I switched to record-only mode for statements while still answering
+                                       direct questions.
+                                            - TASKS.md was repeatedly modified externally between my edits
+                                       (system reminders confirmed intentional — other agents' work). I
+                                       adapted each edit to the current file state and preserved their
+                                       changes (e.g., Worker 1 claiming rows, the TODO.md→Ideas merge, the
+                                       2026-07-11 blitz note).
+
+                                       5. Problem Solving:
+                                          - **J1 gap analysis** (delivered): the scenario "find info about X
+                                       in wiki → read it all → build an explorer" is exactly J1; works today
+                                       for markdown-only bundles. Remaining gaps: (1) generation guidance
+                                       for archetype-class output; (2) non-markdown read path
+                                       (.html/.oui/images listable but unreadable — vault sees only md,
+                                       native Read sandboxed away from wiki); (3) no clean test bundle (flat
+                                       docs/ mixes project docs); (4) interactivity ceiling (app pinned to
+                                       context level 0, no switcher, D3 store unwired at the time, no
+                                       runtime API — data baked at generation); (5) unmeasured scale.
+                                          - **Vault search** (answered): yes —
+                                       search/global_search/semantic_search in the already-allowlisted
+                                       `view` tool; caveats: markdown-only visibility and one-time embedding
+                                       download/indexing cost (both turned into tracked tasks).
+                                          - **Time check**: 2026-07-07 22:21 vs. session plan (resumed
+                                       20:36, ~2h) — ~20 min buffer remaining. Note the memory index now
+                                       implies today is ~2026-07-12.
+
+                                       6. All user messages:
+                                          - "You're my TODO note taker. I'll tell you little things I
+                                       notice, you track 'em with appropriate priority in TODO.md. Nits go
+                                       in their own list at the end, not mixed in with more important
+                                       things. * backticks aren't quoting things in the Markdown"
+                                          - "NOTE: Anythign I tell you is NOT a command to do something,
+                                       it's a todo for me to record. Update the architecture diagram with
+                                       mermaid?"
+                                          - "What are the remaining requirements for us to be able to do
+                                       this? In terms of current capabilities. Scenario: Tell the LLM 'find
+                                       information about X in the Wiki. read it all. build an explorer
+                                       telling me about it'"
+                                          - "Create a task that the server (and the LLM, through tools)
+                                       should be able to make any state changes the front end can (within
+                                       the content panel). Broadly that means that if the front end can
+                                       navigate to a file, so can the back end, if the front end can
+                                       navigate to a specific tab, so can the back end. That will require a
+                                       synchronized state, from the front end controls keepiing their state
+                                       in the key value store, to the key value store being sent to the back
+                                       end, to the back end being able to update the key value store
+                                       incrementally, to the front end reacting to the state change. Also,
+                                       content changes: when the LLM updates content in the Wiki, it should
+                                       hot-module-reload in the content pane IF the pane was showing that
+                                       content. This will require a file watcher and a server notification
+                                       over the websocket channel"
+                                          - "The Markdown Vault seems pretty powerful. Does it have search?"
+                                          - "Note that one-time indexing cost in the deployment setup notes.
+                                       Also that I have to test that it even works, as a test task."
+                                          - "make sure there are tasks about tuning the 'personality' and
+                                       role awareness of the LLM"
+                                          - "I think J1 is actually doing pretty good. Add a task that the
+                                       'new artifact' view needs to be able to save the artifact as a .oui
+                                       file. You do this by clicking into the filename bar and giving it a
+                                       name. Inside that bar, on the far right side, is a Save button. That
+                                       button only shows when the artifact is new - not when viewing one.
+                                       You can't save an artifact until you give it a name. But the UI
+                                       generation process should also be able to give the artifact a default
+                                       name. / Add a task that hitting home is not a view of README.md - it
+                                       should be a folder view, with an excerpt of README.md at the top, a
+                                       <more> link to open README.md, and a hierarchical list of folders,
+                                       markdown files, and .oui files in the Wiki under that. They're linked
+                                       to open the doc/OUI. / Add a task that the LLM's ui tool must now be
+                                       a way to edit ANY .oui file, not just the one in the 'new artifact'
+                                       pane."
+                                          - "time?"
+                                          - "TODO: make back button navigation work - I keep pressing back
+                                       and it loses the entire app"
+                                          - "which small TODOs are still undone?"
+
+                                       7. Pending Tasks:
+                                          - **Answer the open question**: "which small TODOs are still
+                                       undone?" — this is the only unfinished piece of my work; the full
+                                       current TASKS.md was just read and contains the answer.
+                                          - My standing role continues: record future items Steve mentions
+                                       into TASKS.md (the now-single task list) with appropriate priority;
+                                       small nit-level items go to the Blitz backlog table; loose ideas to
+                                       "## Ideas (holding bin)".
+
+                                       8. Current Work:
+                                          Immediately before this summary, Steve asked "which small TODOs
+                                       are still undone?" and I read the complete current
+                                       /Users/steve/projects/explore/TASKS.md (212 lines). The answer, ready
+                                       to deliver, from that read:
+                                          - **Blitz backlog — 4 undone small items** (a 2026-07-11 Cleaner
+                                       blitz already cleared five others including the backticks nit): (1)
+                                       Align TypeScript versions across workspaces (client ~6.0.2 vs server
+                                       ^5.8.0; deferred — needs npm install + lockfile edits); (2) Teach the
+                                       generation prompts about `<oui-embed src="file.oui">` (always
+                                       explicit closing tag); (3) Container-responsive artifact components
+                                       (Gallery/Aside fixed pixel widths collapse in narrow containers;
+                                       consider container queries/minmax); (4) Chat markdown vs typeset
+                                       consistency check (chat still `prose prose-sm` vs file views'
+                                       `typeset typeset-docs`; backtick-chip override targets `.prose`
+                                       only).
+                                          - **Other small undone item**: Session bridge row "TODO (from
+                                       Worker 1): test coverage for the state/set_state/edit_artifact
+                                       dial-back chain on isolated instances" (bar, todo).
+                                          - **Ideas holding bin (formerly docs/TODO.md) — 4 loose ends**:
+                                       rendering polish (whitespace/colors/styling); audit the LLM's wake-up
+                                       context (umbrella over the done prompt-removal/diet rows); Mermaid
+                                       architecture diagram (question mark); folders/separate information
+                                       spaces.
+
+                                       9. Optional Next Step:
+                                          Deliver the answer to Steve's last message — verbatim: "which
+                                       small TODOs are still undone?" — as a short text response listing the
+                                       four Blitz backlog items, the Worker-1 test-coverage TODO row, and
+                                       the four Ideas holding-bin entries (noting the 2026-07-11 blitz
+                                       already cleared five items, including his original backticks nit). No
+                                       file edits are needed; this is a read-only report from the
+                                       already-loaded TASKS.md.
+
+                                       If you need specific details from before compaction (like exact code
+                                       snippets, error messages, or content you generated), read the full
+                                       transcript at: /Users/steve/.claude/projects/-Users-steve-projects-ex
+                                       plore/48c41206-d9d3-4012-8ed0-d70a0e5a5c69.jsonl
+                                       Continue the conversation from where it left off without asking the
+                                       user any further questions. Resume directly — do not acknowledge the
+                                       summary, do not recap what was happening, do not preface with "I'll
+                                       continue" or similar. Pick up the last task as if the break never
+                                       happened.
+2026-07-13 03:19:17  USER:             <local-command-caveat>Caveat: The messages below were generated by
+                                       the user while running local commands. DO NOT respond to these
+                                       messages or otherwise consider them in your response unless the user
+                                       explicitly asks you to.</local-command-caveat>
+2026-07-13 03:19:17  USER:             <command-name>/compact</command-name>
+                                                   <command-message>compact</command-message>
+                                                   <command-args></command-args>
+2026-07-13 03:20:46  USER:             <local-command-stdout>[2mCompacted (ctrl+o to see full
+                                       summary)[22m</local-command-stdout>
+2026-07-13 03:20:46  USER:             TODO: calls to Claude take WAY too long, unknown why
+2026-07-13 03:20:51  TOOL Read:        /Users/steve/projects/explore/TASKS.md
+2026-07-13 03:20:51  RESULT:           [214 lines, 34357 chars; omitted about 33333 chars]
+                                       first lines:
+                                       1       # Tasks
+                                       2
+                                       3       The single task list: live tracker organized by component
+                                       area (see
+                                       [docs/design/ARCHITECTURE.md](docs/design/ARCHITECTURE.md)), plus the
+                                       phase roadmap and the idea holding bin at the bottom. Phase numbers
+                                       in the tables refer to the [Phases](#phases-roadmap) section.
+                                       4
+                                       5       **How to use:** claim a task by putting your name in Owner.
+                                       Statuses: `todo` · `in progress` · `blocked` · `done`. When a task
+                                       reaches `done`, log it in the worklog (see AGENTS.md).
+                                       last lines:
+                                       212     - **Update the architecture diagram with Mermaid?** Idea:
+                                       redo/refresh the architecture diagram as a Mermaid diagram (still a
+                                       question mark, not committed).
+                                       213     - **Folders / separate information spaces.** Everything
+                                       currently serves from one flat `docs/` — which is also the project's
+                                       own documentation. Need some notion of folders or per-exploration
+                                       spaces so bundles stay separate (the architecture's original "one
+                                       directory per exploration topic" idea; also keeps project docs from
+                                       mixing into the user's wiki content).
+                                       214
+2026-07-13 03:21:01  TOOL Edit:        /Users/steve/projects/explore/TASKS.md (107 chars -> 528 chars)
+2026-07-13 03:21:01  RESULT:           The file /Users/steve/projects/explore/TASKS.md has been updated
+                                       successfully. (file state is current in your context — no need to
+                                       Read it back)
+2026-07-13 03:21:05  ASSISTANT:        Filed in the priority table under J3, right above the existing
+                                       measure-the-loop row. I noted the tension worth chasing: the
+                                       Optimizer's eval harness reports 2.8–5.5s ask→UI on Opus 4.8, so if
+                                       live calls feel *way* too long, either real sessions diverge from the
+                                       harness (missed pre-warm, context growth over a long session, turns
+                                       queueing serially) or the post-UI tail is what you're feeling — the
+                                       task says to instrument a real session and compare.
+2026-07-13 03:24:14  USER:             TODO: make sure the chat anchors to the bottom, like a chat would as
+                                       you continue
+2026-07-13 03:24:22  TOOL Edit:        /Users/steve/projects/explore/TASKS.md (477 chars -> 711 chars)
+2026-07-13 03:24:22  RESULT:           The file /Users/steve/projects/explore/TASKS.md has been updated
+                                       successfully. (file state is current in your context — no need to
+                                       Read it back)
+2026-07-13 03:24:25  ASSISTANT:        Banked in the Blitz backlog — small, self-contained client fix. I
+                                       included the standard caveat (pin to bottom while streaming, but
+                                       don't yank the view if you've scrolled up to read history) so a blitz
+                                       agent can do it right without asking.
+2026-07-13 03:31:03  USER:             TODO: the highlight should take a lot longer to fade away
+2026-07-13 03:31:11  TOOL Edit:        /Users/steve/projects/explore/TASKS.md (233 chars -> 464 chars)
+2026-07-13 03:31:11  RESULT:           The file /Users/steve/projects/explore/TASKS.md has been updated
+                                       successfully. (file state is current in your context — no need to
+                                       Read it back)
+2026-07-13 03:31:14  ASSISTANT:        Banked in the Blitz backlog, right under the chat-anchor item — I
+                                       read this as the indicate-tool's scroll-and-blink highlight (from
+                                       yesterday's commit) fading before it registers; the task says
+                                       lengthen the fade-out and possibly hold it visible longer first.
+2026-07-13 03:33:46  USER:             TODO: copy in a good design language, teach UI to produce
+                                       better-looking artifacts
+2026-07-13 03:33:54  TOOL Edit:        /Users/steve/projects/explore/TASKS.md (100 chars -> 550 chars)
+2026-07-13 03:33:54  RESULT:           The file /Users/steve/projects/explore/TASKS.md has been updated
+                                       successfully. (file state is current in your context — no need to
+                                       Read it back)
+2026-07-13 03:34:00  TOOL Edit:        /Users/steve/projects/explore/TASKS.md (95 chars -> 130 chars)
+2026-07-13 03:34:00  RESULT:           The file /Users/steve/projects/explore/TASKS.md has been updated
+                                       successfully. (file state is current in your context — no need to
+                                       Read it back)
+2026-07-13 03:34:04  ASSISTANT:        Filed under Intelligence & generation guidance (phase 5), right below
+                                       the existing "improve default artifact quality" row since they're
+                                       siblings. I framed it as: adopt a proven design system (palette, type
+                                       scale, spacing) as the artifacts' default look and bake it into
+                                       generation guidance — noting the shadcn/typeset adoption for markdown
+                                       views as the borrow-don't-invent precedent, and that it's the
+                                       concrete first step for the "rendering polish / colors and styling"
+                                       entry in the Ideas bin.
+2026-07-13 03:35:28  USER:             TODO: voice agent should prefer to do edits locally, only calling out
+                                       to back agent when the task is harder
+2026-07-13 03:35:36  TOOL Edit:        /Users/steve/projects/explore/TASKS.md (182 chars -> 549 chars)
+2026-07-13 03:35:36  RESULT:           The file /Users/steve/projects/explore/TASKS.md has been updated
+                                       successfully. (file state is current in your context — no need to
+                                       Read it back)
+2026-07-13 03:35:41  ASSISTANT:        Filed in the Voice agent section: the agent should handle edits
+                                       itself through its own tools (the wiki service's `str_replace`,
+                                       state, artifact edits) and only delegate via `ask_artifact_agent`
+                                       when the task is genuinely harder — generation, multi-file work,
+                                       judgment calls. I pointed it at the guidance document (row 7) as the
+                                       place to tune the edit-vs-delegate boundary.
+2026-07-13 03:36:36  USER:             TODO: debug Claude invocation timing for any callback session. Return
+                                       the timing of all events as part of its tool return?
+                                       TODO: Teach the front-end agent to not announce what it's doing as
+                                       much, if possible
+2026-07-13 03:36:50  TOOL Edit:        /Users/steve/projects/explore/TASKS.md (420 chars -> 845 chars)
+2026-07-13 03:36:50  RESULT:           The file /Users/steve/projects/explore/TASKS.md has been updated
+                                       successfully. (file state is current in your context — no need to
+                                       Read it back)
+2026-07-13 03:36:57  TOOL Edit:        /Users/steve/projects/explore/TASKS.md (230 chars -> 597 chars)
+2026-07-13 03:36:57  RESULT:           The file /Users/steve/projects/explore/TASKS.md has been updated
+                                       successfully. (file state is current in your context — no need to
+                                       Read it back)
+2026-07-13 03:37:03  ASSISTANT:        Both filed:
+
+                                       1. **Callback-session timing debug** — went into the priority table
+                                       right under yesterday's "calls take WAY too long" row, since it's a
+                                       concrete tactic for that diagnosis: have delegated turns (like
+                                       voice's `ask_artifact_agent`) return the timing of all events —
+                                       spawn, first token, tool calls, UI-complete — as part of the tool
+                                       return itself. I also noted it overlaps the Optimizer's pending
+                                       per-sub-session sandbox perf logs.
+
+                                       2. **Less announcing** — Blitz backlog as a voice-agent.md prompt
+                                       tweak: drop the "let me…" narration for quick local actions, keep it
+                                       for long delegated work. I flagged that it pulls against the
+                                       phone-style progress-narration guidance already in that doc, so
+                                       whoever picks it up balances the two rather than gutting one.
+2026-07-13 03:48:02  USER:             TODO: let's just pack OUI into markdown files? And surface a decision
+                                       point about the file format
+2026-07-13 03:48:15  TOOL Edit:        /Users/steve/projects/explore/TASKS.md (159 chars -> 714 chars)
+2026-07-13 03:48:15  RESULT:           The file /Users/steve/projects/explore/TASKS.md has been updated
+                                       successfully. (file state is current in your context — no need to
+                                       Read it back)
+2026-07-13 03:48:21  ASSISTANT:        Filed in Artifacts & OpenUI as an explicit decision-point task, not
+                                       just an idea: should OUI be packed into markdown files rather than
+                                       living as a separate `.oui` format? The row says to surface it in
+                                       decisions.md as a revisit of D2's on-disk representation, sketches
+                                       the trade (one file type, md tooling applies — versus round-tripping
+                                       OUI out of markdown, the existing oui-embed bridge, and all the
+                                       current paths that assume `.oui`: the ui tool, save-as, home listing,
+                                       hot-reload), and flags urgency: decide before more surface area
+                                       accretes around `.oui`.
+2026-07-13 03:49:56  USER:             TODO: invalid artifact filename
+2026-07-13 03:50:07  TOOL Edit:        /Users/steve/projects/explore/TASKS.md (366 chars -> 788 chars)
+2026-07-13 03:50:07  RESULT:           The file /Users/steve/projects/explore/TASKS.md has been updated
+                                       successfully. (file state is current in your context — no need to
+                                       Read it back)
+2026-07-13 03:50:11  ASSISTANT:        Banked in the Blitz backlog. Since that was all the detail I had, I
+                                       recorded it as a needs-repro bug pointed at the save-as-`.oui`
+                                       filename path — most likely either the name
+                                       normalization/hostile-name rejection firing on a reasonable name, or
+                                       a generation-supplied default name failing validation — and added
+                                       that whatever the cause, the error should say *why* the name is
+                                       invalid. If you remember what name triggered it or where it appeared
+                                       (save bar vs. LLM tool call), tell me and I'll sharpen the row.
+2026-07-13 05:02:53  USER:             are all of the TODOs addressed?
+2026-07-13 05:03:01  ASSISTANT:        The file was just reshuffled by another agent — let me verify each of
+                                       your items survived before answering.
+2026-07-13 05:03:03  TOOL Bash:        grep -n "anchors to the bottom\|fade away\|design language\|prefer
+                                       local edits\|announce what it\|callback session\|WAY too long\|Pack
+                                       OUI into markdown\|Invalid artifact filename"
+                                       /Users/steve/projects/explore/TASKS.md
+                                       why: Check all session TODOs still present in TASKS.md
+2026-07-13 05:03:04  RESULT:           [5 lines, 2270 chars; omitted about 0 chars]
+                                       first lines:
+                                       24:| Calls to Claude take WAY too long in live use, unknown why
+                                       (Steve, 2026-07-12): diagnose where real interactive turns spend
+                                       their time — the eval harness reports 2.8–5.5s ask→UI on Opus 4.8, so
+                                       either live sessions diverge from the harness (warm-up miss, session
+                                       length/context growth, serial queueing, non-UI turns) or the tail
+                                       after UI-complete is what's felt; instrument a real session and
+                                       compare | J3 | — | todo |
+                                       25:| Debug Claude invocation timing for any callback session (e.g.
+                                       voice `ask_artifact_agent` delegation): consider returning the timing
+                                       of all events (spawn/resume, first token, each tool call,
+                                       UI-complete, done) as part of the tool return itself, so every
+                                       delegated turn carries its own timing breakdown — feeds the
+                                       WAY-too-long diagnosis above and overlaps the Optimizer's
+                                       per-sub-session sandbox perf logs | J3 | — | todo |
+                                       102:| Pack OUI into markdown files instead of a separate .oui format?
+                                       (Steve, 2026-07-12) — surface this as an explicit decision point on
+                                       the artifact file format in decisions.md (revisits D2's on-disk
+                                       representation): one file type in the wiki, artifacts
+                                       embeddable/viewable as markdown, existing md tooling applies;
+                                       against: parsing/round-tripping OUI out of md, the oui-embed
+                                       mechanism already bridges the two, and every current path (ui tool,
+                                       save-as-.oui, home listing, hot-reload) assumes .oui. Decide before
+                                       more surface area accretes | 4 | — | todo |
+                                       124:| Copy in a good design language and teach the ui generation to
+                                       produce better-looking artifacts: adopt an existing, proven design
+                                       system (palette, type scale, spacing, component styling) as the
+                                       artifacts' default look and bake it into generation guidance —
+                                       concrete first step for the "rendering polish / colors and styling"
+                                       idea below (relates to D4 hooks and per-artifact CSS; the
+                                       shadcn/typeset adoption for markdown views is the precedent — borrow,
+                                       don't invent) | 5 | — | todo |
+                                       168:| Voice agent should prefer local edits: do wiki/artifact edits
+                                       itself via its own tools (wiki service `str_replace`, state, artifact
+                                       edit), reaching for `ask_artifact_agent` delegation only when the
+                                       task is genuinely harder (generation, multi-file, judgment calls) —
+                                       tune the when-to-edit-vs-delegate guidance in voice-agent.md (row 7)
+                                       accordingly | J3 | — | todo |
+                                       last lines:
+                                       102:| Pack OUI into markdown files instead of a separate .oui format?
+                                       (Steve, 2026-07-12) — surface this as an explicit decision point on
+                                       the artifact file format in decisions.md (revisits D2's on-disk
+                                       representation): one file type in the wiki, artifacts
+                                       embeddable/viewable as markdown, existing md tooling applies;
+                                       against: parsing/round-tripping OUI out of md, the oui-embed
+                                       mechanism already bridges the two, and every current path (ui tool,
+                                       save-as-.oui, home listing, hot-reload) assumes .oui. Decide before
+                                       more surface area accretes | 4 | — | todo |
+                                       124:| Copy in a good design language and teach the ui generation to
+                                       produce better-looking artifacts: adopt an existing, proven design
+                                       system (palette, type scale, spacing, component styling) as the
+                                       artifacts' default look and bake it into generation guidance —
+                                       concrete first step for the "rendering polish / colors and styling"
+                                       idea below (relates to D4 hooks and per-artifact CSS; the
+                                       shadcn/typeset adoption for markdown views is the precedent — borrow,
+                                       don't invent) | 5 | — | todo |
+                                       168:| Voice agent should prefer local edits: do wiki/artifact edits
+                                       itself via its own tools (wiki service `str_replace`, state, artifact
+                                       edit), reaching for `ask_artifact_agent` delegation only when the
+                                       task is genuinely harder (generation, multi-file, judgment calls) —
+                                       tune the when-to-edit-vs-delegate guidance in voice-agent.md (row 7)
+                                       accordingly | J3 | — | todo |
+2026-07-13 05:03:08  ASSISTANT:        Four blitz items didn't match — checking whether the reshuffle moved
+                                       or renamed them.
+2026-07-13 05:03:10  TOOL Bash:        sed -n '45,80p' /Users/steve/projects/explore/TASKS.md; echo ---;
+                                       grep -n -i "anchor\|highlight\|announce\|filename\|scroll"
+                                       /Users/steve/projects/explore/TASKS.md | head -30
+                                       why: Inspect blitz backlog section and search for moved items
+2026-07-13 05:03:10  RESULT:           [41 lines, 8348 chars; omitted about 6472 chars]
+                                       first lines:
+                                       ## Blitz backlog (small fixes banked for a 5+ agent blitz)
+                                       Little things deliberately *not* fixed on sight — banked here until
+                                       there are enough for a parallel multi-agent blitz. A good blitz item
+                                       is: small (≤ ~30 min), independent (no shared files with other blitz
+                                       items where possible), and scoped so an agent can finish it without
+                                       questions. When you spot one mid-task, add it here instead of fixing
+                                       it.
+                                       | Task | Area | Notes |
+                                       |---|---|---|
+                                       | Screenshot paths ignore an expanded artifact: chat screenshot
+                                       button, voice take_screenshot, and the state tool all capture
+                                       scrollerRef/docRef — the hidden document — while an artifact is
+                                       expanded over it; capture should target the expanded surface when
+                                       present | client | found 2026-07-12 adding the expanded-surface pen
+                                       layer |
+                                       last lines:
+                                       51:| Screenshot paths ignore an expanded artifact: chat screenshot
+                                       button, voice take_screenshot, and the state tool all capture
+                                       scrollerRef/docRef — the hidden document — while an artifact is
+                                       expanded over it; capture should target the expanded surface when
+                                       present | client | found 2026-07-12 adding the expanded-surface pen
+                                       layer |
+                                       148:| Markdown viewer upgrades: rehype-sanitize, rehype-slug,
+                                       highlight.js, mermaid diagrams | 5 | Worker 2 | done |
+                                       165:| 6. Delegation: `ask_artifact_agent` hands a prompt to the
+                                       Claude session via ChatService and narrates progress; takes a
+                                       **mode** parameter — `fast` or `smart` — that selects the Claude
+                                       model for the delegated turn (needs per-call model selection in the
+                                       bridge; extends the model-selection task, and the perf eval's model
+                                       matrix calibrates which model each mode gets — early data points at
+                                       Haiku-class for fast, Opus-class for smart). Define sequencing vs.
+                                       user-typed chat (CLI turns are serial — a queued voice request must
+                                       not silently swallow a typed one) and how completion is announced |
+                                       J3/J2 | Worker 2 | done |
+2026-07-13 05:03:17  TOOL Bash:        ls -t /Users/steve/projects/explore/docs/worklogs/ 2>/dev/null |
+                                       head; grep -rn -i "anchor\|highlight
+                                       fade\|blink\|announce\|invalid.*filename\|blitz"
+                                       /Users/steve/projects/explore/docs/worklogs/worklog-2026-07-12.md
+                                       2>/dev/null | head -20
+                                       why: Check today's worklog for blitz completions
+2026-07-13 05:03:17  RESULT:           [16 lines, 7879 chars; omitted about 4144 chars]
+                                       first lines:
+                                       worklog-2026-07-12.md
+                                       worklog-2026-07-11.md
+                                       worklog-2026-07-07.md
+                                       /Users/steve/projects/explore/docs/worklogs/worklog-2026-07-12.md:25:
+                                       ## 2026-07-12 21:45 — Blitz round five: the bank cleared, including
+                                       the two rows that appeared mid-round (the Cleaner)
+                                       /Users/steve/projects/explore/docs/worklogs/worklog-2026-07-12.md:49:
+                                       Full read of server/src (16 files) and client/src (~30 app files)
+                                       against the code-clarity / comment-clarity skills. Verdict: both
+                                       sides already follow the standard closely; findings were drift, not
+                                       style. Fixed on sight (per Steve, overriding the bank-don't-fix
+                                       default): three comment/code drifts from the wiki-MCP expansion —
+                                       claude.ts described the wiki server as "file-listing" (now
+                                       list/read/create, two spots) and the wiki-service header still
+                                       claimed "non-MCP consumers only" / "voice bridge forwards errors"
+                                       (now three consumers, all forwarding verbatim) — plus an intent
+                                       comment on ui-mcp's line-count acknowledgement (flavor text, not
+                                       parsing) and the client ChatStatusEvent union missing
+                                       "warming"/"ready" (server broadcasts them, statusText renders them,
+                                       the "mirror of server protocol" claim now holds). Edits rode into
+                                       concurrent commits (8632bab, 6b82ae1). Banked two nits in the blitz
+                                       backlog: createDoc polish (surface-mismatched teaching errors,
+                                       empty-content boundary in the wrong layer, existsSync-then-write race
+                                       → `wx` flag) and oui-embed's same-origin check passing
+                                       protocol-relative `//host` URLs. Deliberately untouched: the
+                                       expanded-artifact cluster (in flight at review time) and the
+                                       shadcn-registry ui/ primitives (coherent vendored style).
+                                       last lines:
+                                       /Users/steve/projects/explore/docs/worklogs/worklog-2026-07-12.md:104
+                                       :## 2026-07-12 00:14 — Agents can point: `indicate` tool scrolls to
+                                       and blinks on-screen content (main session)
+                                       /Users/steve/projects/explore/docs/worklogs/worklog-2026-07-12.md:106
+                                       :Both agents can now physically point at content while talking about
+                                       it. A shared client capability (lib/indicate.ts) resolves a target,
+                                       scrolls the main panel to it if it isn't visible (smooth, window
+                                       stays pinned), and pulses an outline+wash blink (3×, ~1.5s). Three
+                                       target kinds: markdown source lines (via the existing
+                                       `data-source-line` stamps, with nearest-block fallback for
+                                       mid-paragraph lines), OpenUI statement names (new `data-statement`
+                                       stamps on every component root — no schema change, so no
+                                       ui-library.ts sync needed), and a verbatim text snippet. Exposure:
+                                       the voice model gets a dedicated `indicate` front-end tool; the
+                                       Claude session drives the same code by writing the `app/indicate`
+                                       store key through set_state (documented in the tool description) —
+                                       the D3 store as API, no new protocol. Verified live: all three target
+                                       kinds, fallback, and error listings (a missing statement name returns
+                                       the on-screen names). Also committed alongside: the earlier
+                                       screenshot-capture switch from PNG to JPEG q0.75.
+                                       /Users/steve/projects/explore/docs/worklogs/worklog-2026-07-12.md:110
+                                       :Work stopped for the day at 00:07; the evening block (~22:30–00:07)
+                                       closed strong: the realtime voice agent works end to end from a real
+                                       microphone (root cause was Chrome's stale audio service — the 23:35
+                                       setback note is superseded), D7 shipped wiki preload + the Opus 4.8
+                                       default (grounded ask→UI 7.7s→4.4s), the blitz backlog is empty, and
+                                       both agents carry the Explorer identity. Resume step: exercise the
+                                       still-unproven voice paths live (wiki edit, screenshot,
+                                       `ask_artifact_agent` delegation with the phone-style narration), then
+                                       the declared Phase-4 focus; the voice latency/cost eval (voice row 9,
+                                       The Optimizer) is ready to run alongside. Time accounting for the
+                                       block is in [six-hour-review.md](../reports/six-hour-review.md)
+                                       (chargeable ≈6h20 of 8h, ~1h40 remaining).
+2026-07-13 05:03:22  TOOL Bash:        sed -n 25,68p
+                                       /Users/steve/projects/explore/docs/worklogs/worklog-2026-07-12.md
+                                       why: Read blitz rounds four and five entries
+2026-07-13 05:03:22  RESULT:           [44 lines, 9573 chars; omitted about 7620 chars]
+                                       first lines:
+                                       ## 2026-07-12 21:45 — Blitz round five: the bank cleared, including
+                                       the two rows that appeared mid-round (the Cleaner)
+                                       Steve said "fix the rest of the bank"; seven items closed across five
+                                       agents plus one inline fix:
+                                       - **oui-embed origin check** (inline) — `src.includes("://")` missed
+                                       protocol-relative `//host/path`; sources now resolve via `new
+                                       URL(src, origin + "/docs/")` and must land on our origin. All cases
+                                       verified (bare, subdir, absolute, protocol-relative, full URL).
+                                       - **Wiki rename/move** — `renameDoc` in wiki-service (same-extension
+                                       required, no-overwrite atomically via link+unlink, target dirs
+                                       created), exposed as voice `rename_doc` + wiki-MCP `rename_file`,
+                                       CLI-allowlisted; watcher verified to fire wiki:changed for both
+                                       paths. 90/90 tests.
+                                       - **createDoc polish** — empty content rejected once in the service
+                                       (schemas mirror), exists-check race replaced by `writeFile wx`,
+                                       errors surface-neutral.
+                                       last lines:
+                                       - **"Invalid artifact filename" diagnosed** — likely culprit: the
+                                       model's suggested title (e.g. with a colon) prefilled verbatim and
+                                       failing the ASCII rule with a generic error. Errors now name the
+                                       offending character/rule; generated defaults are sanitized to
+                                       saveable before prefill; charset deliberately kept in lockstep with
+                                       wikiDocPath (they must loosen together).
+                                       - **Voice screenshot fits the data channel** — capture
+                                       downscaled/re-encoded (1024px edge, q0.6, shrink passes against a
+                                       200K-char budget): worst-case 1.8MB → 95KB, measured.
+                                       Delegation-progress strip ("Claude is working — <last event>", from
+                                       the already-broadcast turn events) rides with Worker 2's in-flight
+                                       chat-bar refactor. The parked screenshot-per-voice-turn idea is now
+                                       unblocked and re-banked.
+                                       **Deferred:** vault meta relocation (wiki-mcp/wiki-service were in
+                                       flight all round). The backlog keeps that plus the three rows other
+                                       agents banked mid-blitz (wiki rename/move, oui-embed
+                                       protocol-relative origin check, createDoc polish).
+2026-07-13 05:03:41  TOOL Edit:        /Users/steve/projects/explore/TASKS.md (554 chars -> 442 chars)
+2026-07-13 05:03:41  RESULT:           The file /Users/steve/projects/explore/TASKS.md has been updated
+                                       successfully. (file state is current in your context — no need to
+                                       Read it back)
+2026-07-13 05:03:48  TOOL Bash:        grep -n -i "fenced\|inline block\|maximize"
+                                       /Users/steve/projects/explore/TASKS.md
+                                       why: Confirm the D8 renderer follow-up rows exist
+2026-07-13 05:03:48  RESULT:           100:| **D8 renderer: inline artifacts.** Render markdown fenced code
+                                       blocks with language `oui` as embedded artifacts (same preview
+                                       treatment as `<oui-embed>`, hot-reload included) — the carrier for
+                                       D8's inline-in-markdown artifact model; until this lands the agents'
+                                       new construction instructions degrade to a visible code block | 4 | —
+                                       | todo |
+                                       101:| **D8 maximize for inline artifacts.** The open/maximize path
+                                       (`app/expanded-artifact`) accepts an inline block (spec text or
+                                       doc+block reference), not only a `.oui` URL, so inline artifacts get
+                                       the same full-screen work mode as embeds | 4 | — | todo |
+                                       102:| Pack OUI into markdown files instead of a separate .oui format?
+                                       (Steve, 2026-07-12) — decided same day as **D8** (decisions.md, The
+                                       Optimizer): canonical artifact is an OpenUI block inline in a
+                                       markdown doc, carried as a fenced ```oui code block; separate .oui
+                                       files demoted to reuse/legacy. Remaining implementation lives in the
+                                       two banked renderer rows (fenced-oui rendering; maximize accepting
+                                       inline blocks) | 4 | The Optimizer | done |
+2026-07-13 05:03:57  TOOL Edit:        /Users/steve/projects/explore/TASKS.md (148 chars -> 102 chars)
+2026-07-13 05:03:57  RESULT:           The file /Users/steve/projects/explore/TASKS.md has been updated
+                                       successfully. (file state is current in your context — no need to
+                                       Read it back)
+2026-07-13 05:04:07  ASSISTANT:        All accounted for. Full status of everything you filed with me this
+                                       session:
+
+                                       **Fixed — cleared in tonight's blitz rounds four and five:**
+                                       - **Chat anchors to the bottom** — root cause was the scroller's
+                                       wheel escape hatch flipping to free-scroll at the bottom; now re-pins
+                                       on downward wheel, never yanks a scrolled-up reader. Live-verified.
+                                       - **Highlight fades too fast** — the indicate blink went from 1.5s of
+                                       pulses to one 5s pass: double-pulse onset, ~1.8s hold, 2s fade.
+                                       - **Voice agent announces too much** — voice-agent.md now says quick
+                                       local actions run unannounced; phone-style narration stays for
+                                       delegated work only.
+                                       - **Invalid artifact filename** — diagnosed (model-suggested titles
+                                       with e.g. colons prefilled verbatim and failed the ASCII rule with a
+                                       generic error); errors now name the offending character, and
+                                       generated defaults are sanitized before prefill.
+
+                                       **Decided — overtaken by D8:** your "pack OUI into markdown?"
+                                       question was settled with the Optimizer this evening: the canonical
+                                       artifact is a fenced ```` ```oui ```` block inline in a markdown doc,
+                                       with `.oui` files demoted to reuse/legacy. I marked my row done
+                                       pointing at D8; the two implementation rows (fenced-oui rendering,
+                                       maximize accepting inline blocks) sit right above it as todos.
+
+                                       **Still open, tracked as todo rows:**
+                                       - Calls to Claude take WAY too long (priority table, J3) — plus its
+                                       companion, timing events returned in every callback/delegation tool
+                                       result.
+                                       - Voice agent should prefer local edits over delegation (Voice agent
+                                       section).
+                                       - Copy in a good design language for better-looking artifacts
+                                       (Intelligence section, phase 5).
+
+                                       Nothing you told me got lost in the reshuffles.
